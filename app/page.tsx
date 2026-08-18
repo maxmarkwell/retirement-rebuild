@@ -5,7 +5,7 @@ import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
 import ContributionForm from "@/components/contribution-form";
-import { getMarketQuote } from "@/lib/market-data/twelve-data";
+import { getMarketQuotes } from "@/lib/market-data/twelve-data";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -65,38 +65,82 @@ export default async function Home() {
     );
   }
 
-  // ---------------------------------------------------------
-  // Load market prices for currently held real tickers
-  // ---------------------------------------------------------
+// ---------------------------------------------------------
+// Determine which real tickers are currently held
+// ---------------------------------------------------------
 
-  const heldTickers = Array.from(
-    new Set(
-      (transactions ?? [])
-        .filter(
-          (transaction) =>
-            transaction.ticker &&
-            (transaction.transaction_type === "buy" ||
-              transaction.transaction_type === "sell")
-        )
-        .map((transaction) => transaction.ticker as string)
-    )
-  );
+const shareBalances = new Map<string, number>();
 
-  const marketPrices: Record<string, number> = {};
-
-  for (const ticker of heldTickers) {
-    if (ticker === "TEST" || ticker === "TEST2") {
-      continue;
-    }
-
-    try {
-      const quote = await getMarketQuote(ticker);
-      marketPrices[ticker] = quote.price;
-    } catch (error) {
-      console.error(`Unable to load quote for ${ticker}:`, error);
-    }
+for (const transaction of transactions ?? []) {
+  if (
+    !transaction.ticker ||
+    transaction.quantity == null
+  ) {
+    continue;
   }
 
+  if (
+    transaction.transaction_type !== "buy" &&
+    transaction.transaction_type !== "sell"
+  ) {
+    continue;
+  }
+
+  const ticker =
+    transaction.ticker.toUpperCase();
+
+  const quantity =
+    Number(transaction.quantity);
+
+  const current =
+    shareBalances.get(ticker) ?? 0;
+
+  if (transaction.transaction_type === "buy") {
+    shareBalances.set(
+      ticker,
+      current + quantity
+    );
+  }
+
+  if (transaction.transaction_type === "sell") {
+    shareBalances.set(
+      ticker,
+      current - quantity
+    );
+  }
+}
+
+const heldTickers = Array.from(
+  shareBalances.entries()
+)
+  .filter(
+    ([ticker, quantity]) =>
+      quantity > 0.00000001 &&
+      ticker !== "TEST" &&
+      ticker !== "TEST2"
+  )
+  .map(([ticker]) => ticker);
+
+// ---------------------------------------------------------
+// Load current market quotes in one batch
+// ---------------------------------------------------------
+
+const marketPrices: Record<string, number> = {};
+
+try {
+  const quotes =
+    await getMarketQuotes(heldTickers);
+
+  for (const [ticker, quote] of Object.entries(quotes)) {
+    marketPrices[ticker] =
+      quote.price;
+  }
+} catch (error) {
+  console.error(
+    "Unable to load market quotes:",
+    error
+  );
+}
   // ---------------------------------------------------------
   // Dashboard
   // ---------------------------------------------------------
@@ -354,7 +398,14 @@ export default async function Home() {
                             </div>
 
                             <div className="flex justify-between text-xs text-gray-500">
-                              <span>Market Price</span>
+                              <span>
+  Market Price
+  {holding.marketPrice != null && (
+    <span className="ml-1 text-green-700">
+      • Live
+    </span>
+  )}
+</span>
 
                               <span>
                                 {holding.marketPrice != null
