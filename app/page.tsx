@@ -2,13 +2,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TransactionHistory from "@/components/transaction-history";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
-import {
-  addBuyTransaction,
-  addContribution,
-} from "./actions";
 import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
 import ContributionForm from "@/components/contribution-form";
+import { getMarketQuote } from "@/lib/market-data/twelve-data";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -69,6 +66,38 @@ export default async function Home() {
   }
 
   // ---------------------------------------------------------
+  // Load market prices for currently held real tickers
+  // ---------------------------------------------------------
+
+  const heldTickers = Array.from(
+    new Set(
+      (transactions ?? [])
+        .filter(
+          (transaction) =>
+            transaction.ticker &&
+            (transaction.transaction_type === "buy" ||
+              transaction.transaction_type === "sell")
+        )
+        .map((transaction) => transaction.ticker as string)
+    )
+  );
+
+  const marketPrices: Record<string, number> = {};
+
+  for (const ticker of heldTickers) {
+    if (ticker === "TEST" || ticker === "TEST2") {
+      continue;
+    }
+
+    try {
+      const quote = await getMarketQuote(ticker);
+      marketPrices[ticker] = quote.price;
+    } catch (error) {
+      console.error(`Unable to load quote for ${ticker}:`, error);
+    }
+  }
+
+  // ---------------------------------------------------------
   // Dashboard
   // ---------------------------------------------------------
 
@@ -96,7 +125,8 @@ export default async function Home() {
             const accounting = calculatePortfolioAccounting(
               portfolio,
               contributions ?? [],
-              transactions ?? []
+              transactions ?? [],
+              marketPrices
             );
 
             const activeHoldings = accounting.holdings;
@@ -182,6 +212,48 @@ export default async function Home() {
                     <span className="font-medium text-gray-900">
                       $
                       {accounting.holdingsAtCost.toLocaleString(
+                        "en-US",
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      Market Value
+                    </span>
+
+                    <span className="font-medium text-gray-900">
+                      $
+                      {accounting.marketValue.toLocaleString(
+                        "en-US",
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      Unrealized Gain/Loss
+                    </span>
+
+                    <span
+                      className={`font-medium ${
+                        accounting.unrealizedGainLoss > 0
+                          ? "text-green-700"
+                          : accounting.unrealizedGainLoss < 0
+                            ? "text-red-700"
+                            : "text-gray-900"
+                      }`}
+                    >
+                      $
+                      {accounting.unrealizedGainLoss.toLocaleString(
                         "en-US",
                         {
                           minimumFractionDigits: 2,
@@ -282,6 +354,60 @@ export default async function Home() {
                             </div>
 
                             <div className="flex justify-between text-xs text-gray-500">
+                              <span>Market Price</span>
+
+                              <span>
+                                {holding.marketPrice != null
+                                  ? `$${holding.marketPrice.toLocaleString(
+                                      "en-US",
+                                      {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      }
+                                    )}`
+                                  : "Cost basis fallback"}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Market Value</span>
+
+                              <span>
+                                $
+                                {holding.marketValue.toLocaleString(
+                                  "en-US",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Unrealized Gain/Loss</span>
+
+                              <span
+                                className={
+                                  holding.unrealizedGainLoss > 0
+                                    ? "text-green-700"
+                                    : holding.unrealizedGainLoss < 0
+                                      ? "text-red-700"
+                                      : ""
+                                }
+                              >
+                                $
+                                {holding.unrealizedGainLoss.toLocaleString(
+                                  "en-US",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between text-xs text-gray-500">
                               <span>Remaining Cost</span>
 
                               <span>
@@ -312,13 +438,13 @@ export default async function Home() {
           })}
         </div>
 
-       <ContributionForm portfolios={portfolios ?? []} />
+        <ContributionForm portfolios={portfolios ?? []} />
 
-       <BuyForm portfolios={portfolios ?? []} /> 
-       
-       <SellForm portfolios={portfolios ?? []} />
-       
- <TransactionHistory
+        <BuyForm portfolios={portfolios ?? []} />
+
+        <SellForm portfolios={portfolios ?? []} />
+
+        <TransactionHistory
           transactions={transactions ?? []}
           portfolios={portfolios ?? []}
         />

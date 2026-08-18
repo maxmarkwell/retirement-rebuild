@@ -17,7 +17,9 @@ export type TransactionRecord = {
   fees: number | string | null;
 };
 
-export type DerivedHolding = {
+export type MarketPriceMap = Record<string, number>;
+
+type CostBasisHolding = {
   ticker: string;
   quantity: number;
   totalCost: number;
@@ -25,11 +27,19 @@ export type DerivedHolding = {
   realizedGainLoss: number;
 };
 
+export type DerivedHolding = CostBasisHolding & {
+  marketPrice: number | null;
+  marketValue: number;
+  unrealizedGainLoss: number;
+};
+
 export type PortfolioAccounting = {
   contributionsTotal: number;
   cash: number;
   holdingsAtCost: number;
+  marketValue: number;
   realizedGainLoss: number;
+  unrealizedGainLoss: number;
   investmentGrowth: number;
   permanentCapital: number;
   holdings: DerivedHolding[];
@@ -38,7 +48,8 @@ export type PortfolioAccounting = {
 export function calculatePortfolioAccounting(
   portfolio: PortfolioRecord,
   contributions: ContributionRecord[],
-  transactions: TransactionRecord[]
+  transactions: TransactionRecord[],
+  marketPrices: MarketPriceMap = {}
 ): PortfolioAccounting {
   const contributionsTotal = contributions
     .filter(
@@ -54,7 +65,7 @@ export function calculatePortfolioAccounting(
   let totalBuys = 0;
   let totalSellProceeds = 0;
 
-  const holdingsMap = new Map<string, DerivedHolding>();
+  const holdingsMap = new Map<string, CostBasisHolding>();
 
   const portfolioTransactions = transactions.filter(
     (transaction) =>
@@ -171,14 +182,40 @@ export function calculatePortfolioAccounting(
 
   const holdings = Array.from(
     holdingsMap.values()
-  ).filter(
-    (holding) =>
-      holding.quantity > 0.00000001
-  );
+  )
+    .filter(
+      (holding) =>
+        holding.quantity > 0.00000001
+    )
+    .map((holding) => {
+      const marketPrice =
+        marketPrices[holding.ticker] ?? null;
+
+      const marketValue =
+        marketPrice != null
+          ? holding.quantity * marketPrice
+          : holding.totalCost;
+
+      const unrealizedGainLoss =
+        marketValue - holding.totalCost;
+
+      return {
+        ...holding,
+        marketPrice,
+        marketValue,
+        unrealizedGainLoss,
+      };
+    });
 
   const holdingsAtCost = holdings.reduce(
     (total, holding) =>
       total + holding.totalCost,
+    0
+  );
+
+  const marketValue = holdings.reduce(
+    (total, holding) =>
+      total + holding.marketValue,
     0
   );
 
@@ -187,6 +224,12 @@ export function calculatePortfolioAccounting(
   ).reduce(
     (total, holding) =>
       total + holding.realizedGainLoss,
+    0
+  );
+
+  const unrealizedGainLoss = holdings.reduce(
+    (total, holding) =>
+      total + holding.unrealizedGainLoss,
     0
   );
 
@@ -200,7 +243,7 @@ export function calculatePortfolioAccounting(
     totalSellProceeds;
 
   const permanentCapital =
-    cash + holdingsAtCost;
+    cash + marketValue;
 
   const investmentGrowth =
     permanentCapital -
@@ -211,7 +254,9 @@ export function calculatePortfolioAccounting(
     contributionsTotal,
     cash,
     holdingsAtCost,
+    marketValue,
     realizedGainLoss,
+    unrealizedGainLoss,
     investmentGrowth,
     permanentCapital,
     holdings,
