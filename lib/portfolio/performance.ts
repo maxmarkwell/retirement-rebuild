@@ -17,6 +17,14 @@ export type PerformanceSeriesPoint = {
   investmentGrowth: number;
 };
 
+export type PortfolioPerformanceSummary = {
+  startingValue: number;
+  currentValue: number;
+  returnPct: number;
+  dollarGain: number;
+  snapshotCount: number;
+};
+
 export function buildPerformanceSeries(
   snapshots: PortfolioSnapshotRecord[]
 ): PerformanceSeriesPoint[] {
@@ -33,4 +41,41 @@ export function buildPerformanceSeries(
         new Date(a.date).getTime() -
         new Date(b.date).getTime()
     );
+}
+
+export function calculatePerformanceSummary(
+  series: PerformanceSeriesPoint[],
+  startingCapital: number
+): PortfolioPerformanceSummary {
+  if (series.length === 0) {
+    return {
+      startingValue: startingCapital,
+      currentValue: startingCapital,
+      returnPct: 0,
+      dollarGain: 0,
+      snapshotCount: 0,
+    };
+  }
+
+  const latest =
+    series[series.length - 1];
+
+  const currentValue =
+    latest.totalValue;
+
+  const dollarGain =
+    currentValue - startingCapital;
+
+  const returnPct =
+    startingCapital > 0
+      ? (dollarGain / startingCapital) * 100
+      : 0;
+
+  return {
+    startingValue: startingCapital,
+    currentValue,
+    returnPct,
+    dollarGain,
+    snapshotCount: series.length,
+  };
 }
