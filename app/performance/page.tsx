@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import PerformanceSummary from "@/components/performance-summary";
+import PerformanceChart from "@/components/performance-chart";
+import ExperimentScoreboard from "@/components/experiment-scoreboard";
 import {
+  buildExperimentComparisonSeries,
   buildPerformanceSeries,
   calculatePerformanceSummary,
   type PortfolioSnapshotRecord,
 } from "@/lib/portfolio/performance";
-import PerformanceSummary from "@/components/performance-summary";
-import PerformanceChart from "@/components/performance-chart";
-import ExperimentScoreboard from "@/components/experiment-scoreboard";
+
+import ExperimentComparisonChart from "@/components/experiment-comparison-chart";
 
 type PerformancePageProps = {
   searchParams: Promise<{
@@ -173,7 +176,11 @@ export default async function PerformancePage({
               benchmarkSummary.returnPct,
       })
     );
-
+const comparisonSeries =
+  buildExperimentComparisonSeries(
+    (allSnapshots ?? []) as PortfolioSnapshotRecord[],
+    experimentPortfolios
+  );
   // ---------------------------------------------------------
   // Page
   // ---------------------------------------------------------
@@ -240,7 +247,23 @@ export default async function PerformancePage({
         <ExperimentScoreboard
           rows={scoreboardRows}
         />
+<div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+  <div>
+    <h2 className="text-lg font-semibold text-gray-900">
+      AI vs VOO
+    </h2>
 
+    <p className="mt-1 text-sm text-gray-500">
+      Percentage return from the common $10,000 Phase 1 starting point.
+    </p>
+  </div>
+
+  <div className="mt-6">
+    <ExperimentComparisonChart
+      data={comparisonSeries}
+    />
+  </div>
+</div>
         {/* Selected Portfolio Summary */}
 
         <PerformanceSummary
