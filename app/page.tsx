@@ -6,6 +6,7 @@ import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
 import ContributionForm from "@/components/contribution-form";
 import { getMarketQuotes } from "@/lib/market-data/twelve-data";
+import SnapshotButton from "@/components/snapshot-button";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -488,6 +489,8 @@ try {
             );
           })}
         </div>
+      
+       <SnapshotButton />    
 
         <ContributionForm portfolios={portfolios ?? []} />
 
@@ -498,6 +501,7 @@ try {
         <TransactionHistory
           transactions={transactions ?? []}
           portfolios={portfolios ?? []}
+  
         />
       </div>
     </main>
