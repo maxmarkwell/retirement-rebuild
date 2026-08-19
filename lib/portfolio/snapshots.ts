@@ -2,24 +2,29 @@ import { createClient } from "@/lib/supabase/server";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { getMarketQuotes } from "@/lib/market-data/twelve-data";
 
-export async function captureDailySnapshots() {
-  const supabase = await createClient();
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type SnapshotResult = {
+  snapshotDate: string;
+  count: number;
+};
 
-  if (!user) {
-    throw new Error("You must be signed in.");
-  }
+// ---------------------------------------------------------
+// Core snapshot engine
+// ---------------------------------------------------------
 
+export async function captureDailySnapshotsForUser(
+  userId: string,
+  supabase: SupabaseClient
+): Promise<SnapshotResult> {
   // ---------------------------------------------------------
-  // Load portfolios
+  // Load this user's portfolios
   // ---------------------------------------------------------
 
   const { data: portfolios, error: portfoliosError } = await supabase
     .from("portfolios")
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
   if (portfoliosError) {
@@ -28,13 +33,19 @@ export async function captureDailySnapshots() {
     );
   }
 
+  if (!portfolios || portfolios.length === 0) {
+    throw new Error("No portfolios were found for the snapshot user.");
+  }
+
   // ---------------------------------------------------------
-  // Load contributions
+  // Load this user's contributions
   // ---------------------------------------------------------
 
-  const { data: contributions, error: contributionsError } = await supabase
-    .from("contributions")
-    .select("portfolio_id, amount");
+  const { data: contributions, error: contributionsError } =
+    await supabase
+      .from("contributions")
+      .select("portfolio_id, amount")
+      .eq("user_id", userId);
 
   if (contributionsError) {
     throw new Error(
@@ -43,16 +54,18 @@ export async function captureDailySnapshots() {
   }
 
   // ---------------------------------------------------------
-  // Load transactions
+  // Load this user's transactions
   // ---------------------------------------------------------
 
-  const { data: transactions, error: transactionsError } = await supabase
-    .from("transactions")
-    .select(
-      "portfolio_id, transaction_type, ticker, quantity, gross_amount, fees, transaction_date, created_at"
-    )
-    .order("transaction_date", { ascending: true })
-    .order("created_at", { ascending: true });
+  const { data: transactions, error: transactionsError } =
+    await supabase
+      .from("transactions")
+      .select(
+        "portfolio_id, transaction_type, ticker, quantity, gross_amount, fees, transaction_date, created_at"
+      )
+      .eq("user_id", userId)
+      .order("transaction_date", { ascending: true })
+      .order("created_at", { ascending: true });
 
   if (transactionsError) {
     throw new Error(
@@ -81,11 +94,11 @@ export async function captureDailySnapshots() {
       continue;
     }
 
-    const ticker =
-      transaction.ticker.toUpperCase();
+    const ticker = transaction.ticker
+      .trim()
+      .toUpperCase();
 
-    const quantity =
-      Number(transaction.quantity);
+    const quantity = Number(transaction.quantity);
 
     const current =
       shareBalances.get(ticker) ?? 0;
@@ -122,19 +135,26 @@ export async function captureDailySnapshots() {
 
   const marketPrices: Record<string, number> = {};
 
-  try {
+  if (heldTickers.length > 0) {
     const quotes =
       await getMarketQuotes(heldTickers);
 
-    for (const [ticker, quote] of Object.entries(quotes)) {
-      marketPrices[ticker] =
-        quote.price;
+    const missingTickers =
+      heldTickers.filter(
+        (ticker) => !quotes[ticker]
+      );
+
+    if (missingTickers.length > 0) {
+      throw new Error(
+        `Snapshot cancelled because market quotes were unavailable for: ${missingTickers.join(
+          ", "
+        )}.`
+      );
     }
-  } catch (error) {
-    console.error(
-      "Unable to load market quotes for snapshots:",
-      error
-    );
+
+    for (const [ticker, quote] of Object.entries(quotes)) {
+      marketPrices[ticker] = quote.price;
+    }
   }
 
   // ---------------------------------------------------------
@@ -153,7 +173,7 @@ export async function captureDailySnapshots() {
   // Build snapshot rows
   // ---------------------------------------------------------
 
-  const rows = (portfolios ?? []).map((portfolio) => {
+  const rows = portfolios.map((portfolio) => {
     const accounting =
       calculatePortfolioAccounting(
         portfolio,
@@ -163,7 +183,7 @@ export async function captureDailySnapshots() {
       );
 
     return {
-      user_id: user.id,
+      user_id: userId,
       portfolio_id: portfolio.id,
       snapshot_date: snapshotDate,
 
@@ -185,11 +205,12 @@ export async function captureDailySnapshots() {
   // Upsert one snapshot per portfolio per day
   // ---------------------------------------------------------
 
-  const { error: snapshotError } = await supabase
-    .from("portfolio_snapshots")
-    .upsert(rows, {
-      onConflict: "portfolio_id,snapshot_date",
-    });
+  const { error: snapshotError } =
+    await supabase
+      .from("portfolio_snapshots")
+      .upsert(rows, {
+        onConflict: "portfolio_id,snapshot_date",
+      });
 
   if (snapshotError) {
     throw new Error(
@@ -201,4 +222,25 @@ export async function captureDailySnapshots() {
     snapshotDate,
     count: rows.length,
   };
+}
+
+// ---------------------------------------------------------
+// Manual authenticated snapshot wrapper
+// ---------------------------------------------------------
+
+export async function captureDailySnapshots(): Promise<SnapshotResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("You must be signed in.");
+  }
+
+  return captureDailySnapshotsForUser(
+    user.id,
+    supabase
+  );
 }
