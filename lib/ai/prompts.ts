@@ -2,6 +2,7 @@ import type {
   CommitteePortfolioMode,
   SpecialistAnalysis,
 } from "./committee-types";
+import type { CompanyFundamentals } from "@/lib/company-data/types";
 
 export const COMMITTEE_PROMPT_VERSION =
   "phase-1-v1";
@@ -59,6 +60,7 @@ export function buildSpecialistPrompt(input: {
   currentHoldingQuantity: number;
   currentHoldingMarketValue: number;
   currentHoldingCostBasis: number;
+  fundamentals: CompanyFundamentals | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -99,6 +101,217 @@ $${input.currentHoldingMarketValue.toFixed(2)}
 Current holding cost basis:
 $${input.currentHoldingCostBasis.toFixed(2)}
 
+COMPANY FUNDAMENTALS
+
+Company:
+${input.fundamentals?.companyName ?? "Unavailable"}
+
+Fiscal Year:
+${input.fundamentals?.fiscalYear ?? "Unavailable"}
+
+Revenue:
+${
+  input.fundamentals?.revenue != null
+    ? `$${input.fundamentals.revenue.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Enterprise Value:
+${
+  input.fundamentals?.enterpriseValue != null
+    ? `$${input.fundamentals.enterpriseValue.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+EV / Sales:
+${
+  input.fundamentals?.evToSales != null
+    ? `${input.fundamentals.evToSales.toFixed(2)}x`
+    : "Unavailable"
+}
+
+EV / Operating Cash Flow:
+${
+  input.fundamentals?.evToOperatingCashFlow != null
+    ? `${input.fundamentals.evToOperatingCashFlow.toFixed(2)}x`
+    : "Unavailable"
+}
+
+EV / Free Cash Flow:
+${
+  input.fundamentals?.evToFreeCashFlow != null
+    ? `${input.fundamentals.evToFreeCashFlow.toFixed(2)}x`
+    : "Unavailable"
+}
+
+EV / EBITDA:
+${
+  input.fundamentals?.evToEbitda != null
+    ? `${input.fundamentals.evToEbitda.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Net Debt / EBITDA:
+${
+  input.fundamentals?.netDebtToEbitda != null
+    ? `${input.fundamentals.netDebtToEbitda.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Free Cash Flow Yield:
+${
+  input.fundamentals?.freeCashFlowYield != null
+    ? `${input.fundamentals.freeCashFlowYield.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Revenue Growth:
+${
+  input.fundamentals?.revenueGrowth != null
+    ? `${input.fundamentals.revenueGrowth.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Operating Income:
+${
+  input.fundamentals?.operatingIncome != null
+    ? `$${input.fundamentals.operatingIncome.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Operating Margin:
+${
+  input.fundamentals?.operatingMargin != null
+    ? `${input.fundamentals.operatingMargin.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Net Income:
+${
+  input.fundamentals?.netIncome != null
+    ? `$${input.fundamentals.netIncome.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Operating Cash Flow:
+${
+  input.fundamentals?.operatingCashFlow != null
+    ? `$${input.fundamentals.operatingCashFlow.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Capital Expenditures:
+${
+  input.fundamentals?.capitalExpenditures != null
+    ? `$${input.fundamentals.capitalExpenditures.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Free Cash Flow:
+${
+  input.fundamentals?.freeCashFlow != null
+    ? `$${input.fundamentals.freeCashFlow.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Cash and Equivalents:
+${
+  input.fundamentals?.cashAndEquivalents != null
+    ? `$${input.fundamentals.cashAndEquivalents.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Total Debt:
+${
+  input.fundamentals?.totalDebt != null
+    ? `$${input.fundamentals.totalDebt.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Return on Equity:
+${
+  input.fundamentals?.returnOnEquity != null
+    ? `${input.fundamentals.returnOnEquity.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Market Capitalization:
+${
+  input.fundamentals?.marketCap != null
+    ? `$${input.fundamentals.marketCap.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Enterprise Value:
+${
+  input.fundamentals?.enterpriseValue != null
+    ? `$${input.fundamentals.enterpriseValue.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+EV / Sales:
+${
+  input.fundamentals?.evToSales != null
+    ? `${input.fundamentals.evToSales.toFixed(2)}x`
+    : "Unavailable"
+}
+
+EV / Operating Cash Flow:
+${
+  input.fundamentals?.evToOperatingCashFlow != null
+    ? `${input.fundamentals.evToOperatingCashFlow.toFixed(2)}x`
+    : "Unavailable"
+}
+
+EV / Free Cash Flow:
+${
+  input.fundamentals?.evToFreeCashFlow != null
+    ? `${input.fundamentals.evToFreeCashFlow.toFixed(2)}x`
+    : "Unavailable"
+}
+
+EV / EBITDA:
+${
+  input.fundamentals?.evToEbitda != null
+    ? `${input.fundamentals.evToEbitda.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Net Debt / EBITDA:
+${
+  input.fundamentals?.netDebtToEbitda != null
+    ? `${input.fundamentals.netDebtToEbitda.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Free Cash Flow Yield:
+${
+  input.fundamentals?.freeCashFlowYield != null
+    ? `${input.fundamentals.freeCashFlowYield.toFixed(2)}%`
+    : "Unavailable"
+}
+
+P/E Ratio:
+${
+  input.fundamentals?.peRatio != null
+    ? input.fundamentals.peRatio.toFixed(2)
+    : "Unavailable"
+}
+
+Price to Sales:
+${
+  input.fundamentals?.priceToSalesRatio != null
+    ? input.fundamentals.priceToSalesRatio.toFixed(2)
+    : "Unavailable"
+}
+
+Price to Book:
+${
+  input.fundamentals?.priceToBookRatio != null
+    ? input.fundamentals.priceToBookRatio.toFixed(2)
+    : "Unavailable"
+}
+
 Produce five distinct analyses:
 
 1. RESEARCH ANALYST
@@ -124,6 +337,10 @@ Important rules:
 - Be skeptical of weak evidence.
 - Avoid false precision.
 - Do not issue the final committee recommendation. The Committee Chair will do that separately.
+- Use the supplied valuation metrics explicitly when assessing whether the current price is attractive.
+- Do not describe valuation as unknown when EV-based valuation metrics are available.
+- If P/E, P/S, or P/B are unavailable, do not invent them; use the available EV and cash-flow metrics instead.
+- Treat capital expenditures as a cash outflow and evaluate their effect on free-cash-flow conversion and return on invested capital.
 `;
 }
 

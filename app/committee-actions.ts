@@ -7,6 +7,7 @@ import { getMarketQuote } from "@/lib/market-data/twelve-data";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { runInvestmentCommittee } from "@/lib/ai/committee";
 import type { CommitteePortfolioMode } from "@/lib/ai/committee-types";
+import { getCompanyFundamentals } from "@/lib/company-data/fmp";
 
 export async function createCommitteeRun(
   _prevState: ActionState,
@@ -223,6 +224,18 @@ export async function createCommitteeRun(
     );
   }
 
+let fundamentals = null;
+
+try {
+  fundamentals =
+    await getCompanyFundamentals(ticker);
+} catch (error) {
+  console.error(
+    `Unable to load fundamentals for ${ticker}:`,
+    error
+  );
+}
+
   // ---------------------------------------------------------
   // Run AI Investment Committee
   // ---------------------------------------------------------
@@ -240,6 +253,7 @@ export async function createCommitteeRun(
         currentHoldingQuantity,
         currentHoldingMarketValue,
         currentHoldingCostBasis,
+        fundamentals,
       });
 
     // ---------------------------------------------------------

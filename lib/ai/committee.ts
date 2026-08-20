@@ -10,6 +10,7 @@ import type {
   CommitteeRunResult,
   SpecialistAnalysis,
 } from "./committee-types";
+import type { CompanyFundamentals } from "@/lib/company-data/types";
 
 const SPECIALIST_MODEL = "gpt-5.6-terra";
 const CHAIR_MODEL = "gpt-5.6-sol";
@@ -182,6 +183,8 @@ export async function runInvestmentCommittee(input: {
   currentHoldingMarketValue: number;
 
   currentHoldingCostBasis: number;
+
+  fundamentals: CompanyFundamentals | null;
 }): Promise<CommitteeRunResult> {
   const client =
     getOpenAIClient();
@@ -213,6 +216,7 @@ export async function runInvestmentCommittee(input: {
         input.currentHoldingMarketValue,
       currentHoldingCostBasis:
         input.currentHoldingCostBasis,
+      fundamentals: input.fundamentals,
     });
 
   const specialistResponse =
