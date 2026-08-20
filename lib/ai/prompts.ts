@@ -3,6 +3,7 @@ import type {
   SpecialistAnalysis,
 } from "./committee-types";
 import type { CompanyFundamentals } from "@/lib/company-data/types";
+import type { CompanyEarningsContext } from "@/lib/company-data/earnings";
 
 export const COMMITTEE_PROMPT_VERSION =
   "phase-1-v1";
@@ -61,6 +62,7 @@ export function buildSpecialistPrompt(input: {
   currentHoldingMarketValue: number;
   currentHoldingCostBasis: number;
   fundamentals: CompanyFundamentals | null;
+  earnings: CompanyEarningsContext | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -120,6 +122,108 @@ Enterprise Value:
 ${
   input.fundamentals?.enterpriseValue != null
     ? `$${input.fundamentals.enterpriseValue.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+CURRENT EARNINGS CONTEXT
+
+Latest Reported Quarter:
+${
+  input.earnings?.latestReported
+    ? `
+Report Date:
+${input.earnings.latestReported.date}
+
+EPS Actual:
+${
+  input.earnings.latestReported.epsActual != null
+    ? input.earnings.latestReported.epsActual.toFixed(2)
+    : "Unavailable"
+}
+
+EPS Estimate:
+${
+  input.earnings.latestReported.epsEstimated != null
+    ? input.earnings.latestReported.epsEstimated.toFixed(2)
+    : "Unavailable"
+}
+
+EPS Surprise:
+${
+  input.earnings.latestReported.epsSurprisePct != null
+    ? `${input.earnings.latestReported.epsSurprisePct.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Revenue Actual:
+${
+  input.earnings.latestReported.revenueActual != null
+    ? `$${input.earnings.latestReported.revenueActual.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Revenue Estimate:
+${
+  input.earnings.latestReported.revenueEstimated != null
+    ? `$${input.earnings.latestReported.revenueEstimated.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+
+Revenue Surprise:
+${
+  input.earnings.latestReported.revenueSurprisePct != null
+    ? `${input.earnings.latestReported.revenueSurprisePct.toFixed(2)}%`
+    : "Unavailable"
+}
+`
+    : "Unavailable"
+}
+
+Previous Reported Quarter:
+${
+  input.earnings?.previousReported
+    ? `
+Report Date:
+${input.earnings.previousReported.date}
+
+EPS Surprise:
+${
+  input.earnings.previousReported.epsSurprisePct != null
+    ? `${input.earnings.previousReported.epsSurprisePct.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Revenue Surprise:
+${
+  input.earnings.previousReported.revenueSurprisePct != null
+    ? `${input.earnings.previousReported.revenueSurprisePct.toFixed(2)}%`
+    : "Unavailable"
+}
+`
+    : "Unavailable"
+}
+
+Next Expected Earnings:
+${
+  input.earnings?.nextExpected
+    ? `
+Expected Report Date:
+${input.earnings.nextExpected.date}
+
+EPS Estimate:
+${
+  input.earnings.nextExpected.epsEstimated != null
+    ? input.earnings.nextExpected.epsEstimated.toFixed(2)
+    : "Unavailable"
+}
+
+Revenue Estimate:
+${
+  input.earnings.nextExpected.revenueEstimated != null
+    ? `$${input.earnings.nextExpected.revenueEstimated.toLocaleString("en-US")}`
+    : "Unavailable"
+}
+`
     : "Unavailable"
 }
 
@@ -455,5 +559,9 @@ Important rules:
 - Do not fabricate information.
 - Do not recommend an allocation greater than the portfolio could reasonably support.
 - Preserve uncertainty where evidence is incomplete.
+- Treat earnings surprises as current evidence, not as proof of future performance.
+- Distinguish reported results from future estimates.
+- Use the next expected earnings date as a potential reassessment catalyst.
+- Do not invent management guidance that is not explicitly supplied.
 `;
 }

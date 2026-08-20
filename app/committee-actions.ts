@@ -8,6 +8,7 @@ import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { runInvestmentCommittee } from "@/lib/ai/committee";
 import type { CommitteePortfolioMode } from "@/lib/ai/committee-types";
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
+import { getCompanyEarningsContext } from "@/lib/company-data/earnings";
 
 export async function createCommitteeRun(
   _prevState: ActionState,
@@ -236,14 +237,29 @@ try {
   );
 }
 
-  // ---------------------------------------------------------
-  // Run AI Investment Committee
-  // ---------------------------------------------------------
+// ---------------------------------------------------------
+// Load earnings context
+// ---------------------------------------------------------
 
-  try {
-    const result =
-      await runInvestmentCommittee({
-        ticker,
+let earnings = null;
+
+try {
+  earnings =
+    await getCompanyEarningsContext(ticker);
+} catch (error) {
+  console.error(
+    `Unable to load earnings context for ${ticker}:`,
+    error
+  );
+}
+
+// ---------------------------------------------------------
+// Run AI Investment Committee
+// ---------------------------------------------------------
+
+try {
+  const result =
+    await runInvestmentCommittee({        ticker,
         marketPrice,
         portfolioMode,
         portfolioName:
@@ -254,6 +270,7 @@ try {
         currentHoldingMarketValue,
         currentHoldingCostBasis,
         fundamentals,
+        earnings,
       });
 
     // ---------------------------------------------------------
