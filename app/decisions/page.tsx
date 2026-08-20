@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DecisionForm from "@/components/decision-form";
@@ -64,9 +65,7 @@ export default async function DecisionsPage() {
         </div>
 
         <div className="mt-8">
-          <DecisionForm
-            portfolios={portfolios ?? []}
-          />
+          <DecisionForm portfolios={portfolios ?? []} />
         </div>
 
         <div className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -89,15 +88,42 @@ export default async function DecisionsPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-gray-900">
-                          {decision.ticker}
-                        </span>
+                      <Link
+  href={`/decisions/${decision.id}`}
+  className="flex flex-wrap items-center gap-3 hover:opacity-70"
+>
+  <span className="text-lg font-bold text-gray-900">
+    {decision.ticker}
+  </span>
 
-                        <span className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
-                          {decision.decision_type}
-                        </span>
-                      </div>
+  <span
+    className={`rounded px-2 py-1 text-xs font-semibold uppercase ${
+      decision.decision_type === "buy"
+        ? "bg-green-50 text-green-700"
+        : decision.decision_type === "sell"
+          ? "bg-red-50 text-red-700"
+          : decision.decision_type === "hold"
+            ? "bg-blue-50 text-blue-700"
+            : decision.decision_type === "watch"
+              ? "bg-yellow-50 text-yellow-700"
+              : "bg-gray-100 text-gray-700"
+    }`}
+  >
+    {decision.decision_type}
+  </span>
+
+  <span
+    className={`rounded px-2 py-1 text-xs font-semibold uppercase ${
+      decision.source === "ai_committee"
+        ? "bg-purple-50 text-purple-700"
+        : "bg-gray-100 text-gray-700"
+    }`}
+  >
+    {decision.source === "ai_committee"
+      ? "AI Committee"
+      : "Manual"}
+  </span>
+</Link>
 
                       <p className="mt-1 text-sm text-gray-500">
                         {portfolioNames.get(

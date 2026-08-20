@@ -144,8 +144,9 @@ export default function DecisionForm({
             id="decision_price"
             name="decision_price"
             type="number"
-            min="0.00000001"
-            step="0.00000001"
+            min="0.01"
+            step="0.01"
+            defaultValue=""
             className="w-full rounded border border-gray-300 px-3 py-2"
           />
         </div>
