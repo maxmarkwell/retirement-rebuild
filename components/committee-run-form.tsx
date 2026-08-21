@@ -15,10 +15,16 @@ type Portfolio = {
 
 type CommitteeRunFormProps = {
   portfolios: Portfolio[];
+
+  defaultTicker?: string;
+
+  defaultPortfolioId?: string;
 };
 
 export default function CommitteeRunForm({
   portfolios,
+  defaultTicker = "",
+  defaultPortfolioId = "",
 }: CommitteeRunFormProps) {
   const [state, formAction, pending] = useActionState<
     ActionState,
@@ -32,7 +38,7 @@ export default function CommitteeRunForm({
       </h2>
 
       <p className="mt-1 text-sm text-gray-600">
-        Create a research run for a ticker and portfolio.
+        Review the candidate, then start a paid AI Investment Committee analysis.
       </p>
 
       <div className="mt-4">
@@ -55,9 +61,12 @@ export default function CommitteeRunForm({
             id="committee_portfolio_id"
             name="portfolio_id"
             required
+            defaultValue={defaultPortfolioId}
             className="w-full rounded border border-gray-300 px-3 py-2"
           >
-            <option value="">Select a portfolio</option>
+            <option value="">
+              Select a portfolio
+            </option>
 
             {portfolios.map((portfolio) => (
               <option
@@ -83,6 +92,7 @@ export default function CommitteeRunForm({
             name="ticker"
             type="text"
             required
+            defaultValue={defaultTicker}
             placeholder="MSFT"
             className="w-full rounded border border-gray-300 px-3 py-2 uppercase"
           />
@@ -95,7 +105,7 @@ export default function CommitteeRunForm({
             className="rounded bg-black px-5 py-2 text-white disabled:opacity-50"
           >
             {pending
-              ? "Creating..."
+              ? "Running Committee..."
               : "Start Committee Run"}
           </button>
         </div>

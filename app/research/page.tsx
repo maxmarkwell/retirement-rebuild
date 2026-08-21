@@ -3,7 +3,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CommitteeRunForm from "@/components/committee-run-form";
 
-export default async function ResearchPage() {
+type ResearchPageProps = {
+  searchParams: Promise<{
+    ticker?: string;
+    mode?: string;
+  }>;
+};
+
+export default async function ResearchPage({
+  searchParams,
+}: ResearchPageProps) {
   const supabase = await createClient();
 
   const {
@@ -13,6 +22,16 @@ export default async function ResearchPage() {
   if (!user) {
     redirect("/login");
   }
+
+  const {
+    ticker: requestedTicker,
+    mode: requestedMode,
+  } = await searchParams;
+
+  const defaultTicker =
+    requestedTicker
+      ?.trim()
+      .toUpperCase() ?? "";
 
   const { data: portfolios, error: portfoliosError } =
     await supabase
@@ -29,6 +48,12 @@ export default async function ResearchPage() {
       `Unable to load research portfolios: ${portfoliosError.message}`
     );
   }
+
+  const defaultPortfolio =
+    portfolios?.find(
+      (portfolio) =>
+        portfolio.type === requestedMode
+    ) ?? null;
 
   const { data: runs, error: runsError } =
     await supabase
@@ -71,6 +96,10 @@ export default async function ResearchPage() {
         <div className="mt-8">
           <CommitteeRunForm
             portfolios={portfolios ?? []}
+            defaultTicker={defaultTicker}
+            defaultPortfolioId={
+              defaultPortfolio?.id ?? ""
+            }
           />
         </div>
 
