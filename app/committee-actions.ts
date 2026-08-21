@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ActionState } from "@/lib/forms/action-state";
 import { getMarketQuote } from "@/lib/market-data/twelve-data";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
+import { calculatePositionSizing } from "@/lib/portfolio/position-sizing";
 import { runInvestmentCommittee } from "@/lib/ai/committee";
 import type { CommitteePortfolioMode } from "@/lib/ai/committee-types";
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
@@ -52,9 +53,7 @@ export async function createCommitteeRun(
     error: portfolioError,
   } = await supabase
     .from("portfolios")
-    .select(
-      "id, name, type, starting_capital"
-    )
+    .select("id, name, type, starting_capital")
     .eq("id", portfolioId)
     .single();
 
@@ -158,17 +157,6 @@ export async function createCommitteeRun(
       marketPrice;
   }
 
-  /*
-    For now, the committee only needs accurate context
-    for the submitted ticker plus cash.
-
-    Existing holdings without a live quote will continue
-    using the accounting engine's cost-basis fallback.
-
-    We'll improve this later by loading quotes for every
-    currently held real symbol before committee analysis.
-  */
-
   const accounting =
     calculatePortfolioAccounting(
       portfolio,
@@ -180,7 +168,9 @@ export async function createCommitteeRun(
   const currentHolding =
     accounting.holdings.find(
       (holding) =>
-        holding.ticker === ticker
+        holding.ticker
+          .trim()
+          .toUpperCase() === ticker
     );
 
   const currentHoldingQuantity =
@@ -193,7 +183,7 @@ export async function createCommitteeRun(
     currentHolding?.totalCost ?? 0;
 
   // ---------------------------------------------------------
-  // Create pending committee run
+  // Create committee run
   // ---------------------------------------------------------
 
   const {
@@ -207,8 +197,7 @@ export async function createCommitteeRun(
       ticker,
       market_price: marketPrice,
       status: "researching",
-      prompt_version:
-        "phase-1-v1",
+      prompt_version: "phase-1-v1",
     })
     .select("id")
     .single();
@@ -225,41 +214,50 @@ export async function createCommitteeRun(
     );
   }
 
-let fundamentals = null;
+  // ---------------------------------------------------------
+  // Load company fundamentals
+  // ---------------------------------------------------------
 
-try {
-  fundamentals =
-    await getCompanyFundamentals(ticker);
-} catch (error) {
-  console.error(
-    `Unable to load fundamentals for ${ticker}:`,
-    error
-  );
-}
+  let fundamentals = null;
 
-// ---------------------------------------------------------
-// Load earnings context
-// ---------------------------------------------------------
+  try {
+    fundamentals =
+      await getCompanyFundamentals(
+        ticker
+      );
+  } catch (error) {
+    console.error(
+      `Unable to load fundamentals for ${ticker}:`,
+      error
+    );
+  }
 
-let earnings = null;
+  // ---------------------------------------------------------
+  // Load earnings context
+  // ---------------------------------------------------------
 
-try {
-  earnings =
-    await getCompanyEarningsContext(ticker);
-} catch (error) {
-  console.error(
-    `Unable to load earnings context for ${ticker}:`,
-    error
-  );
-}
+  let earnings = null;
 
-// ---------------------------------------------------------
-// Run AI Investment Committee
-// ---------------------------------------------------------
+  try {
+    earnings =
+      await getCompanyEarningsContext(
+        ticker
+      );
+  } catch (error) {
+    console.error(
+      `Unable to load earnings context for ${ticker}:`,
+      error
+    );
+  }
 
-try {
-  const result =
-    await runInvestmentCommittee({        ticker,
+  // ---------------------------------------------------------
+  // Run AI Investment Committee
+  // ---------------------------------------------------------
+
+  try {
+    const result =
+      await runInvestmentCommittee({
+        ticker,
         marketPrice,
         portfolioMode,
         portfolioName:
@@ -273,12 +271,89 @@ try {
         earnings,
       });
 
+    const finalDecision =
+      result.finalDecision;
+
+    // ---------------------------------------------------------
+    // Deterministic position sizing
+    // ---------------------------------------------------------
+
+    let recommendedQuantity:
+      number | null = null;
+
+    let recommendedAllocation:
+      number | null = null;
+
+    if (
+      finalDecision.recommendation === "buy" &&
+      marketPrice != null &&
+      marketPrice > 0
+    ) {
+      const sizing =
+        calculatePositionSizing({
+          portfolioMode,
+
+          portfolioTotalValue:
+            accounting.permanentCapital,
+
+          availableCash:
+            accounting.cash,
+
+          currentPrice:
+            marketPrice,
+
+          currentHoldingMarketValue,
+
+          confidenceScore:
+            finalDecision.confidence,
+
+          riskLevel:
+            finalDecision.riskLevel,
+        });
+
+      recommendedQuantity =
+        sizing.suggestedShares;
+
+      recommendedAllocation =
+        sizing.targetPositionValue;
+    }
+
+    if (
+      finalDecision.recommendation === "hold"
+    ) {
+      recommendedQuantity =
+        null;
+
+      recommendedAllocation =
+        currentHoldingMarketValue;
+    }
+
+    if (
+      finalDecision.recommendation === "watch" ||
+      finalDecision.recommendation === "avoid" ||
+      finalDecision.recommendation === "sell"
+    ) {
+      recommendedQuantity =
+        null;
+
+      recommendedAllocation =
+        null;
+    }
+
+    if (
+      finalDecision.recommendation ===
+      "rebalance"
+    ) {
+      recommendedQuantity =
+        null;
+
+      recommendedAllocation =
+        currentHoldingMarketValue;
+    }
+
     // ---------------------------------------------------------
     // Create investment decision
     // ---------------------------------------------------------
-
-    const finalDecision =
-      result.finalDecision;
 
     const {
       data: decision,
@@ -286,10 +361,14 @@ try {
     } = await supabase
       .from("investment_decisions")
       .insert({
-        user_id: user.id,
+        user_id:
+          user.id,
+
         portfolio_id:
           portfolioId,
-        transaction_id: null,
+
+        transaction_id:
+          null,
 
         decision_type:
           finalDecision.recommendation,
@@ -303,10 +382,10 @@ try {
           marketPrice,
 
         recommended_quantity:
-          null,
+          recommendedQuantity,
 
         recommended_allocation:
-          finalDecision.recommendedAllocation,
+          recommendedAllocation,
 
         confidence_score:
           finalDecision.confidence,
@@ -404,7 +483,7 @@ try {
           finalDecision.riskLevel,
 
         recommended_allocation:
-          finalDecision.recommendedAllocation,
+          recommendedAllocation,
 
         expected_holding_period:
           finalDecision.expectedHoldingPeriod,
@@ -449,6 +528,11 @@ try {
       "/decisions"
     );
 
+    const sizingMessage =
+      recommendedQuantity != null
+        ? ` Suggested initial position: ${recommendedQuantity} shares.`
+        : "";
+
     return {
       success: true,
       message:
@@ -456,7 +540,8 @@ try {
         `${finalDecision.recommendation.toUpperCase()} ` +
         `with ${finalDecision.confidence.toFixed(
           0
-        )}/100 confidence.`,
+        )}/100 confidence.` +
+        sizingMessage,
     };
   } catch (error) {
     // ---------------------------------------------------------

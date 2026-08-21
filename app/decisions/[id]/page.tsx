@@ -206,54 +206,70 @@ export default async function DecisionDetailPage({
             </div>
           </div>
 
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-xs uppercase text-gray-500">
-                Decision Price
-              </p>
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+  <div>
+    <p className="text-xs uppercase text-gray-500">
+      Decision Price
+    </p>
 
-              <p className="mt-1 font-semibold text-gray-900">
-                {formatCurrency(decision.decision_price)}
-              </p>
-            </div>
+    <p className="mt-1 font-semibold text-gray-900">
+      {formatCurrency(decision.decision_price)}
+    </p>
+  </div>
 
-            <div>
-              <p className="text-xs uppercase text-gray-500">
-                Allocation
-              </p>
+  <div>
+    <p className="text-xs uppercase text-gray-500">
+      Suggested Initial Shares
+    </p>
 
-              <p className="mt-1 font-semibold text-gray-900">
-                {formatCurrency(
-                  decision.recommended_allocation
-                )}
-              </p>
-            </div>
+    <p className="mt-1 font-semibold text-gray-900">
+      {decision.recommended_quantity != null
+        ? Number(
+            decision.recommended_quantity
+          ).toLocaleString("en-US", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4,
+          })
+        : "—"}
+    </p>
+  </div>
 
-            <div>
-              <p className="text-xs uppercase text-gray-500">
-                Confidence
-              </p>
+  <div>
+    <p className="text-xs uppercase text-gray-500">
+      Target Allocation
+    </p>
 
-              <p className="mt-1 font-semibold text-gray-900">
-                {decision.confidence_score != null
-                  ? `${Number(
-                      decision.confidence_score
-                    ).toFixed(0)}/100`
-                  : "—"}
-              </p>
-            </div>
+    <p className="mt-1 font-semibold text-gray-900">
+      {formatCurrency(
+        decision.recommended_allocation
+      )}
+    </p>
+  </div>
 
-            <div>
-              <p className="text-xs uppercase text-gray-500">
-                Risk
-              </p>
+  <div>
+    <p className="text-xs uppercase text-gray-500">
+      Confidence
+    </p>
 
-              <p className="mt-1 font-semibold capitalize text-gray-900">
-                {decision.risk_level ?? "—"}
-              </p>
-            </div>
-          </div>
+    <p className="mt-1 font-semibold text-gray-900">
+      {decision.confidence_score != null
+        ? `${Number(
+            decision.confidence_score
+          ).toFixed(0)}/100`
+        : "—"}
+    </p>
+  </div>
 
+  <div>
+    <p className="text-xs uppercase text-gray-500">
+      Risk
+    </p>
+
+    <p className="mt-1 font-semibold capitalize text-gray-900">
+      {decision.risk_level ?? "—"}
+    </p>
+  </div>
+</div>
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
             <div>
               <p className="text-xs uppercase text-gray-500">

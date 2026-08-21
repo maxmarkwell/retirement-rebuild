@@ -30,7 +30,7 @@ export default async function DecisionsPage() {
     await supabase
       .from("investment_decisions")
       .select(
-        "id, portfolio_id, decision_type, ticker, decision_date, decision_price, recommended_allocation, confidence_score, risk_level, expected_holding_period, thesis, source, status"
+        "id, portfolio_id, decision_type, ticker, decision_date, decision_price, recommended_quantity, recommended_allocation, confidence_score, risk_level, expected_holding_period, thesis, source, status"
       )
       .order("decision_date", { ascending: false });
 
@@ -146,7 +146,7 @@ export default async function DecisionsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <div>
                       <p className="text-xs uppercase text-gray-500">
                         Decision Price
@@ -162,8 +162,25 @@ export default async function DecisionsPage() {
                     </div>
 
                     <div>
+  <p className="text-xs uppercase text-gray-500">
+    Suggested Initial Shares
+  </p>
+
+  <p className="mt-1 font-medium text-gray-900">
+    {decision.recommended_quantity != null
+      ? Number(
+          decision.recommended_quantity
+        ).toLocaleString("en-US", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 4,
+        })
+      : "—"}
+  </p>
+</div>
+
+                    <div>
                       <p className="text-xs uppercase text-gray-500">
-                        Allocation
+                        Target Allocation
                       </p>
 
                       <p className="mt-1 font-medium text-gray-900">
