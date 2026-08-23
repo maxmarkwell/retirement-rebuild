@@ -4,6 +4,9 @@ import type {
 } from "./committee-types";
 import type { CompanyFundamentals } from "@/lib/company-data/types";
 import type { CompanyEarningsContext } from "@/lib/company-data/earnings";
+import type {
+  CompanyFundamentalTrends,
+} from "@/lib/company-data/types";
 
 export const COMMITTEE_PROMPT_VERSION =
   "phase-1-v1";
@@ -63,6 +66,7 @@ export function buildSpecialistPrompt(input: {
   currentHoldingCostBasis: number;
   fundamentals: CompanyFundamentals | null;
   earnings: CompanyEarningsContext | null;
+  trends: CompanyFundamentalTrends | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -123,6 +127,111 @@ ${
   input.fundamentals?.enterpriseValue != null
     ? `$${input.fundamentals.enterpriseValue.toLocaleString("en-US")}`
     : "Unavailable"
+}
+
+HISTORICAL FUNDAMENTAL TRENDS
+
+Revenue CAGR:
+${
+  input.trends?.revenue.cagrPct != null
+    ? `${input.trends.revenue.cagrPct.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Revenue Direction:
+${
+  input.trends?.revenue.direction ??
+  "Unavailable"
+}
+
+Operating Margin:
+${
+  input.trends?.operatingMargin.oldest != null &&
+  input.trends?.operatingMargin.latest != null
+    ? `${input.trends.operatingMargin.oldest.toFixed(
+        2
+      )}% → ${input.trends.operatingMargin.latest.toFixed(
+        2
+      )}%`
+    : "Unavailable"
+}
+
+Operating Margin Direction:
+${
+  input.trends?.operatingMargin.direction ??
+  "Unavailable"
+}
+
+Free Cash Flow Margin:
+${
+  input.trends?.freeCashFlowMargin.oldest != null &&
+  input.trends?.freeCashFlowMargin.latest != null
+    ? `${input.trends.freeCashFlowMargin.oldest.toFixed(
+        2
+      )}% → ${input.trends.freeCashFlowMargin.latest.toFixed(
+        2
+      )}%`
+    : "Unavailable"
+}
+
+Free Cash Flow Margin Direction:
+${
+  input.trends?.freeCashFlowMargin.direction ??
+  "Unavailable"
+}
+
+Return on Invested Capital:
+${
+  input.trends?.returnOnInvestedCapital.oldest != null &&
+  input.trends?.returnOnInvestedCapital.latest != null
+    ? `${input.trends.returnOnInvestedCapital.oldest.toFixed(
+        2
+      )}% → ${input.trends.returnOnInvestedCapital.latest.toFixed(
+        2
+      )}%`
+    : "Unavailable"
+}
+
+ROIC Direction:
+${
+  input.trends?.returnOnInvestedCapital.direction ??
+  "Unavailable"
+}
+
+Share Count:
+${
+  input.trends?.shareCount.oldest != null &&
+  input.trends?.shareCount.latest != null
+    ? `${input.trends.shareCount.oldest.toLocaleString(
+        "en-US"
+      )} → ${input.trends.shareCount.latest.toLocaleString(
+        "en-US"
+      )}`
+    : "Unavailable"
+}
+
+Share Count Direction:
+${
+  input.trends?.shareCount.direction ??
+  "Unavailable"
+}
+
+CapEx / Revenue:
+${
+  input.trends?.capexToRevenue.oldest != null &&
+  input.trends?.capexToRevenue.latest != null
+    ? `${input.trends.capexToRevenue.oldest.toFixed(
+        2
+      )}% → ${input.trends.capexToRevenue.latest.toFixed(
+        2
+      )}%`
+    : "Unavailable"
+}
+
+CapEx / Revenue Direction:
+${
+  input.trends?.capexToRevenue.direction ??
+  "Unavailable"
 }
 
 CURRENT EARNINGS CONTEXT
@@ -416,6 +525,125 @@ ${
     : "Unavailable"
 }
 
+Price / Earnings:
+${
+  input.fundamentals?.peRatio != null
+    ? `${input.fundamentals.peRatio.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Price / Sales:
+${
+  input.fundamentals?.priceToSalesRatio != null
+    ? `${input.fundamentals.priceToSalesRatio.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Price / Book:
+${
+  input.fundamentals?.priceToBookRatio != null
+    ? `${input.fundamentals.priceToBookRatio.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Price / Free Cash Flow:
+${
+  input.fundamentals?.priceToFreeCashFlowRatio != null
+    ? `${input.fundamentals.priceToFreeCashFlowRatio.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Earnings Yield:
+${
+  input.fundamentals?.earningsYield != null
+    ? `${input.fundamentals.earningsYield.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Return on Equity:
+${
+  input.fundamentals?.returnOnEquity != null
+    ? `${input.fundamentals.returnOnEquity.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Return on Assets:
+${
+  input.fundamentals?.returnOnAssets != null
+    ? `${input.fundamentals.returnOnAssets.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Return on Invested Capital:
+${
+  input.fundamentals?.returnOnInvestedCapital != null
+    ? `${input.fundamentals.returnOnInvestedCapital.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Return on Capital Employed:
+${
+  input.fundamentals?.returnOnCapitalEmployed != null
+    ? `${input.fundamentals.returnOnCapitalEmployed.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Debt / Equity:
+${
+  input.fundamentals?.debtToEquity != null
+    ? `${input.fundamentals.debtToEquity.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Interest Coverage:
+${
+  input.fundamentals?.interestCoverage != null
+    ? `${input.fundamentals.interestCoverage.toFixed(2)}x`
+    : "Unavailable"
+}
+
+Current Ratio:
+${
+  input.fundamentals?.currentRatio != null
+    ? input.fundamentals.currentRatio.toFixed(2)
+    : "Unavailable"
+}
+
+Free Cash Flow / Operating Cash Flow:
+${
+  input.fundamentals?.freeCashFlowToOperatingCashFlow != null
+    ? `${input.fundamentals.freeCashFlowToOperatingCashFlow.toFixed(2)}%`
+    : "Unavailable"
+}
+
+CapEx / Operating Cash Flow:
+${
+  input.fundamentals?.capexToOperatingCashFlow != null
+    ? `${input.fundamentals.capexToOperatingCashFlow.toFixed(2)}%`
+    : "Unavailable"
+}
+
+CapEx / Revenue:
+${
+  input.fundamentals?.capexToRevenue != null
+    ? `${input.fundamentals.capexToRevenue.toFixed(2)}%`
+    : "Unavailable"
+}
+
+R&D / Revenue:
+${
+  input.fundamentals?.researchAndDevelopmentToRevenue != null
+    ? `${input.fundamentals.researchAndDevelopmentToRevenue.toFixed(2)}%`
+    : "Unavailable"
+}
+
+Stock-Based Compensation / Revenue:
+${
+  input.fundamentals?.stockBasedCompensationToRevenue != null
+    ? `${input.fundamentals.stockBasedCompensationToRevenue.toFixed(2)}%`
+    : "Unavailable"
+}
+
 Produce five distinct analyses:
 
 1. RESEARCH ANALYST
@@ -441,10 +669,23 @@ Important rules:
 - Be skeptical of weak evidence.
 - Avoid false precision.
 - Do not issue the final committee recommendation. The Committee Chair will do that separately.
-- Use the supplied valuation metrics explicitly when assessing whether the current price is attractive.
+- Use the supplied valuation metrics explicitly and comparatively. A low P/E or EV/FCF is not automatically attractive if growth, returns on capital, or cash conversion are weak; a high multiple is not automatically unattractive if durable growth and returns on capital justify it.
 - Do not describe valuation as unknown when EV-based valuation metrics are available.
 - If P/E, P/S, or P/B are unavailable, do not invent them; use the available EV and cash-flow metrics instead.
 - Treat capital expenditures as a cash outflow and evaluate their effect on free-cash-flow conversion and return on invested capital.
+- Use return-on-capital metrics such as ROIC and ROCE to evaluate business quality, not just revenue growth and margins.
+- Evaluate valuation using the full set of available measures, including P/E, P/FCF, EV/FCF, EV/EBITDA, earnings yield, and free-cash-flow yield.
+- Evaluate free-cash-flow conversion explicitly when FCF/OCF is available.
+- Treat CapEx/OCF and CapEx/Revenue as evidence of capital intensity; distinguish productive reinvestment from structurally weak cash conversion.
+- Consider stock-based compensation as an economic cost and dilution risk when SBC/Revenue is material.
+- Use R&D/Revenue as context for innovation intensity, but do not assume higher R&D automatically means better returns.
+- Use leverage and interest coverage together when assessing financial risk.
+- Distinguish current absolute quality from historical direction. A company can still have excellent current margins or ROIC while those metrics are deteriorating.
+- Treat improving operating margins alongside deteriorating free-cash-flow margins as a potential warning that capital intensity or cash conversion is worsening.
+- Use ROIC trend to judge whether incremental capital is becoming more or less productive.
+- Treat rising CapEx/Revenue as evidence of increasing capital intensity; determine whether current growth and returns justify that investment.
+- Use share-count trend to identify meaningful dilution or shareholder-friendly buybacks.
+- Do not treat one favorable current metric as sufficient if the multi-year trend is materially deteriorating.
 `;
 }
 

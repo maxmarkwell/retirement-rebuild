@@ -12,6 +12,7 @@ import type {
 } from "./committee-types";
 import type { CompanyFundamentals } from "@/lib/company-data/types";
 import type { CompanyEarningsContext } from "@/lib/company-data/earnings";
+import type { CompanyFundamentalTrends } from "@/lib/company-data/types";
 
 const SPECIALIST_MODEL = "gpt-5.6-terra";
 const CHAIR_MODEL = "gpt-5.6-sol";
@@ -186,6 +187,8 @@ export async function runInvestmentCommittee(input: {
   currentHoldingCostBasis: number;
  
   earnings: CompanyEarningsContext | null;
+  
+  trends: CompanyFundamentalTrends | null;
 
   fundamentals: CompanyFundamentals | null;
 }): Promise<CommitteeRunResult> {
@@ -221,6 +224,7 @@ export async function runInvestmentCommittee(input: {
         input.currentHoldingCostBasis,
       fundamentals: input.fundamentals,
       earnings: input.earnings,
+      trends: input.trends,
     });
 
   const specialistResponse =

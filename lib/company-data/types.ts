@@ -56,3 +56,50 @@ capexToRevenue: number | null;
 researchAndDevelopmentToRevenue: number | null;
 stockBasedCompensationToRevenue: number | null;
 };
+
+export type HistoricalMetricPoint = {
+  fiscalYear: string;
+  value: number | null;
+};
+
+export type HistoricalMetricTrend = {
+  points: HistoricalMetricPoint[];
+
+  latest: number | null;
+  oldest: number | null;
+
+  absoluteChange: number | null;
+  percentChange: number | null;
+
+  direction:
+    | "improving"
+    | "stable"
+    | "deteriorating"
+    | "mixed"
+    | "unavailable";
+};
+
+export type CompanyFundamentalTrends = {
+  symbol: string;
+
+  revenue: {
+    points: HistoricalMetricPoint[];
+    cagrPct: number | null;
+    direction:
+      | "improving"
+      | "stable"
+      | "deteriorating"
+      | "mixed"
+      | "unavailable";
+  };
+
+  operatingMargin: HistoricalMetricTrend;
+
+  freeCashFlowMargin: HistoricalMetricTrend;
+
+  returnOnInvestedCapital: HistoricalMetricTrend;
+
+  shareCount: HistoricalMetricTrend;
+
+  capexToRevenue: HistoricalMetricTrend;
+};

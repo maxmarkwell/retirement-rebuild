@@ -10,6 +10,7 @@ import { runInvestmentCommittee } from "@/lib/ai/committee";
 import type { CommitteePortfolioMode } from "@/lib/ai/committee-types";
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
 import { getCompanyEarningsContext } from "@/lib/company-data/earnings";
+import { getCompanyFundamentalTrends } from "@/lib/company-data/trends";
 
 export async function createCommitteeRun(
   _prevState: ActionState,
@@ -250,6 +251,24 @@ export async function createCommitteeRun(
     );
   }
 
+// ---------------------------------------------------------
+// Load historical fundamental trends
+// ---------------------------------------------------------
+
+let trends = null;
+
+try {
+  trends =
+    await getCompanyFundamentalTrends(
+      ticker
+    );
+} catch (error) {
+  console.error(
+    `Unable to load fundamental trends for ${ticker}:`,
+    error
+  );
+}
+
   // ---------------------------------------------------------
   // Run AI Investment Committee
   // ---------------------------------------------------------
@@ -269,6 +288,7 @@ export async function createCommitteeRun(
         currentHoldingCostBasis,
         fundamentals,
         earnings,
+        trends,
       });
 
     const finalDecision =
