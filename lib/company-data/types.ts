@@ -38,4 +38,21 @@ evToEbitda: number | null;
 netDebtToEbitda: number | null;
 
 freeCashFlowYield: number | null;
+
+priceToFreeCashFlowRatio: number | null;
+
+earningsYield: number | null;
+
+returnOnAssets: number | null;
+returnOnInvestedCapital: number | null;
+returnOnCapitalEmployed: number | null;
+
+interestCoverage: number | null;
+currentRatio: number | null;
+
+freeCashFlowToOperatingCashFlow: number | null;
+capexToOperatingCashFlow: number | null;
+capexToRevenue: number | null;
+researchAndDevelopmentToRevenue: number | null;
+stockBasedCompensationToRevenue: number | null;
 };

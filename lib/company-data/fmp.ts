@@ -30,9 +30,26 @@ type FmpBalanceSheet = {
   totalDebt?: number;
 };
 
+type FmpRatiosTtm = {
+  priceToEarningsRatioTTM?: number;
+  priceToBookRatioTTM?: number;
+  priceToSalesRatioTTM?: number;
+  priceToFreeCashFlowRatioTTM?: number;
+
+  debtToEquityRatioTTM?: number;
+  interestCoverageRatioTTM?: number;
+  currentRatioTTM?: number;
+
+  freeCashFlowOperatingCashFlowRatioTTM?: number;
+
+  enterpriseValueTTM?: number;
+};
+
 type FmpKeyMetrics = {
   marketCap?: number;
+
   enterpriseValue?: number;
+  enterpriseValueTTM?: number;
 
   evToSales?: number;
   evToSalesTTM?: number;
@@ -49,15 +66,19 @@ type FmpKeyMetrics = {
   netDebtToEBITDA?: number;
   netDebtToEBITDATTM?: number;
 
-  peRatio?: number;
-  priceToSalesRatio?: number;
-  priceToBookRatio?: number;
-  pbRatio?: number;
+  returnOnAssetsTTM?: number;
+  returnOnEquityTTM?: number;
+  returnOnInvestedCapitalTTM?: number;
+  returnOnCapitalEmployedTTM?: number;
 
-  debtToEquity?: number;
+  earningsYieldTTM?: number;
+  freeCashFlowYieldTTM?: number;
 
-  roe?: number;
-  returnOnEquity?: number;
+  capexToOperatingCashFlowTTM?: number;
+  capexToRevenueTTM?: number;
+
+  researchAndDevelopementToRevenueTTM?: number;
+  stockBasedCompensationToRevenueTTM?: number;
 };
 
 function first<T>(
@@ -70,7 +91,8 @@ async function fetchFmp<T>(
   path: string,
   params: Record<string, string> = {}
 ): Promise<T> {
-  const apiKey = process.env.FMP_API_KEY;
+  const apiKey =
+    process.env.FMP_API_KEY;
 
   if (!apiKey) {
     throw new Error(
@@ -82,7 +104,10 @@ async function fetchFmp<T>(
     `https://financialmodelingprep.com/stable/${path}`
   );
 
-  for (const [key, value] of Object.entries(params)) {
+  for (
+    const [key, value]
+    of Object.entries(params)
+  ) {
     url.searchParams.set(
       key,
       value
@@ -94,11 +119,12 @@ async function fetchFmp<T>(
     apiKey
   );
 
-  const response = await fetch(url, {
-    next: {
-      revalidate: 3600,
-    },
-  });
+  const response =
+    await fetch(url, {
+      next: {
+        revalidate: 3600,
+      },
+    });
 
   if (!response.ok) {
     const text =
@@ -120,55 +146,76 @@ async function fetchFmp<T>(
 export async function getCompanyFundamentals(
   symbol: string
 ): Promise<CompanyFundamentals> {
-  const normalizedSymbol = symbol
-    .trim()
-    .toUpperCase();
+  const normalizedSymbol =
+    symbol
+      .trim()
+      .toUpperCase();
 
   const [
     profileData,
     incomeData,
     cashFlowData,
     balanceSheetData,
+    ratiosData,
     metricsData,
   ] = await Promise.all([
     fetchFmp<FmpProfile[]>(
       "profile",
       {
-        symbol: normalizedSymbol,
+        symbol:
+          normalizedSymbol,
       }
     ),
 
     fetchFmp<FmpIncomeStatement[]>(
       "income-statement",
       {
-        symbol: normalizedSymbol,
-        period: "annual",
-        limit: "2",
+        symbol:
+          normalizedSymbol,
+        period:
+          "annual",
+        limit:
+          "2",
       }
     ),
 
     fetchFmp<FmpCashFlowStatement[]>(
       "cash-flow-statement",
       {
-        symbol: normalizedSymbol,
-        period: "annual",
-        limit: "1",
+        symbol:
+          normalizedSymbol,
+        period:
+          "annual",
+        limit:
+          "1",
       }
     ),
 
     fetchFmp<FmpBalanceSheet[]>(
       "balance-sheet-statement",
       {
-        symbol: normalizedSymbol,
-        period: "annual",
-        limit: "1",
+        symbol:
+          normalizedSymbol,
+        period:
+          "annual",
+        limit:
+          "1",
+      }
+    ),
+
+    fetchFmp<FmpRatiosTtm[]>(
+      "ratios-ttm",
+      {
+        symbol:
+          normalizedSymbol,
       }
     ),
 
     fetchFmp<FmpKeyMetrics[]>(
       "key-metrics-ttm",
       {
-        symbol: normalizedSymbol,
+        symbol:
+          normalizedSymbol,
       }
     ),
   ]);
@@ -187,6 +234,9 @@ export async function getCompanyFundamentals(
 
   const balanceSheet =
     first(balanceSheetData);
+
+  const ratios =
+    first(ratiosData);
 
   const metrics =
     first(metricsData);
@@ -228,11 +278,6 @@ export async function getCompanyFundamentals(
         ) * 100
       : null;
 
-  const rawRoe =
-    metrics?.returnOnEquity ??
-    metrics?.roe ??
-    null;
-
   const marketCap =
     profile?.marketCap ??
     profile?.mktCap ??
@@ -256,19 +301,24 @@ export async function getCompanyFundamentals(
     marketCap,
 
     peRatio:
-      metrics?.peRatio ??
+      ratios?.priceToEarningsRatioTTM ??
       null,
 
     priceToSalesRatio:
-      metrics?.priceToSalesRatio ??
+      ratios?.priceToSalesRatioTTM ??
       null,
 
     priceToBookRatio:
-      metrics?.priceToBookRatio ??
-      metrics?.pbRatio ??
+      ratios?.priceToBookRatioTTM ??
+      null,
+
+    priceToFreeCashFlowRatio:
+      ratios?.priceToFreeCashFlowRatioTTM ??
       null,
 
     enterpriseValue:
+      metrics?.enterpriseValueTTM ??
+      ratios?.enterpriseValueTTM ??
       metrics?.enterpriseValue ??
       null,
 
@@ -292,19 +342,92 @@ export async function getCompanyFundamentals(
       metrics?.evToEBITDA ??
       null,
 
+    earningsYield:
+      metrics?.earningsYieldTTM != null
+        ? metrics.earningsYieldTTM * 100
+        : null,
+
+    freeCashFlowYield:
+      metrics?.freeCashFlowYieldTTM != null
+        ? metrics.freeCashFlowYieldTTM * 100
+        : freeCashFlow != null &&
+            marketCap != null &&
+            marketCap > 0
+          ? (
+              freeCashFlow /
+              marketCap
+            ) * 100
+          : null,
+
+    returnOnEquity:
+      metrics?.returnOnEquityTTM != null
+        ? metrics.returnOnEquityTTM * 100
+        : null,
+
+    returnOnAssets:
+      metrics?.returnOnAssetsTTM != null
+        ? metrics.returnOnAssetsTTM * 100
+        : null,
+
+    returnOnInvestedCapital:
+      metrics?.returnOnInvestedCapitalTTM != null
+        ? metrics.returnOnInvestedCapitalTTM *
+          100
+        : null,
+
+    returnOnCapitalEmployed:
+      metrics?.returnOnCapitalEmployedTTM != null
+        ? metrics.returnOnCapitalEmployedTTM *
+          100
+        : null,
+
+    debtToEquity:
+      ratios?.debtToEquityRatioTTM ??
+      null,
+
     netDebtToEbitda:
       metrics?.netDebtToEBITDATTM ??
       metrics?.netDebtToEBITDA ??
       null,
 
-    freeCashFlowYield:
-      freeCashFlow != null &&
-      marketCap != null &&
-      marketCap > 0
-        ? (
-            freeCashFlow /
-            marketCap
-          ) * 100
+    interestCoverage:
+      ratios?.interestCoverageRatioTTM ??
+      null,
+
+    currentRatio:
+      ratios?.currentRatioTTM ??
+      null,
+
+    freeCashFlowToOperatingCashFlow:
+      ratios?.freeCashFlowOperatingCashFlowRatioTTM != null
+        ? ratios
+            .freeCashFlowOperatingCashFlowRatioTTM *
+          100
+        : null,
+
+    capexToOperatingCashFlow:
+      metrics?.capexToOperatingCashFlowTTM != null
+        ? metrics.capexToOperatingCashFlowTTM *
+          100
+        : null,
+
+    capexToRevenue:
+      metrics?.capexToRevenueTTM != null
+        ? metrics.capexToRevenueTTM * 100
+        : null,
+
+    researchAndDevelopmentToRevenue:
+      metrics?.researchAndDevelopementToRevenueTTM != null
+        ? metrics
+            .researchAndDevelopementToRevenueTTM *
+          100
+        : null,
+
+    stockBasedCompensationToRevenue:
+      metrics?.stockBasedCompensationToRevenueTTM != null
+        ? metrics
+            .stockBasedCompensationToRevenueTTM *
+          100
         : null,
 
     revenue,
@@ -344,19 +467,6 @@ export async function getCompanyFundamentals(
     totalDebt:
       balanceSheet?.totalDebt ??
       null,
-
-    debtToEquity:
-      metrics?.debtToEquity ??
-      null,
-
-    returnOnEquity:
-      rawRoe != null
-        ? (
-            Math.abs(rawRoe) <= 1
-              ? rawRoe * 100
-              : rawRoe
-          )
-        : null,
 
     fiscalPeriod:
       latestIncome?.period ??
