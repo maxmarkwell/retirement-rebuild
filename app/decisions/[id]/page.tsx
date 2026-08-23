@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DecisionEvaluationForm from "@/components/decision-evaluation-form";
+import ExecuteDecisionBuyButton from "@/components/execute-decision-buy-button";
 
 type DecisionDetailPageProps = {
   params: Promise<{
@@ -292,6 +293,23 @@ export default async function DecisionDetailPage({
             </div>
           </div>
         </div>
+{decision.decision_type === "buy" && (
+  <div className="mt-6">
+    <ExecuteDecisionBuyButton
+      decisionId={decision.id}
+      ticker={decision.ticker}
+      recommendedQuantity={
+        decision.recommended_quantity
+      }
+      status={decision.status}
+      hasTransaction={
+        Boolean(
+          decision.transaction_id
+        )
+      }
+    />
+  </div>
+)}
 
         {/* Original Decision Reasoning */}
 
