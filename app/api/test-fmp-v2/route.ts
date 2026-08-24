@@ -103,6 +103,31 @@ export async function GET() {
         "cash-flow",
         `cash-flow-statement?symbol=${symbol}&period=annual&limit=5`
       ),
+
+      testEndpoint(
+  "stock-list",
+  "stock-list"
+),
+
+testEndpoint(
+  "company-screener",
+  "company-screener?country=US&isEtf=false&isFund=false&isActivelyTrading=true&limit=25"
+),
+
+testEndpoint(
+  "exchange-symbol-list",
+  "symbol-list?exchange=NASDAQ"
+),
+
+testEndpoint(
+  "screener-small-marketcap-lower",
+  "company-screener?country=US&isEtf=false&isFund=false&isActivelyTrading=true&marketCapMoreThan=300000000&marketCapLowerThan=2000000000&limit=10"
+),
+
+testEndpoint(
+  "screener-small-marketcap-less",
+  "company-screener?country=US&isEtf=false&isFund=false&isActivelyTrading=true&marketCapMoreThan=300000000&marketCapLessThan=2000000000&limit=10"
+),
     ]);
 
   return NextResponse.json({

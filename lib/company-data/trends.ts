@@ -146,6 +146,68 @@ function classifyDirection(
     return "unavailable";
   }
 
+  // ---------------------------------------------------------
+  // Recent trajectory
+  // ---------------------------------------------------------
+
+  /*
+    Give greater importance to the most recent
+    three observations.
+
+    This prevents an unusual older year from
+    overwhelming a clear recent recovery or
+    deterioration.
+  */
+
+  if (values.length >= 3) {
+    const recent =
+      values.slice(-3);
+
+    const recentChanges =
+      recent
+        .slice(1)
+        .map(
+          (
+            value,
+            index
+          ) =>
+            value -
+            recent[index]
+        );
+
+    const allRecentPositive =
+      recentChanges.every(
+        (change) =>
+          change > 0
+      );
+
+    const allRecentNegative =
+      recentChanges.every(
+        (change) =>
+          change < 0
+      );
+
+    if (
+      allRecentPositive
+    ) {
+      return higherIsBetter
+        ? "improving"
+        : "deteriorating";
+    }
+
+    if (
+      allRecentNegative
+    ) {
+      return higherIsBetter
+        ? "deteriorating"
+        : "improving";
+    }
+  }
+
+  // ---------------------------------------------------------
+  // Full-period change
+  // ---------------------------------------------------------
+
   const first =
     values[0];
 
@@ -170,15 +232,9 @@ function classifyDirection(
     return "stable";
   }
 
-  const improved =
-    higherIsBetter
-      ? last > first
-      : last < first;
-
-  const worsened =
-    higherIsBetter
-      ? last < first
-      : last > first;
+  // ---------------------------------------------------------
+  // Overall consistency
+  // ---------------------------------------------------------
 
   const stepChanges =
     values
@@ -192,45 +248,44 @@ function classifyDirection(
           values[index]
       );
 
-  const positiveSteps =
+  const improvingSteps =
     stepChanges.filter(
       (change) =>
-        change > 0
+        higherIsBetter
+          ? change > 0
+          : change < 0
     ).length;
 
-  const negativeSteps =
+  const deterioratingSteps =
     stepChanges.filter(
       (change) =>
-        change < 0
+        higherIsBetter
+          ? change < 0
+          : change > 0
     ).length;
 
-  const dominantDirection =
-    Math.max(
-      positiveSteps,
-      negativeSteps
-    ) >=
+  const requiredMajority =
     Math.ceil(
       stepChanges.length *
         0.75
     );
 
   if (
-    !dominantDirection
+    improvingSteps >=
+    requiredMajority
   ) {
-    return "mixed";
-  }
-
-  if (improved) {
     return "improving";
   }
 
-  if (worsened) {
+  if (
+    deterioratingSteps >=
+    requiredMajority
+  ) {
     return "deteriorating";
   }
 
   return "mixed";
 }
-
 function buildTrend(
   rawPoints: HistoricalMetricPoint[],
   higherIsBetter = true
