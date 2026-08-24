@@ -1,20 +1,46 @@
 "use client";
 
 import { useActionState } from "react";
-import { runDiscoveryAction } from "@/app/discovery-actions";
+
+import {
+  processDiscoveryAction,
+  runDiscoveryAction,
+} from "@/app/discovery-actions";
+
 import {
   initialActionState,
   type ActionState,
 } from "@/lib/forms/action-state";
+
 import FormMessage from "@/components/form-message";
 
+const TEST_SCAN_RUN_ID =
+  "81744606-3be9-4782-8f2f-bff9ff3c6d5b";
+
 export default function DiscoveryRunForm() {
-  const [state, formAction, pending] =
+  const [
+    runState,
+    runFormAction,
+    runPending,
+  ] =
     useActionState<
       ActionState,
       FormData
     >(
       runDiscoveryAction,
+      initialActionState
+    );
+
+  const [
+    processState,
+    processFormAction,
+    processPending,
+  ] =
+    useActionState<
+      ActionState,
+      FormData
+    >(
+      processDiscoveryAction,
       initialActionState
     );
 
@@ -29,11 +55,13 @@ export default function DiscoveryRunForm() {
       </p>
 
       <div className="mt-4">
-        <FormMessage state={state} />
+        <FormMessage
+          state={runState}
+        />
       </div>
 
       <form
-        action={formAction}
+        action={runFormAction}
         className="mt-6 flex flex-wrap items-end gap-4"
       >
         <div>
@@ -62,14 +90,57 @@ export default function DiscoveryRunForm() {
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={runPending}
           className="rounded bg-black px-5 py-2 text-white disabled:opacity-50"
         >
-          {pending
-            ? "Scanning..."
+          {runPending
+            ? "Starting..."
             : "Run Discovery"}
         </button>
       </form>
+
+      <div className="mt-8 border-t border-gray-200 pt-6">
+        <p className="text-sm font-medium text-gray-900">
+          Temporary V2 Worker Test
+        </p>
+
+        <p className="mt-1 text-xs text-gray-500">
+          Advances the current test scan by one processing stage.
+        </p>
+
+        <div className="mt-4">
+          <FormMessage
+            state={processState}
+          />
+        </div>
+
+        <form
+          action={
+            processFormAction
+          }
+          className="mt-4"
+        >
+          <input
+            type="hidden"
+            name="scan_run_id"
+            value={
+              TEST_SCAN_RUN_ID
+            }
+          />
+
+          <button
+            type="submit"
+            disabled={
+              processPending
+            }
+            className="rounded border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-900 disabled:opacity-50"
+          >
+            {processPending
+              ? "Processing..."
+              : "Process Scan"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

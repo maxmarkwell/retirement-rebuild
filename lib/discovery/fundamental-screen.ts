@@ -123,7 +123,7 @@ function emptyFundamentals(
   };
 }
 
-function evaluateCandidate(
+export function evaluateFundamentalScreenCandidate(
   stock: DynamicUniverseStock,
   fundamentals: LightFundamentals
 ): FundamentalScreenCandidate {
@@ -396,7 +396,7 @@ export async function runFundamentalScreen(): Promise<
                 null;
             }
 
-            return evaluateCandidate(
+            return evaluateFundamentalScreenCandidate(
               stock,
               fundamentals
             );
