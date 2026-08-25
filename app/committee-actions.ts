@@ -327,14 +327,31 @@ export async function createCommitteeRun(
     error: createRunError,
   } = await supabase
     .from("ai_committee_runs")
-    .insert({
-      user_id: user.id,
-      portfolio_id: portfolioId,
-      ticker,
-      market_price: marketPrice,
-      status: "researching",
-      prompt_version: "phase-1-v1",
-    })
+.insert({
+  user_id:
+    user.id,
+
+  portfolio_id:
+    portfolioId,
+
+  ticker,
+
+  market_price:
+    marketPrice,
+
+  status:
+    "researching",
+
+  prompt_version:
+    "phase-1-v1",
+
+  discovery_candidate_id:
+    discoveryCandidate?.id ??
+    null,
+
+  discovery_evidence:
+    discoveryEvidence,
+})
     .select("id")
     .single();
 
