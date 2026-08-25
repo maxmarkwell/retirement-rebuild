@@ -33,6 +33,28 @@ type FmpKeyMetricsTtm = {
   freeCashFlowYieldTTM?: number;
 };
 
+export class FmpRateLimitError extends Error {
+  status = 429;
+
+  constructor(
+    message = "FMP rate limit reached."
+  ) {
+    super(message);
+
+    this.name =
+      "FmpRateLimitError";
+  }
+}
+
+export function isFmpRateLimitError(
+  error: unknown
+): error is FmpRateLimitError {
+  return (
+    error instanceof
+    FmpRateLimitError
+  );
+}
+
 async function fetchFmp<T>(
   path: string,
   params: Record<string, string>
@@ -75,6 +97,14 @@ async function fetchFmp<T>(
   if (!response.ok) {
     const text =
       await response.text();
+
+    if (
+      response.status === 429
+    ) {
+      throw new FmpRateLimitError(
+        `FMP rate limit reached while requesting ${path}.`
+      );
+    }
 
     throw new Error(
       `FMP ${path} failed with status ${response.status}: ${text.slice(

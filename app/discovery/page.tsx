@@ -19,6 +19,19 @@ function formatScore(
   return Number(value).toFixed(2);
 }
 
+function formatBucket(
+  value: string | null
+) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    value.charAt(0).toUpperCase() +
+    value.slice(1)
+  );
+}
+
 export default async function DiscoveryPage({
   searchParams,
 }: DiscoveryPageProps) {
@@ -27,7 +40,8 @@ export default async function DiscoveryPage({
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } =
+    await supabase.auth.getUser();
 
   if (!user) {
     redirect("/login");
@@ -42,51 +56,78 @@ export default async function DiscoveryPage({
       : "paper_long_term";
 
   const discoveryDate =
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Denver",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "America/Denver",
+
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+      }
+    ).format(
+      new Date()
+    );
 
   const {
     data: candidates,
     error: candidatesError,
-  } = await supabase
-    .from(
-      "stock_discovery_candidates"
-    )
-    .select(
-      `
-      id,
-      portfolio_type,
-      ticker,
-      discovery_date,
-      quality_score,
-      growth_score,
-      valuation_score,
-      earnings_score,
-      risk_score,
-      portfolio_fit_score,
-      total_score,
-      reason_summary,
-      status
-      `
-    )
-    .eq(
-      "portfolio_type",
-      selectedMode
-    )
-    .eq(
-      "discovery_date",
-      discoveryDate
-    )
-    .order(
-      "total_score",
-      {
-        ascending: false,
-      }
-    );
+  } =
+    await supabase
+      .from(
+        "stock_discovery_candidates"
+      )
+      .select(
+        `
+        id,
+        portfolio_type,
+        ticker,
+        discovery_date,
+
+        quality_score,
+        growth_score,
+        valuation_score,
+
+        earnings_score,
+        risk_score,
+
+        trend_quality_score,
+        capital_discipline_score,
+        deep_score,
+        selector_score,
+
+        portfolio_fit_score,
+        total_score,
+
+        market_cap_bucket,
+        sector,
+        industry,
+        scoring_version,
+
+        reason_summary,
+        status
+        `
+      )
+      .eq(
+        "portfolio_type",
+        selectedMode
+      )
+      .eq(
+        "discovery_date",
+        discoveryDate
+      )
+      .order(
+        "total_score",
+        {
+          ascending: false,
+        }
+      );
 
   if (candidatesError) {
     throw new Error(
@@ -150,7 +191,7 @@ export default async function DiscoveryPage({
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Ranked by deterministic financial scoring.
+                  Ranked by Discovery V2 deterministic scoring and portfolio fit.
                 </p>
               </div>
 
@@ -166,148 +207,272 @@ export default async function DiscoveryPage({
                 (
                   candidate,
                   index
-                ) => (
-                  <div
-                    key={
-                      candidate.id
-                    }
-                    className="p-6"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-6">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-gray-400">
-                            #
-                            {index +
-                              1}
-                          </span>
+                ) => {
+                  const isV2 =
+                    candidate.scoring_version ===
+                    "v2";
 
-                          <span className="text-xl font-bold text-gray-900">
-                            {
-                              candidate.ticker
-                            }
-                          </span>
+                  return (
+                    <div
+                      key={
+                        candidate.id
+                      }
+                      className="p-6"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-6">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm font-semibold text-gray-400">
+                              #
+                              {index +
+                                1}
+                            </span>
 
-                          <span className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
+                            <span className="text-xl font-bold text-gray-900">
+                              {
+                                candidate.ticker
+                              }
+                            </span>
+
+                            <span className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
+                              {
+                                candidate.status
+                              }
+                            </span>
+
+                            {candidate.market_cap_bucket && (
+                              <span className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600">
+                                {formatBucket(
+                                  candidate.market_cap_bucket
+                                )}{" "}
+                                Cap
+                              </span>
+                            )}
+
+                            {candidate.sector && (
+                              <span className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600">
+                                {
+                                  candidate.sector
+                                }
+                              </span>
+                            )}
+
+                            {isV2 && (
+                              <span className="rounded bg-gray-900 px-2 py-1 text-xs font-semibold uppercase text-white">
+                                V2
+                              </span>
+                            )}
+                          </div>
+
+                          {candidate.industry && (
+                            <p className="mt-2 text-xs text-gray-400">
+                              {
+                                candidate.industry
+                              }
+                            </p>
+                          )}
+
+                          <p className="mt-3 text-sm text-gray-500">
                             {
-                              candidate.status
+                              candidate.reason_summary
                             }
-                          </span>
+                          </p>
                         </div>
 
-                        <p className="mt-2 text-sm text-gray-500">
-                          {
-                            candidate.reason_summary
-                          }
-                        </p>
+                        <div className="text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500">
+                            Discovery
+                            Score
+                          </p>
+
+                          <p className="mt-1 text-2xl font-bold text-gray-900">
+                            {formatScore(
+                              candidate.total_score
+                            )}
+                          </p>
+
+                          {isV2 &&
+                            candidate.deep_score !=
+                              null && (
+                              <p className="mt-1 text-xs text-gray-500">
+                                Deep score{" "}
+                                {formatScore(
+                                  candidate.deep_score
+                                )}
+                              </p>
+                            )}
+                        </div>
                       </div>
 
-                      <div className="text-right">
-                        <p className="text-xs uppercase tracking-wide text-gray-500">
-                          Discovery
-                          Score
-                        </p>
+                      {isV2 ? (
+                        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Quality
+                            </p>
 
-                        <p className="mt-1 text-2xl font-bold text-gray-900">
-                          {formatScore(
-                            candidate.total_score
-                          )}
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.quality_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Growth
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.growth_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Valuation
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.valuation_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Trend Quality
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.trend_quality_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Capital Discipline
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.capital_discipline_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Portfolio Fit
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.portfolio_fit_score
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Quality
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.quality_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Growth
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.growth_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Valuation
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.valuation_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Earnings
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.earnings_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Risk
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.risk_score
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase text-gray-500">
+                              Portfolio Fit
+                            </p>
+
+                            <p className="mt-1 font-medium text-gray-900">
+                              {formatScore(
+                                candidate.portfolio_fit_score
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-6 flex flex-wrap items-center gap-3">
+                        <Link
+                          href={`/research?ticker=${encodeURIComponent(
+                            candidate.ticker
+                          )}&mode=${encodeURIComponent(
+                            candidate.portfolio_type
+                          )}`}
+                          className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
+                        >
+                          Research Candidate
+                        </Link>
+
+                        <p className="text-xs text-gray-500">
+                          Opens Research for review. No AI cost until you start the committee run.
                         </p>
                       </div>
                     </div>
-
-                    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-                      <div>
-                        <p className="text-xs uppercase text-gray-500">
-                          Quality
-                        </p>
-
-                        <p className="mt-1 font-medium text-gray-900">
-                          {formatScore(
-                            candidate.quality_score
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs uppercase text-gray-500">
-                          Growth
-                        </p>
-
-                        <p className="mt-1 font-medium text-gray-900">
-                          {formatScore(
-                            candidate.growth_score
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs uppercase text-gray-500">
-                          Valuation
-                        </p>
-
-                        <p className="mt-1 font-medium text-gray-900">
-                          {formatScore(
-                            candidate.valuation_score
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs uppercase text-gray-500">
-                          Earnings
-                        </p>
-
-                        <p className="mt-1 font-medium text-gray-900">
-                          {formatScore(
-                            candidate.earnings_score
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs uppercase text-gray-500">
-                          Risk
-                        </p>
-
-                        <p className="mt-1 font-medium text-gray-900">
-                          {formatScore(
-                            candidate.risk_score
-                          )}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs uppercase text-gray-500">
-                          Portfolio Fit
-                        </p>
-
-                        <p className="mt-1 font-medium text-gray-900">
-                          {formatScore(
-                            candidate.portfolio_fit_score
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex flex-wrap items-center gap-3">
-                      <Link
-                        href={`/research?ticker=${encodeURIComponent(
-                          candidate.ticker
-                        )}&mode=${encodeURIComponent(
-                          candidate.portfolio_type
-                        )}`}
-                        className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
-                      >
-                        Research Candidate
-                      </Link>
-
-                      <p className="text-xs text-gray-500">
-                        Opens Research for review. No AI cost until you start the committee run.
-                      </p>
-                    </div>
-                  </div>
-                )
+                  );
+                }
               )}
             </div>
           ) : (
