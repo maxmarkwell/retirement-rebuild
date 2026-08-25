@@ -29,6 +29,10 @@ const navigation = [
   href: "/decisions",
 },
   {
+    name: "Watchlist",
+    href: "/watchlist",
+  },
+  {
     name: "AI Scorecard",
     href: "/scorecard",
   },
