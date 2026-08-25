@@ -168,6 +168,29 @@ function parseJsonResponse<T>(
 // Committee
 // ---------------------------------------------------------
 
+type DiscoveryEvidence = {
+  discoveryDate: string;
+  scoringVersion: string | null;
+
+  qualityScore: number;
+  growthScore: number;
+  valuationScore: number;
+
+  trendQualityScore: number;
+  capitalDisciplineScore: number;
+
+  selectorScore: number;
+  deepScore: number;
+  portfolioFitScore: number;
+  totalScore: number;
+
+  marketCapBucket: string | null;
+  sector: string | null;
+  industry: string | null;
+
+  reasonSummary: string | null;
+};
+
 export async function runInvestmentCommittee(input: {
   ticker: string;
 
@@ -191,6 +214,9 @@ export async function runInvestmentCommittee(input: {
   trends: CompanyFundamentalTrends | null;
 
   fundamentals: CompanyFundamentals | null;
+
+  discoveryEvidence:
+    DiscoveryEvidence | null;
 }): Promise<CommitteeRunResult> {
   const client =
     getOpenAIClient();
@@ -225,6 +251,8 @@ export async function runInvestmentCommittee(input: {
       fundamentals: input.fundamentals,
       earnings: input.earnings,
       trends: input.trends,
+            discoveryEvidence:
+        input.discoveryEvidence,
     });
 
   const specialistResponse =
@@ -275,19 +303,27 @@ export async function runInvestmentCommittee(input: {
   // Committee Chair
   // ---------------------------------------------------------
 
-  const chairPrompt =
-    buildChairPrompt({
-      ticker,
-      marketPrice:
-        input.marketPrice,
-      portfolioMode:
-        input.portfolioMode,
-      portfolioName:
-        input.portfolioName,
-      availableCash:
-        input.availableCash,
-      specialistAnalysis,
-    });
+const chairPrompt =
+  buildChairPrompt({
+    ticker,
+
+    marketPrice:
+      input.marketPrice,
+
+    portfolioMode:
+      input.portfolioMode,
+
+    portfolioName:
+      input.portfolioName,
+
+    availableCash:
+      input.availableCash,
+
+    specialistAnalysis,
+
+    discoveryEvidence:
+      input.discoveryEvidence,
+  });
 
   const chairResponse =
     await client.responses.create({

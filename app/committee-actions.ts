@@ -81,6 +81,141 @@ export async function createCommitteeRun(
     portfolio.type as CommitteePortfolioMode;
 
   // ---------------------------------------------------------
+  // Load latest Discovery V2 evidence
+  // ---------------------------------------------------------
+
+  const {
+    data: discoveryCandidate,
+    error: discoveryError,
+  } =
+    await supabase
+      .from(
+        "stock_discovery_candidates"
+      )
+      .select(
+        `
+        id,
+        discovery_date,
+        scoring_version,
+
+        quality_score,
+        growth_score,
+        valuation_score,
+        trend_quality_score,
+        capital_discipline_score,
+
+        selector_score,
+        deep_score,
+        portfolio_fit_score,
+        total_score,
+
+        market_cap_bucket,
+        sector,
+        industry,
+
+        reason_summary
+        `
+      )
+      .eq(
+        "user_id",
+        user.id
+      )
+      .eq(
+        "portfolio_type",
+        portfolioMode
+      )
+      .eq(
+        "ticker",
+        ticker
+      )
+      .eq(
+        "scoring_version",
+        "v2"
+      )
+      .order(
+        "discovery_date",
+        {
+          ascending: false,
+        }
+      )
+      .limit(1)
+      .maybeSingle();
+
+  if (discoveryError) {
+    throw new Error(
+      `Unable to load Discovery V2 evidence: ${discoveryError.message}`
+    );
+  }
+
+  const discoveryEvidence =
+    discoveryCandidate
+      ? {
+          discoveryDate:
+            discoveryCandidate.discovery_date,
+
+          scoringVersion:
+            discoveryCandidate.scoring_version,
+
+          qualityScore:
+            Number(
+              discoveryCandidate.quality_score
+            ),
+
+          growthScore:
+            Number(
+              discoveryCandidate.growth_score
+            ),
+
+          valuationScore:
+            Number(
+              discoveryCandidate.valuation_score
+            ),
+
+          trendQualityScore:
+            Number(
+              discoveryCandidate.trend_quality_score
+            ),
+
+          capitalDisciplineScore:
+            Number(
+              discoveryCandidate.capital_discipline_score
+            ),
+
+          selectorScore:
+            Number(
+              discoveryCandidate.selector_score
+            ),
+
+          deepScore:
+            Number(
+              discoveryCandidate.deep_score
+            ),
+
+          portfolioFitScore:
+            Number(
+              discoveryCandidate.portfolio_fit_score
+            ),
+
+          totalScore:
+            Number(
+              discoveryCandidate.total_score
+            ),
+
+          marketCapBucket:
+            discoveryCandidate.market_cap_bucket,
+
+          sector:
+            discoveryCandidate.sector,
+
+          industry:
+            discoveryCandidate.industry,
+
+          reasonSummary:
+            discoveryCandidate.reason_summary,
+        }
+      : null;
+
+  // ---------------------------------------------------------
   // Load contributions
   // ---------------------------------------------------------
 
@@ -273,6 +408,29 @@ try {
   // Run AI Investment Committee
   // ---------------------------------------------------------
 
+type DiscoveryEvidence = {
+  discoveryDate: string;
+  scoringVersion: string | null;
+
+  qualityScore: number;
+  growthScore: number;
+  valuationScore: number;
+
+  trendQualityScore: number;
+  capitalDisciplineScore: number;
+
+  selectorScore: number;
+  deepScore: number;
+  portfolioFitScore: number;
+  totalScore: number;
+
+  marketCapBucket: string | null;
+  sector: string | null;
+  industry: string | null;
+
+  reasonSummary: string | null;
+};
+
   try {
     const result =
       await runInvestmentCommittee({
@@ -289,6 +447,10 @@ try {
         fundamentals,
         earnings,
         trends,
+
+        discoveryEvidence,
+
+
       });
 
     const finalDecision =

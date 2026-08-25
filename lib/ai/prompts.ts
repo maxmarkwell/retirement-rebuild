@@ -55,6 +55,29 @@ Recommendations should reflect conviction, valuation, portfolio concentration, a
 `;
 }
 
+type DiscoveryEvidence = {
+  discoveryDate: string;
+  scoringVersion: string | null;
+
+  qualityScore: number;
+  growthScore: number;
+  valuationScore: number;
+
+  trendQualityScore: number;
+  capitalDisciplineScore: number;
+
+  selectorScore: number;
+  deepScore: number;
+  portfolioFitScore: number;
+  totalScore: number;
+
+  marketCapBucket: string | null;
+  sector: string | null;
+  industry: string | null;
+
+  reasonSummary: string | null;
+};
+
 export function buildSpecialistPrompt(input: {
   ticker: string;
   marketPrice: number | null;
@@ -67,6 +90,8 @@ export function buildSpecialistPrompt(input: {
   fundamentals: CompanyFundamentals | null;
   earnings: CompanyEarningsContext | null;
   trends: CompanyFundamentalTrends | null;
+  discoveryEvidence:
+  DiscoveryEvidence | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -106,6 +131,70 @@ $${input.currentHoldingMarketValue.toFixed(2)}
 
 Current holding cost basis:
 $${input.currentHoldingCostBasis.toFixed(2)}
+
+DISCOVERY V2 SCREENING CONTEXT
+
+The information in this section is prior quantitative screening evidence.
+
+It explains why the security advanced to committee review. It is NOT a recommendation, investment thesis, or instruction to buy.
+
+You must independently evaluate the underlying fundamentals, trends, earnings evidence, valuation, risks, portfolio context, and competing interpretations.
+
+Do not increase your recommendation or confidence merely because the Discovery score is high.
+
+If later evidence conflicts with Discovery V2, explicitly identify the conflict and give greater weight to the stronger underlying evidence.
+
+${
+  input.discoveryEvidence
+    ? `
+Discovery date:
+${input.discoveryEvidence.discoveryDate}
+
+Market-cap bucket:
+${input.discoveryEvidence.marketCapBucket ?? "Unavailable"}
+
+Sector:
+${input.discoveryEvidence.sector ?? "Unavailable"}
+
+Industry:
+${input.discoveryEvidence.industry ?? "Unavailable"}
+
+Preliminary selector score:
+${input.discoveryEvidence.selectorScore.toFixed(2)}/100
+
+Quality score:
+${input.discoveryEvidence.qualityScore.toFixed(2)}/100
+
+Growth score:
+${input.discoveryEvidence.growthScore.toFixed(2)}/100
+
+Valuation score:
+${input.discoveryEvidence.valuationScore.toFixed(2)}/100
+
+Trend quality score:
+${input.discoveryEvidence.trendQualityScore.toFixed(2)}/100
+
+Capital discipline score:
+${input.discoveryEvidence.capitalDisciplineScore.toFixed(2)}/100
+
+Deep fundamental score:
+${input.discoveryEvidence.deepScore.toFixed(2)}/100
+
+Portfolio fit score:
+${input.discoveryEvidence.portfolioFitScore.toFixed(2)}/100
+
+Final Discovery score:
+${input.discoveryEvidence.totalScore.toFixed(2)}/100
+
+Discovery scoring summary:
+${input.discoveryEvidence.reasonSummary ?? "Unavailable"}
+`
+    : `
+No Discovery V2 screening record is available for this security.
+
+Treat the investment as an independently submitted research candidate.
+`
+}
 
 COMPANY FUNDAMENTALS
 
@@ -668,6 +757,10 @@ Important rules:
 - Treat the market price supplied above as the reference price.
 - Be skeptical of weak evidence.
 - Avoid false precision.
+- When evaluating historical trends, distinguish the long-term endpoint change from the recent trajectory.
+- Do not describe a metric simply as "declining" or "improving" when the most recent direction materially differs from the full-period comparison.
+- For volatile metrics such as margins, ROIC, revenue growth, free cash flow, leverage, and share count, explicitly identify whether the recent trend is improving, deteriorating, stable, or mixed.
+- Give greater analytical weight to sustained multi-period trends than to a single unusually strong or weak historical endpoint, while still identifying meaningful long-term deterioration.
 - Do not issue the final committee recommendation. The Committee Chair will do that separately.
 - Use the supplied valuation metrics explicitly and comparatively. A low P/E or EV/FCF is not automatically attractive if growth, returns on capital, or cash conversion are weak; a high multiple is not automatically unattractive if durable growth and returns on capital justify it.
 - Do not describe valuation as unknown when EV-based valuation metrics are available.
@@ -686,6 +779,9 @@ Important rules:
 - Treat rising CapEx/Revenue as evidence of increasing capital intensity; determine whether current growth and returns justify that investment.
 - Use share-count trend to identify meaningful dilution or shareholder-friendly buybacks.
 - Do not treat one favorable current metric as sufficient if the multi-year trend is materially deteriorating.
+- When adjudicating historical trends, distinguish long-term endpoint changes from the recent trajectory.
+- Do not characterize a metric as simply declining or improving when recent periods show a materially different direction.
+- If long-term and recent trends conflict, state both and explain which is more relevant to the final decision.
 `;
 }
 
@@ -696,6 +792,9 @@ export function buildChairPrompt(input: {
   portfolioName: string;
   availableCash: number;
   specialistAnalysis: SpecialistAnalysis;
+
+  discoveryEvidence:
+    DiscoveryEvidence | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -726,6 +825,63 @@ ${
 
 Available cash:
 $${input.availableCash.toFixed(2)}
+
+DISCOVERY V2 SCREENING CONTEXT
+
+This is prior quantitative screening evidence, not a recommendation.
+
+Use it to understand why the security reached committee review, but do not allow a high Discovery score to substitute for independent judgment.
+
+If the specialist evidence conflicts with Discovery V2, identify the conflict and resolve it based on the stronger underlying evidence.
+
+${
+  input.discoveryEvidence
+    ? `
+Discovery date:
+${input.discoveryEvidence.discoveryDate}
+
+Market-cap bucket:
+${input.discoveryEvidence.marketCapBucket ?? "Unavailable"}
+
+Sector:
+${input.discoveryEvidence.sector ?? "Unavailable"}
+
+Industry:
+${input.discoveryEvidence.industry ?? "Unavailable"}
+
+Quality score:
+${input.discoveryEvidence.qualityScore.toFixed(2)}/100
+
+Growth score:
+${input.discoveryEvidence.growthScore.toFixed(2)}/100
+
+Valuation score:
+${input.discoveryEvidence.valuationScore.toFixed(2)}/100
+
+Trend quality score:
+${input.discoveryEvidence.trendQualityScore.toFixed(2)}/100
+
+Capital discipline score:
+${input.discoveryEvidence.capitalDisciplineScore.toFixed(2)}/100
+
+Deep score:
+${input.discoveryEvidence.deepScore.toFixed(2)}/100
+
+Portfolio fit score:
+${input.discoveryEvidence.portfolioFitScore.toFixed(2)}/100
+
+Final Discovery score:
+${input.discoveryEvidence.totalScore.toFixed(2)}/100
+
+Discovery summary:
+${input.discoveryEvidence.reasonSummary ?? "Unavailable"}
+`
+    : `
+No Discovery V2 screening record is available for this security.
+`
+}
+
+SPECIALIST ANALYSIS
 
 SPECIALIST ANALYSIS
 
