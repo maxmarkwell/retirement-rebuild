@@ -638,6 +638,193 @@ type DiscoveryEvidence = {
     }
 
     // ---------------------------------------------------------
+    // Create WATCH reassessment
+    // ---------------------------------------------------------
+
+    if (
+      finalDecision.recommendation ===
+      "watch"
+    ) {
+      const nextExpectedEarningsDate =
+        earnings?.nextExpected
+          ?.date ??
+        null;
+
+      let scheduledFor:
+        string | null =
+        null;
+
+      let triggerType:
+        "earnings" |
+        "scheduled" =
+        "scheduled";
+
+      // -------------------------------------------------------
+      // Prefer the next expected earnings date
+      // -------------------------------------------------------
+
+      if (
+        nextExpectedEarningsDate
+      ) {
+        const earningsDate =
+          new Date(
+            `${nextExpectedEarningsDate}T16:00:00-06:00`
+          );
+
+        if (
+          Number.isFinite(
+            earningsDate.getTime()
+          )
+        ) {
+          scheduledFor =
+            earningsDate.toISOString();
+
+          triggerType =
+            "earnings";
+        }
+      }
+
+      // -------------------------------------------------------
+      // Fallback: review again in 60 days
+      // -------------------------------------------------------
+
+      if (!scheduledFor) {
+        const fallbackDate =
+          new Date();
+
+        fallbackDate.setDate(
+          fallbackDate.getDate() +
+            60
+        );
+
+        scheduledFor =
+          fallbackDate.toISOString();
+
+        triggerType =
+          "scheduled";
+      }
+
+      // -------------------------------------------------------
+      // Prevent duplicate active reassessments
+      // -------------------------------------------------------
+
+      const {
+        data:
+          existingReassessment,
+        error:
+          existingReassessmentError,
+      } =
+        await supabase
+          .from(
+            "investment_reassessments"
+          )
+          .select(
+            "id"
+          )
+          .eq(
+            "user_id",
+            user.id
+          )
+          .eq(
+            "decision_id",
+            decision.id
+          )
+          .in(
+            "status",
+            [
+              "pending",
+              "ready",
+            ]
+          )
+          .maybeSingle();
+
+      if (
+        existingReassessmentError
+      ) {
+        throw new Error(
+          `Unable to check existing WATCH reassessments: ${existingReassessmentError.message}`
+        );
+      }
+
+      // -------------------------------------------------------
+      // Create reassessment only when one does not exist
+      // -------------------------------------------------------
+
+      if (
+        !existingReassessment
+      ) {
+        const {
+          error:
+            reassessmentError,
+        } =
+          await supabase
+            .from(
+              "investment_reassessments"
+            )
+            .insert({
+              user_id:
+                user.id,
+
+              portfolio_id:
+                portfolioId,
+
+              decision_id:
+                decision.id,
+
+              ticker,
+
+              status:
+                "pending",
+
+              trigger_type:
+                triggerType,
+
+              scheduled_for:
+                scheduledFor,
+
+              trigger_reason:
+                finalDecision
+                  .reassessmentConditions,
+
+              prior_decision_type:
+                finalDecision
+                  .recommendation,
+
+              prior_confidence:
+                finalDecision
+                  .confidence,
+
+              prior_price:
+                marketPrice,
+
+              evidence_snapshot: {
+                discoveryEvidence,
+
+                fundamentals,
+
+                earnings,
+
+                trends,
+
+                specialistAnalysis:
+                  result.specialistAnalysis,
+
+                finalDecision,
+              },
+            });
+
+        if (
+          reassessmentError
+        ) {
+          throw new Error(
+            `Investment decision was created, but WATCH reassessment could not be scheduled: ${reassessmentError.message}`
+          );
+        }
+      }
+    }
+
+
+    // ---------------------------------------------------------
     // Save completed committee analysis
     // ---------------------------------------------------------
 
