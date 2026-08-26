@@ -89,11 +89,16 @@ export async function getMarketQuotes(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Twelve Data request failed with status ${response.status}.`
-    );
-  }
+  const text =
+    await response.text();
 
+  throw new Error(
+    `Twelve Data request failed with status ${response.status}: ${text.slice(
+      0,
+      300
+    )}`
+  );
+}
   const data =
     (await response.json()) as TwelveDataBatchResponse;
 
