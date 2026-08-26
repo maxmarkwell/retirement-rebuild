@@ -38,6 +38,13 @@ export async function createCommitteeRun(
     ?.trim()
     .toUpperCase();
 
+  const reassessmentId =
+  (
+    formData.get(
+      "reassessment_id"
+    ) as string
+  )?.trim() ?? "";
+
   if (!portfolioId || !ticker) {
     return {
       success: false,
@@ -79,6 +86,184 @@ export async function createCommitteeRun(
 
   const portfolioMode =
     portfolio.type as CommitteePortfolioMode;
+
+ // ---------------------------------------------------------
+// Load reassessment context
+// ---------------------------------------------------------
+
+let reassessment:
+  {
+    id: string;
+    decision_id: string;
+    ticker: string;
+    status: string;
+    scheduled_for: string | null;
+    trigger_reason: string | null;
+    prior_decision_type: string | null;
+    prior_confidence:
+      number | string | null;
+    prior_price:
+      number | string | null;
+    evidence_snapshot: unknown;
+  } |
+  null = null;
+
+if (reassessmentId) {
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "investment_reassessments"
+      )
+      .select(
+        `
+        id,
+        decision_id,
+        ticker,
+        status,
+        scheduled_for,
+        trigger_reason,
+        prior_decision_type,
+        prior_confidence,
+        prior_price,
+        evidence_snapshot
+        `
+      )
+      .eq(
+        "id",
+        reassessmentId
+      )
+      .eq(
+        "user_id",
+        user.id
+      )
+      .eq(
+        "portfolio_id",
+        portfolioId
+      )
+      .single();
+
+  if (
+    error ||
+    !data
+  ) {
+    return {
+      success: false,
+      message:
+        "Unable to load the reassessment.",
+    };
+  }
+
+  if (
+    data.ticker
+      .trim()
+      .toUpperCase() !==
+    ticker
+  ) {
+    return {
+      success: false,
+      message:
+        "Reassessment ticker does not match the requested security.",
+    };
+  }
+
+  if (
+    data.status !==
+      "pending" &&
+    data.status !==
+      "ready"
+  ) {
+    return {
+      success: false,
+      message:
+        "This reassessment is no longer active.",
+    };
+  }
+
+  // -------------------------------------------------------
+  // Enforce reassessment timing server-side
+  // -------------------------------------------------------
+
+  if (
+    data.status ===
+      "pending"
+  ) {
+    const scheduledTime =
+      data.scheduled_for
+        ? new Date(
+            data.scheduled_for
+          ).getTime()
+        : null;
+
+    const isDue =
+      scheduledTime != null &&
+      Number.isFinite(
+        scheduledTime
+      ) &&
+      scheduledTime <=
+        Date.now();
+
+    if (!isDue) {
+      return {
+        success: false,
+        message:
+          data.scheduled_for
+            ? `This reassessment is not due until ${new Date(
+                data.scheduled_for
+              ).toLocaleDateString(
+                "en-US",
+                {
+                  timeZone:
+                    "America/Denver",
+                  year:
+                    "numeric",
+                  month:
+                    "short",
+                  day:
+                    "numeric",
+                }
+              )}.`
+            : "This reassessment is not ready yet.",
+      };
+    }
+  }
+
+  reassessment =
+    data;
+
+  const {
+    error:
+      readyError,
+  } =
+    await supabase
+      .from(
+        "investment_reassessments"
+      )
+      .update({
+        status:
+          "ready",
+
+        triggered_at:
+          new Date()
+            .toISOString(),
+      })
+      .eq(
+        "id",
+        reassessmentId
+      )
+      .eq(
+        "user_id",
+        user.id
+      );
+
+  if (readyError) {
+    throw new Error(
+      `Unable to mark reassessment ready: ${readyError.message}`
+    );
+  }
+}
 
   // ---------------------------------------------------------
   // Load latest Discovery V2 evidence
@@ -636,6 +821,62 @@ type DiscoveryEvidence = {
         }`
       );
     }
+
+   // ---------------------------------------------------------
+// Complete originating reassessment
+// ---------------------------------------------------------
+
+if (
+  reassessment
+) {
+  const {
+    error:
+      completeReassessmentError,
+  } =
+    await supabase
+      .from(
+        "investment_reassessments"
+      )
+      .update({
+        status:
+          "completed",
+
+        completed_at:
+          new Date()
+            .toISOString(),
+
+        new_decision_type:
+          finalDecision
+            .recommendation,
+
+        new_confidence:
+          finalDecision
+            .confidence,
+
+        reassessment_price:
+          marketPrice,
+
+        reassessment_summary:
+          finalDecision
+            .finalThesis,
+      })
+      .eq(
+        "id",
+        reassessment.id
+      )
+      .eq(
+        "user_id",
+        user.id
+      );
+
+  if (
+    completeReassessmentError
+  ) {
+    throw new Error(
+      `New decision was created, but reassessment could not be completed: ${completeReassessmentError.message}`
+    );
+  }
+}
 
     // ---------------------------------------------------------
     // Create WATCH reassessment

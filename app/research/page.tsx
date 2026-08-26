@@ -7,6 +7,7 @@ type ResearchPageProps = {
   searchParams: Promise<{
     ticker?: string;
     mode?: string;
+    reassessment?: string;
   }>;
 };
 
@@ -51,6 +52,8 @@ export default async function ResearchPage({
   const {
     ticker: requestedTicker,
     mode: requestedMode,
+      reassessment:
+    reassessmentId,
   } =
     await searchParams;
 
@@ -444,6 +447,10 @@ export default async function ResearchPage({
             defaultPortfolioId={
               defaultPortfolio
                 ?.id ??
+              ""
+            }
+            reassessmentId={
+              reassessmentId ??
               ""
             }
           />

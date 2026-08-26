@@ -19,12 +19,15 @@ type CommitteeRunFormProps = {
   defaultTicker?: string;
 
   defaultPortfolioId?: string;
+
+  reassessmentId?: string;
 };
 
 export default function CommitteeRunForm({
   portfolios,
   defaultTicker = "",
   defaultPortfolioId = "",
+  reassessmentId = "",
 }: CommitteeRunFormProps) {
   const [state, formAction, pending] = useActionState<
     ActionState,
@@ -80,36 +83,41 @@ export default function CommitteeRunForm({
         </div>
 
         <div>
-          <label
-            htmlFor="committee_ticker"
-            className="mb-1 block text-sm font-medium text-gray-700"
-          >
-            Ticker
-          </label>
+  <label
+    htmlFor="committee_ticker"
+    className="mb-1 block text-sm font-medium text-gray-700"
+  >
+    Ticker
+  </label>
 
-          <input
-            id="committee_ticker"
-            name="ticker"
-            type="text"
-            required
-            defaultValue={defaultTicker}
-            placeholder="MSFT"
-            className="w-full rounded border border-gray-300 px-3 py-2 uppercase"
-          />
-        </div>
+  <input
+    id="committee_ticker"
+    name="ticker"
+    type="text"
+    required
+    defaultValue={defaultTicker}
+    placeholder="MSFT"
+    className="w-full rounded border border-gray-300 px-3 py-2 uppercase"
+  />
+</div>
 
-        <div className="md:col-span-2">
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded bg-black px-5 py-2 text-white disabled:opacity-50"
-          >
-            {pending
-              ? "Running Committee..."
-              : "Start Committee Run"}
-          </button>
-        </div>
-      </form>
+<input
+  type="hidden"
+  name="reassessment_id"
+  value={reassessmentId}
+/>
+
+<div className="md:col-span-2">
+  <button
+    type="submit"
+    disabled={pending}
+    className="rounded bg-black px-5 py-2 text-white disabled:opacity-50"
+  >
+    {pending
+      ? "Running Committee..."
+      : "Start Committee Run"}
+  </button>
+</div>      </form>
     </div>
   );
 }

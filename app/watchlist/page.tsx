@@ -114,6 +114,47 @@ export default async function WatchlistPage() {
   }
 
   // ---------------------------------------------------------
+  // Derive effective readiness
+  // ---------------------------------------------------------
+
+  const now =
+    new Date();
+
+  const activeReassessments =
+    (
+      reassessments ??
+      []
+    ).map(
+      (item) => {
+        const scheduledTime =
+          item.scheduled_for
+            ? new Date(
+                item.scheduled_for
+              ).getTime()
+            : null;
+
+        const isDue =
+          item.status ===
+            "pending" &&
+          scheduledTime != null &&
+          Number.isFinite(
+            scheduledTime
+          ) &&
+          scheduledTime <=
+            now.getTime();
+
+        return {
+          ...item,
+
+          effectiveStatus:
+            isDue
+              ? "ready"
+              : item.status,
+        };
+      }
+    );
+
+  // ---------------------------------------------------------
   // Load portfolio names
   // ---------------------------------------------------------
 
@@ -126,7 +167,7 @@ export default async function WatchlistPage() {
         "portfolios"
       )
       .select(
-        "id, name"
+        "id, name, type"
       );
 
   if (
@@ -150,23 +191,30 @@ export default async function WatchlistPage() {
       )
     );
 
-  const readyCount =
+const portfolioModes =
+  new Map(
     (
-      reassessments ??
+      portfolios ??
       []
-    ).filter(
+    ).map(
+      (portfolio) => [
+        portfolio.id,
+        portfolio.type,
+      ]
+    )
+  );
+
+  const readyCount =
+    activeReassessments.filter(
       (item) =>
-        item.status ===
+        item.effectiveStatus ===
         "ready"
     ).length;
 
   const pendingCount =
-    (
-      reassessments ??
-      []
-    ).filter(
+    activeReassessments.filter(
       (item) =>
-        item.status ===
+        item.effectiveStatus ===
         "pending"
     ).length;
 
@@ -199,9 +247,7 @@ export default async function WatchlistPage() {
 
             <p className="mt-2 text-3xl font-bold text-gray-900">
               {
-                reassessments
-                  ?.length ??
-                0
+                activeReassessments.length
               }
             </p>
           </div>
@@ -242,9 +288,9 @@ export default async function WatchlistPage() {
             </p>
           </div>
 
-          {reassessments?.length ? (
+          {activeReassessments.length ? (
             <div className="divide-y divide-gray-100">
-              {reassessments.map(
+              {activeReassessments.map(
                 (
                   reassessment
                 ) => (
@@ -265,14 +311,14 @@ export default async function WatchlistPage() {
 
                           <span
                             className={`rounded px-2 py-1 text-xs font-semibold uppercase ${
-                              reassessment.status ===
+                              reassessment.effectiveStatus ===
                               "ready"
                                 ? "bg-yellow-50 text-yellow-700"
                                 : "bg-blue-50 text-blue-700"
                             }`}
                           >
                             {
-                              reassessment.status
+                              reassessment.effectiveStatus
                             }
                           </span>
 
@@ -313,14 +359,23 @@ export default async function WatchlistPage() {
                           </Link>
 
                           <Link
-                            href={`/research?ticker=${encodeURIComponent(
-                              reassessment.ticker
-                            )}`}
-                            className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
-                          >
-                            Open Research
-                          </Link>
-                        </div>
+  href={`/research?ticker=${encodeURIComponent(
+    reassessment.ticker
+  )}&mode=${encodeURIComponent(
+    portfolioModes.get(
+      reassessment.portfolio_id
+    ) ?? ""
+  )}&reassessment=${encodeURIComponent(
+    reassessment.id
+  )}`}
+  className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
+>
+  {reassessment.effectiveStatus ===
+  "ready"
+    ? "Run Reassessment"
+    : "Open Research"}
+</Link>                        
+</div>
                       </div>
 
                       <div className="min-w-52 lg:text-right">
