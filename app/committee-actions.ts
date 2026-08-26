@@ -725,16 +725,23 @@ type DiscoveryEvidence = {
     }
 
     if (
-      finalDecision.recommendation ===
-      "rebalance"
-    ) {
-      recommendedQuantity =
-        null;
+  finalDecision.recommendation ===
+  "rebalance"
+) {
+  recommendedQuantity =
+    null;
 
-      recommendedAllocation =
-        currentHoldingMarketValue;
-    }
-
+  recommendedAllocation =
+    finalDecision.recommendedAllocation !=
+      null &&
+    Number.isFinite(
+      finalDecision.recommendedAllocation
+    ) &&
+    finalDecision.recommendedAllocation >=
+      0
+      ? finalDecision.recommendedAllocation
+      : currentHoldingMarketValue;
+}
     // ---------------------------------------------------------
     // Create investment decision
     // ---------------------------------------------------------

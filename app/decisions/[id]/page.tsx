@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DecisionEvaluationForm from "@/components/decision-evaluation-form";
 import ExecuteDecisionBuyButton from "@/components/execute-decision-buy-button";
+import ExecuteDecisionSellButton from "@/components/execute-decision-sell-button";
+import ExecuteDecisionRebalanceButton from "@/components/execute-decision-rebalance-button";
 
 type DecisionDetailPageProps = {
   params: Promise<{
@@ -300,6 +302,42 @@ export default async function DecisionDetailPage({
       ticker={decision.ticker}
       recommendedQuantity={
         decision.recommended_quantity
+      }
+      status={decision.status}
+      hasTransaction={
+        Boolean(
+          decision.transaction_id
+        )
+      }
+    />
+  </div>
+)}
+
+{decision.decision_type === "sell" && (
+  <div className="mt-6">
+    <ExecuteDecisionSellButton
+      decisionId={decision.id}
+      ticker={decision.ticker}
+      recommendedQuantity={
+        decision.recommended_quantity
+      }
+      status={decision.status}
+      hasTransaction={
+        Boolean(
+          decision.transaction_id
+        )
+      }
+    />
+  </div>
+)}
+
+{decision.decision_type === "rebalance" && (
+  <div className="mt-6">
+    <ExecuteDecisionRebalanceButton
+      decisionId={decision.id}
+      ticker={decision.ticker}
+      recommendedAllocation={
+        decision.recommended_allocation
       }
       status={decision.status}
       hasTransaction={
