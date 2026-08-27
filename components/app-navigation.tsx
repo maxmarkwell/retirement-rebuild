@@ -16,12 +16,12 @@ const navigation = [
     href: "/performance",
   },
   {
-    name: "Research",
-    href: "/research",
-  },
-  {
     name: "Discovery",
     href: "/discovery",
+  },
+  {
+    name: "Research",
+    href: "/research",
   },
   {
     name: "Decisions",
