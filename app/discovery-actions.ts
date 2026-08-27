@@ -149,13 +149,14 @@ export async function runDiscoveryAction(
     }
 
     if (existingRun) {
-      return {
-        success: false,
-        message:
-          `Discovery V2 is already running for this portfolio. ` +
-          `Current stage: ${existingRun.stage}.`,
-      };
-    }
+  return {
+    success: true,
+    message:
+      `Resuming Discovery V2. Current stage: ${existingRun.stage}.`,
+    scanRunId:
+      existingRun.id,
+  };
+}
 
     // -------------------------------------------------------
     // Create Discovery V2 scan run
@@ -207,10 +208,13 @@ export async function runDiscoveryAction(
     );
 
     return {
-      success: true,
-      message:
-        `Discovery V2 scan created. Run ID: ${scanRun.id}`,
-    };
+  success: true,
+  message:
+    "Discovery V2 started.",
+  scanRunId:
+    scanRun.id,
+};
+    
   } catch (error) {
     const message =
       error instanceof Error
