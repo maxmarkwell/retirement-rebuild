@@ -98,6 +98,7 @@ export default function ExperimentComparisonChart({
 
           <ReferenceLine
             y={0}
+            stroke="#9ca3af"
             strokeDasharray="4 4"
           />
 
@@ -105,7 +106,11 @@ export default function ExperimentComparisonChart({
             type="monotone"
             dataKey="aiActive"
             name="AI Active"
+            stroke="#2563eb"
             strokeWidth={3}
+            strokeDasharray="8 4"
+            dot={{ r: 3 }}
+            activeDot={{ r: 6 }}
             connectNulls
           />
 
@@ -113,7 +118,10 @@ export default function ExperimentComparisonChart({
             type="monotone"
             dataKey="aiLongTerm"
             name="AI Long-Term"
+            stroke="#16a34a"
             strokeWidth={3}
+            dot={{ r: 3 }}
+            activeDot={{ r: 6 }}
             connectNulls
           />
 
@@ -121,7 +129,11 @@ export default function ExperimentComparisonChart({
             type="monotone"
             dataKey="benchmark"
             name="VOO Benchmark"
+            stroke="#dc2626"
             strokeWidth={3}
+            strokeDasharray="3 3"
+            dot={{ r: 3 }}
+            activeDot={{ r: 6 }}
             connectNulls
           />
         </LineChart>
