@@ -135,6 +135,86 @@ export default async function DiscoveryPage({
     );
   }
 
+  const {
+    data: previousCandidateDate,
+    error: previousCandidateDateError,
+  } =
+    await supabase
+      .from(
+        "stock_discovery_candidates"
+      )
+      .select(
+        "discovery_date"
+      )
+      .eq(
+        "portfolio_type",
+        selectedMode
+      )
+      .lt(
+        "discovery_date",
+        discoveryDate
+      )
+      .order(
+        "discovery_date",
+        {
+          ascending: false,
+        }
+      )
+      .limit(1)
+      .maybeSingle();
+
+  if (
+    previousCandidateDateError
+  ) {
+    throw new Error(
+      `Unable to load previous discovery date: ${previousCandidateDateError.message}`
+    );
+  }
+
+  let previousTickers =
+    new Set<string>();
+
+  if (
+    previousCandidateDate?.discovery_date
+  ) {
+    const {
+      data: previousCandidates,
+      error: previousCandidatesError,
+    } =
+      await supabase
+        .from(
+          "stock_discovery_candidates"
+        )
+        .select("ticker")
+        .eq(
+          "portfolio_type",
+          selectedMode
+        )
+        .eq(
+          "discovery_date",
+          previousCandidateDate.discovery_date
+        );
+
+    if (
+      previousCandidatesError
+    ) {
+      throw new Error(
+        `Unable to load previous discovery candidates: ${previousCandidatesError.message}`
+      );
+    }
+
+    previousTickers =
+      new Set(
+        (
+          previousCandidates ??
+          []
+        ).map(
+          (candidate) =>
+            candidate.ticker
+        )
+      );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-7xl">
@@ -209,16 +289,25 @@ export default async function DiscoveryPage({
                   index
                 ) => {
                   const isV2 =
-                    candidate.scoring_version ===
-                    "v2";
+  candidate.scoring_version ===
+  "v2";
 
+const isNew =
+  previousCandidateDate != null &&
+  !previousTickers.has(
+    candidate.ticker
+  );
                   return (
-                    <div
-                      key={
-                        candidate.id
-                      }
-                      className="p-6"
-                    >
+<div
+  key={
+    candidate.id
+  }
+  className={`p-6 transition-colors ${
+    isNew
+      ? "bg-emerald-50"
+      : "bg-white"
+  }`}
+>                    
                       <div className="flex flex-wrap items-start justify-between gap-6">
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
@@ -233,6 +322,12 @@ export default async function DiscoveryPage({
                                 candidate.ticker
                               }
                             </span>
+
+                           {isNew && (
+  <span className="rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
+    New
+  </span>
+)}
 
                             <span className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
                               {
