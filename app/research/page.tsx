@@ -74,6 +74,7 @@ export default async function ResearchPage({
         [
           "paper_active",
           "paper_long_term",
+          "real",
         ]
       )
       .order(

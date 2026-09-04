@@ -73,20 +73,31 @@ export async function createCommitteeRun(
     };
   }
 
-  if (
-    portfolio.type !== "paper_active" &&
-    portfolio.type !== "paper_long_term"
-  ) {
-    return {
-      success: false,
-      message:
-        "AI committee runs are only available for AI Active and AI Long-Term portfolios.",
-    };
-  }
+ if (
+  portfolio.type !== "paper_active" &&
+  portfolio.type !== "paper_long_term" &&
+  portfolio.type !== "real"
+) {
+  return {
+    success: false,
+    message:
+      "AI committee runs are not available for this portfolio type.",
+  };
+}
 
-  const portfolioMode =
-    portfolio.type as CommitteePortfolioMode;
+/*
+  Real-money Phase 2 uses the AI Long-Term
+  strategy while evaluating and sizing against
+  the actual Real Portfolio.
 
+  This keeps strategy selection separate from
+  execution/accounting.
+*/
+
+const portfolioMode: CommitteePortfolioMode =
+  portfolio.type === "real"
+    ? "paper_long_term"
+    : (portfolio.type as CommitteePortfolioMode);
  // ---------------------------------------------------------
 // Load reassessment context
 // ---------------------------------------------------------
