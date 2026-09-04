@@ -5,6 +5,7 @@ import DecisionEvaluationForm from "@/components/decision-evaluation-form";
 import ExecuteDecisionBuyButton from "@/components/execute-decision-buy-button";
 import ExecuteDecisionSellButton from "@/components/execute-decision-sell-button";
 import ExecuteDecisionRebalanceButton from "@/components/execute-decision-rebalance-button";
+import RealMoneyBuyForm from "@/components/real-money-buy-form";
 
 type DecisionDetailPageProps = {
   params: Promise<{
@@ -94,11 +95,11 @@ export default async function DecisionDetailPage({
   // Load portfolio
   // ---------------------------------------------------------
 
-  const { data: portfolio } = await supabase
-    .from("portfolios")
-    .select("id, name")
-    .eq("id", decision.portfolio_id)
-    .single();
+const { data: portfolio } = await supabase
+  .from("portfolios")
+  .select("id, name, is_real_money")
+  .eq("id", decision.portfolio_id)
+  .single();
 
   // ---------------------------------------------------------
   // Load linked transaction
@@ -295,58 +296,90 @@ export default async function DecisionDetailPage({
             </div>
           </div>
         </div>
-{decision.decision_type === "buy" && (
-  <div className="mt-6">
-    <ExecuteDecisionBuyButton
-      decisionId={decision.id}
-      ticker={decision.ticker}
-      recommendedQuantity={
-        decision.recommended_quantity
-      }
-      status={decision.status}
-      hasTransaction={
-        Boolean(
-          decision.transaction_id
-        )
-      }
-    />
-  </div>
-)}
 
-{decision.decision_type === "sell" && (
-  <div className="mt-6">
-    <ExecuteDecisionSellButton
-      decisionId={decision.id}
-      ticker={decision.ticker}
-      recommendedQuantity={
-        decision.recommended_quantity
-      }
-      status={decision.status}
-      hasTransaction={
-        Boolean(
+{portfolio?.is_real_money ? (
+  <>
+    {decision.decision_type === "buy" ? (
+      <RealMoneyBuyForm
+        decisionId={decision.id}
+        ticker={decision.ticker}
+        recommendedQuantity={
+          decision.recommended_quantity
+        }
+        status={decision.status}
+        hasTransaction={Boolean(
           decision.transaction_id
-        )
-      }
-    />
-  </div>
-)}
+        )}
+      />
+    ) : (
+      <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full border border-amber-400 bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-900">
+            Real Money
+          </span>
 
-{decision.decision_type === "rebalance" && (
-  <div className="mt-6">
-    <ExecuteDecisionRebalanceButton
-      decisionId={decision.id}
-      ticker={decision.ticker}
-      recommendedAllocation={
-        decision.recommended_allocation
-      }
-      status={decision.status}
-      hasTransaction={
-        Boolean(
-          decision.transaction_id
-        )
-      }
-    />
-  </div>
+          <p className="text-sm font-semibold text-amber-950">
+            Manual brokerage execution required
+          </p>
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-amber-900">
+          Manual real-money execution for this decision
+          type has not been enabled yet.
+        </p>
+      </div>
+    )}
+  </>
+) : (
+  <>
+    {decision.decision_type === "buy" && (
+      <div className="mt-6">
+        <ExecuteDecisionBuyButton
+          decisionId={decision.id}
+          ticker={decision.ticker}
+          recommendedQuantity={
+            decision.recommended_quantity
+          }
+          status={decision.status}
+          hasTransaction={Boolean(
+            decision.transaction_id
+          )}
+        />
+      </div>
+    )}
+
+    {decision.decision_type === "sell" && (
+      <div className="mt-6">
+        <ExecuteDecisionSellButton
+          decisionId={decision.id}
+          ticker={decision.ticker}
+          recommendedQuantity={
+            decision.recommended_quantity
+          }
+          status={decision.status}
+          hasTransaction={Boolean(
+            decision.transaction_id
+          )}
+        />
+      </div>
+    )}
+
+    {decision.decision_type === "rebalance" && (
+      <div className="mt-6">
+        <ExecuteDecisionRebalanceButton
+          decisionId={decision.id}
+          ticker={decision.ticker}
+          recommendedAllocation={
+            decision.recommended_allocation
+          }
+          status={decision.status}
+          hasTransaction={Boolean(
+            decision.transaction_id
+          )}
+        />
+      </div>
+    )}
+  </>
 )}
 
         {/* Original Decision Reasoning */}
