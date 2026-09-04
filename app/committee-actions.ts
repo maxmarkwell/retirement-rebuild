@@ -685,27 +685,31 @@ type DiscoveryEvidence = {
       marketPrice > 0
     ) {
       const sizing =
-        calculatePositionSizing({
-          portfolioMode,
+  calculatePositionSizing({
+    portfolioMode,
 
-          portfolioTotalValue:
-            accounting.permanentCapital,
+    portfolioTotalValue:
+      accounting.permanentCapital,
 
-          availableCash:
-            accounting.cash,
+    availableCash:
+      accounting.cash,
 
-          currentPrice:
-            marketPrice,
+    currentPrice:
+      marketPrice,
 
-          currentHoldingMarketValue,
+    currentHoldingMarketValue,
 
-          confidenceScore:
-            finalDecision.confidence,
+    confidenceScore:
+      finalDecision.confidence,
 
-          riskLevel:
-            finalDecision.riskLevel,
-        });
+    riskLevel:
+      finalDecision.riskLevel,
 
+    fractionalSharePrecision:
+      portfolio.type === "real"
+        ? 3
+        : 4,
+  });
       recommendedQuantity =
         sizing.suggestedShares;
 
