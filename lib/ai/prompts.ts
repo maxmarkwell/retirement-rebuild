@@ -912,28 +912,45 @@ rebalance
 Definitions:
 
 BUY:
-Initiate or materially increase a position.
+Initiate or materially increase a position because the current evidence supports a favorable risk-adjusted investment case for this portfolio.
+
+A BUY does not require the company to be low risk, flawless, or free of uncertainty.
+Material risks may justify a smaller position rather than automatically requiring WATCH.
+Use BUY when the expected upside, valuation, business quality, and evidence are sufficient to justify owning the security now at an appropriately sized position.
 
 SELL:
-Exit a position.
+Exit a position because the investment thesis has materially weakened, valuation no longer justifies ownership, downside risk has become unacceptable, or a superior portfolio action is warranted.
 
 HOLD:
-Maintain an existing position without meaningful change.
+Maintain an existing position without meaningful change because the investment thesis remains intact and the current position size remains appropriate.
 
 WATCH:
-Potentially attractive, but evidence, valuation, timing, or risk does not justify action yet.
+Do not initiate a position yet because there is a specific, material unresolved issue that prevents the investment case from clearing the portfolio's action threshold.
+
+WATCH must not be used merely because the investment has normal uncertainty or identifiable risk.
+If the security is attractive enough to own now but risk is elevated, prefer BUY with appropriate position sizing rather than WATCH.
+
+When selecting WATCH, identify the concrete evidence, valuation level, catalyst, trend, or risk condition that currently blocks a BUY.
 
 AVOID:
-The security does not currently meet the portfolio mandate.
+The security does not currently meet the portfolio mandate or the expected risk-adjusted return is insufficient to justify continued consideration.
 
 REBALANCE:
-Adjust an existing position without fully exiting it.
+Adjust an existing position without fully exiting it because the thesis remains valid but the current position size is no longer appropriate.
 
 Confidence:
-Return a score from 0 to 100. High confidence should require strong evidence and limited unresolved uncertainty.
+Return a score from 0 to 100.
+
+Confidence measures how strongly the available evidence supports the selected recommendation.
+A high-confidence WATCH is appropriate only when there is strong evidence that waiting is specifically preferable to acting now.
+Do not reduce confidence merely because every investment contains uncertainty.
 
 Risk:
 Classify as low, medium, or high relative to this portfolio mandate.
+
+Risk level and recommendation are separate judgments.
+High risk does not automatically require WATCH or AVOID.
+When the expected return justifies ownership, risk should influence position size and monitoring requirements.
 
 Recommended allocation:
 Return the recommended dollar allocation for the portfolio after this decision, not merely the size of the next trade.
@@ -952,10 +969,16 @@ For WATCH/AVOID/SELL, state what would need to change before reconsideration whe
 Important rules:
 - Do not simply average the specialists.
 - Resolve disagreements explicitly.
-- The bear and risk cases must materially influence the final decision.
+- The bear and risk cases must materially influence the final decision, but they do not automatically override an otherwise favorable investment case.
+- Separate the question "Is this worth owning?" from "How large should the position be?"
+- Use position sizing as a primary tool for managing elevated but acceptable investment risk.
+- Do not require certainty before issuing a BUY.
+- Do not use WATCH as a default response to ordinary investment uncertainty.
+- A WATCH decision must identify at least one specific material condition that currently prevents ownership.
+- If the current evidence supports ownership at today's price and the remaining risks can reasonably be managed through position size, prefer BUY over WATCH.
 - Do not fabricate information.
 - Do not recommend an allocation greater than the portfolio could reasonably support.
-- Preserve uncertainty where evidence is incomplete.
+- Preserve meaningful uncertainty where evidence is incomplete.
 - Treat earnings surprises as current evidence, not as proof of future performance.
 - Distinguish reported results from future estimates.
 - Use the next expected earnings date as a potential reassessment catalyst.
