@@ -1,0 +1,78 @@
+diff --git a/app/discovery-actions.ts b/app/discovery-actions.ts
+--- a/app/discovery-actions.ts
++++ b/app/discovery-actions.ts
+@@ -74,7 +74,9 @@ export async function runDiscoveryAction(
+   if (
+     portfolioMode !==
+       "paper_active" &&
+     portfolioMode !==
+-      "paper_long_term"
++      "paper_long_term" &&
++    portfolioMode !==
++      "real"
+   ) {
+     return {
+       success: false,
+diff --git a/lib/discovery/process-scan-run.ts b/lib/discovery/process-scan-run.ts
+--- a/lib/discovery/process-scan-run.ts
++++ b/lib/discovery/process-scan-run.ts
+@@ -1020,7 +1020,8 @@ if (
+   const portfolioMode =
+     scanRun.portfolio_type as
+       | "paper_active"
+-      | "paper_long_term";
++      | "paper_long_term"
++      | "real";
+ 
+   const result =
+     await finalizeDiscoveryScan(
+diff --git a/app/committee-actions.ts b/app/committee-actions.ts
+--- a/app/committee-actions.ts
++++ b/app/committee-actions.ts
+@@ -86,6 +86,10 @@ const portfolioMode: CommitteePortfolioMode =
+     ? "paper_long_term"
+     : (portfolio.type as CommitteePortfolioMode);
++
++const discoveryPortfolioMode =
++  portfolio.type === "real"
++    ? "real"
++    : portfolioMode;
+  // ---------------------------------------------------------
+ // Load reassessment context
+ // ---------------------------------------------------------
+@@ -266,7 +270,7 @@ const portfolioMode: CommitteePortfolioMode =
+       .eq(
+         "portfolio_type",
+-        portfolioMode
++        discoveryPortfolioMode
+       )
+       .eq(
+         "ticker",
+diff --git a/app/discovery/page.tsx b/app/discovery/page.tsx
+--- a/app/discovery/page.tsx
++++ b/app/discovery/page.tsx
+@@ -53,8 +53,10 @@ export default async function DiscoveryPage({
+ 
+   const selectedMode =
+     mode === "paper_active"
+       ? "paper_active"
++      : mode === "real"
++        ? "real"
+       : "paper_long_term";
+@@ -220,6 +222,19 @@ export default async function DiscoveryPage({
+           >
+             AI Active
+           </Link>
++
++          <Link
++            href="/discovery?mode=real"
++            className={`rounded px-4 py-2 text-sm font-medium ${
++              selectedMode ===
++              "real"
++                ? "bg-black text-white"
++                : "border border-gray-300 bg-white text-gray-700"
++            }`}
++          >
++            Real Portfolio
++          </Link>
+         </div>
