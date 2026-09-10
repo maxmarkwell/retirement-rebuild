@@ -1,4 +1,5 @@
 import type {
+  CommitteePortfolioHolding,
   CommitteePortfolioMode,
   SpecialistAnalysis,
 } from "./committee-types";
@@ -9,14 +10,14 @@ import type {
 } from "@/lib/company-data/types";
 
 export const COMMITTEE_PROMPT_VERSION =
-  "phase-1-v1";
+  "phase-2-v1";
 
 function getPortfolioMandate(
   mode: CommitteePortfolioMode
 ) {
   if (mode === "paper_active") {
     return `
-PORTFOLIO MANDATE: AI ACTIVE
+PORTFOLIO MANDATE: ACTIVE
 
 Primary objective:
 Outperform the VOO benchmark over shorter tactical windows while controlling downside risk.
@@ -37,7 +38,7 @@ Do not calculate or recommend position sizes, dollar allocations, portfolio perc
   }
 
   return `
-PORTFOLIO MANDATE: AI LONG-TERM
+PORTFOLIO MANDATE: LONG-TERM
 
 Primary objective:
 Compound capital over multi-year periods and outperform the VOO benchmark through durable business quality and long-term value creation.
@@ -60,25 +61,86 @@ Do not calculate or recommend position sizes, dollar allocations, portfolio perc
 type DiscoveryEvidence = {
   discoveryDate: string;
   scoringVersion: string | null;
-
   qualityScore: number;
   growthScore: number;
   valuationScore: number;
-
   trendQualityScore: number;
   capitalDisciplineScore: number;
-
   selectorScore: number;
   deepScore: number;
   portfolioFitScore: number;
   totalScore: number;
-
   marketCapBucket: string | null;
   sector: string | null;
   industry: string | null;
-
   reasonSummary: string | null;
 };
+
+function formatMoney(
+  value: number | null | undefined
+) {
+  return value != null &&
+    Number.isFinite(value)
+    ? `$${value.toLocaleString("en-US")}`
+    : "Unavailable";
+}
+
+function formatNumber(
+  value: number | null | undefined,
+  suffix = ""
+) {
+  return value != null &&
+    Number.isFinite(value)
+    ? `${value.toFixed(2)}${suffix}`
+    : "Unavailable";
+}
+
+function formatPortfolioHoldings(
+  holdings: CommitteePortfolioHolding[]
+) {
+  if (holdings.length === 0) {
+    return "No current equity holdings.";
+  }
+
+  return holdings
+    .map(
+      (holding) =>
+        `${holding.ticker}: ${holding.quantity} shares, cost basis ${formatMoney(
+          holding.costBasis
+        )}, current/estimated market value ${formatMoney(
+          holding.marketValue
+        )}`
+    )
+    .join("\n");
+}
+
+function formatDiscoveryEvidence(
+  evidence: DiscoveryEvidence | null
+) {
+  if (!evidence) {
+    return `
+No Discovery V2 screening record is available for this security.
+Treat the investment as an independently submitted research candidate.
+`;
+  }
+
+  return `
+Discovery date: ${evidence.discoveryDate}
+Market-cap bucket: ${evidence.marketCapBucket ?? "Unavailable"}
+Sector: ${evidence.sector ?? "Unavailable"}
+Industry: ${evidence.industry ?? "Unavailable"}
+Preliminary selector score: ${evidence.selectorScore.toFixed(2)}/100
+Quality score: ${evidence.qualityScore.toFixed(2)}/100
+Growth score: ${evidence.growthScore.toFixed(2)}/100
+Valuation score: ${evidence.valuationScore.toFixed(2)}/100
+Trend quality score: ${evidence.trendQualityScore.toFixed(2)}/100
+Capital discipline score: ${evidence.capitalDisciplineScore.toFixed(2)}/100
+Deep fundamental score: ${evidence.deepScore.toFixed(2)}/100
+Portfolio fit score: ${evidence.portfolioFitScore.toFixed(2)}/100
+Final Discovery score: ${evidence.totalScore.toFixed(2)}/100
+Discovery scoring summary: ${evidence.reasonSummary ?? "Unavailable"}
+`;
+}
 
 export function buildSpecialistPrompt(input: {
   ticker: string;
@@ -86,14 +148,14 @@ export function buildSpecialistPrompt(input: {
   portfolioMode: CommitteePortfolioMode;
   portfolioName: string;
   availableCash: number;
+  portfolioHoldings: CommitteePortfolioHolding[];
   currentHoldingQuantity: number;
   currentHoldingMarketValue: number;
   currentHoldingCostBasis: number;
   fundamentals: CompanyFundamentals | null;
   earnings: CompanyEarningsContext | null;
   trends: CompanyFundamentalTrends | null;
-  discoveryEvidence:
-  DiscoveryEvidence | null;
+  discoveryEvidence: DiscoveryEvidence | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -103,637 +165,165 @@ export function buildSpecialistPrompt(input: {
   return `
 You are the specialist panel for an investment committee.
 
-You must analyze the investment independently and critically. Do not assume the security should be purchased merely because it was submitted for review.
+Analyze the investment independently and critically. Do not assume the security should be purchased merely because it was submitted for review.
 
 ${mandate}
 
 CURRENT PORTFOLIO CONTEXT
 
-Portfolio:
-${input.portfolioName}
+Portfolio: ${input.portfolioName}
+Candidate ticker: ${input.ticker}
+Reference market price: ${formatMoney(input.marketPrice)}
+Available cash: ${formatMoney(input.availableCash)}
 
-Ticker:
-${input.ticker}
+Actual current portfolio holdings:
+${formatPortfolioHoldings(input.portfolioHoldings)}
 
-Current market price:
-${
-  input.marketPrice != null
-    ? `$${input.marketPrice.toFixed(2)}`
-    : "Unavailable"
-}
+Candidate-specific existing exposure:
+Current shares owned: ${input.currentHoldingQuantity}
+Current holding market value: ${formatMoney(input.currentHoldingMarketValue)}
+Current holding cost basis: ${formatMoney(input.currentHoldingCostBasis)}
 
-Available cash:
-$${input.availableCash.toFixed(2)}
-
-Current shares owned:
-${input.currentHoldingQuantity}
-
-Current holding market value:
-$${input.currentHoldingMarketValue.toFixed(2)}
-
-Current holding cost basis:
-$${input.currentHoldingCostBasis.toFixed(2)}
+Use the holdings only to assess concentration, diversification, business/sector overlap, correlated risks, and portfolio fit. Do not calculate or recommend a portfolio weight, trade size, share quantity, or dollar allocation from these holdings.
 
 DISCOVERY V2 SCREENING CONTEXT
 
-The information in this section is prior quantitative screening evidence.
-
-It explains why the security advanced to committee review. It is NOT a recommendation, investment thesis, or instruction to buy.
-
-You must independently evaluate the underlying fundamentals, trends, earnings evidence, valuation, risks, portfolio context, and competing interpretations.
-
+This is prior quantitative screening evidence. It explains why the security advanced to committee review. It is NOT a recommendation, investment thesis, or instruction to buy.
 Do not increase your recommendation or confidence merely because the Discovery score is high.
-
 If later evidence conflicts with Discovery V2, explicitly identify the conflict and give greater weight to the stronger underlying evidence.
 
-${
-  input.discoveryEvidence
-    ? `
-Discovery date:
-${input.discoveryEvidence.discoveryDate}
-
-Market-cap bucket:
-${input.discoveryEvidence.marketCapBucket ?? "Unavailable"}
-
-Sector:
-${input.discoveryEvidence.sector ?? "Unavailable"}
-
-Industry:
-${input.discoveryEvidence.industry ?? "Unavailable"}
-
-Preliminary selector score:
-${input.discoveryEvidence.selectorScore.toFixed(2)}/100
-
-Quality score:
-${input.discoveryEvidence.qualityScore.toFixed(2)}/100
-
-Growth score:
-${input.discoveryEvidence.growthScore.toFixed(2)}/100
-
-Valuation score:
-${input.discoveryEvidence.valuationScore.toFixed(2)}/100
-
-Trend quality score:
-${input.discoveryEvidence.trendQualityScore.toFixed(2)}/100
-
-Capital discipline score:
-${input.discoveryEvidence.capitalDisciplineScore.toFixed(2)}/100
-
-Deep fundamental score:
-${input.discoveryEvidence.deepScore.toFixed(2)}/100
-
-Portfolio fit score:
-${input.discoveryEvidence.portfolioFitScore.toFixed(2)}/100
-
-Final Discovery score:
-${input.discoveryEvidence.totalScore.toFixed(2)}/100
-
-Discovery scoring summary:
-${input.discoveryEvidence.reasonSummary ?? "Unavailable"}
-`
-    : `
-No Discovery V2 screening record is available for this security.
-
-Treat the investment as an independently submitted research candidate.
-`
-}
+${formatDiscoveryEvidence(input.discoveryEvidence)}
 
 COMPANY FUNDAMENTALS
 
-Company:
-${input.fundamentals?.companyName ?? "Unavailable"}
+Company: ${input.fundamentals?.companyName ?? "Unavailable"}
+Fiscal year for statement-derived figures: ${input.fundamentals?.fiscalYear ?? "Unavailable"}
+Revenue: ${formatMoney(input.fundamentals?.revenue)}
+Revenue growth: ${formatNumber(input.fundamentals?.revenueGrowth, "%")}
+Operating income: ${formatMoney(input.fundamentals?.operatingIncome)}
+Operating margin: ${formatNumber(input.fundamentals?.operatingMargin, "%")}
+Net income: ${formatMoney(input.fundamentals?.netIncome)}
+Operating cash flow: ${formatMoney(input.fundamentals?.operatingCashFlow)}
+Capital expenditures: ${formatMoney(input.fundamentals?.capitalExpenditures)}
+Free cash flow: ${formatMoney(input.fundamentals?.freeCashFlow)}
+Cash and equivalents: ${formatMoney(input.fundamentals?.cashAndEquivalents)}
+Total debt: ${formatMoney(input.fundamentals?.totalDebt)}
+Market capitalization: ${formatMoney(input.fundamentals?.marketCap)}
+Enterprise value: ${formatMoney(input.fundamentals?.enterpriseValue)}
 
-Fiscal Year:
-${input.fundamentals?.fiscalYear ?? "Unavailable"}
+Valuation and cash-flow metrics:
+P/E: ${formatNumber(input.fundamentals?.peRatio, "x")}
+P/S: ${formatNumber(input.fundamentals?.priceToSalesRatio, "x")}
+P/B: ${formatNumber(input.fundamentals?.priceToBookRatio, "x")}
+P/FCF: ${formatNumber(input.fundamentals?.priceToFreeCashFlowRatio, "x")}
+EV/Sales: ${formatNumber(input.fundamentals?.evToSales, "x")}
+EV/OCF: ${formatNumber(input.fundamentals?.evToOperatingCashFlow, "x")}
+EV/FCF: ${formatNumber(input.fundamentals?.evToFreeCashFlow, "x")}
+EV/EBITDA: ${formatNumber(input.fundamentals?.evToEbitda, "x")}
+Earnings yield: ${formatNumber(input.fundamentals?.earningsYield, "%")}
+FCF yield: ${formatNumber(input.fundamentals?.freeCashFlowYield, "%")}
+FCF/OCF: ${formatNumber(input.fundamentals?.freeCashFlowToOperatingCashFlow, "%")}
+CapEx/OCF: ${formatNumber(input.fundamentals?.capexToOperatingCashFlow, "%")}
+CapEx/Revenue: ${formatNumber(input.fundamentals?.capexToRevenue, "%")}
 
-Revenue:
-${
-  input.fundamentals?.revenue != null
-    ? `$${input.fundamentals.revenue.toLocaleString("en-US")}`
-    : "Unavailable"
-}
+Balance-sheet and return metrics:
+Debt/Equity: ${formatNumber(input.fundamentals?.debtToEquity, "x")}
+Net Debt/EBITDA: ${formatNumber(input.fundamentals?.netDebtToEbitda, "x")}
+Interest coverage: ${formatNumber(input.fundamentals?.interestCoverage, "x")}
+Current ratio: ${formatNumber(input.fundamentals?.currentRatio)}
+ROE: ${formatNumber(input.fundamentals?.returnOnEquity, "%")}
+ROA: ${formatNumber(input.fundamentals?.returnOnAssets, "%")}
+ROIC: ${formatNumber(input.fundamentals?.returnOnInvestedCapital, "%")}
+ROCE: ${formatNumber(input.fundamentals?.returnOnCapitalEmployed, "%")}
+R&D/Revenue: ${formatNumber(input.fundamentals?.researchAndDevelopmentToRevenue, "%")}
+SBC/Revenue: ${formatNumber(input.fundamentals?.stockBasedCompensationToRevenue, "%")}
 
-Enterprise Value:
-${
-  input.fundamentals?.enterpriseValue != null
-    ? `$${input.fundamentals.enterpriseValue.toLocaleString("en-US")}`
-    : "Unavailable"
-}
+Data-period rule:
+Statement-derived ratios such as P/E, P/S, P/FCF, EV/Sales, EV/OCF, EV/FCF, FCF yield, FCF/OCF, CapEx/OCF, and CapEx/Revenue are normalized by Retirement Rebuild from the raw latest-annual statement figures when those raw values are available. Some measures that cannot be reconstructed from the available annual statements, including EV/EBITDA, Net Debt/EBITDA and some return/leverage ratios, may remain vendor TTM values. Do not call two figures mathematically inconsistent merely because they refer to different periods or because enterprise value can include obligations beyond stated debt. Identify a data problem only when the same-period figures themselves conflict.
 
 HISTORICAL FUNDAMENTAL TRENDS
 
-Revenue CAGR:
-${
-  input.trends?.revenue.cagrPct != null
-    ? `${input.trends.revenue.cagrPct.toFixed(2)}%`
-    : "Unavailable"
-}
+Revenue CAGR: ${formatNumber(input.trends?.revenue.cagrPct, "%")}
+Revenue long-term direction: ${input.trends?.revenue.longTermDirection ?? "Unavailable"}
+Revenue recent direction: ${input.trends?.revenue.recentDirection ?? "Unavailable"}
 
-Revenue Direction:
-${
-  input.trends?.revenue.direction ??
-  "Unavailable"
-}
+Operating margin endpoints: ${
+    input.trends?.operatingMargin.oldest != null &&
+    input.trends?.operatingMargin.latest != null
+      ? `${input.trends.operatingMargin.oldest.toFixed(2)}% → ${input.trends.operatingMargin.latest.toFixed(2)}%`
+      : "Unavailable"
+  }
+Operating margin long-term direction: ${input.trends?.operatingMargin.longTermDirection ?? "Unavailable"}
+Operating margin recent direction: ${input.trends?.operatingMargin.recentDirection ?? "Unavailable"}
 
-Operating Margin:
-${
-  input.trends?.operatingMargin.oldest != null &&
-  input.trends?.operatingMargin.latest != null
-    ? `${input.trends.operatingMargin.oldest.toFixed(
-        2
-      )}% → ${input.trends.operatingMargin.latest.toFixed(
-        2
-      )}%`
-    : "Unavailable"
-}
+FCF margin endpoints: ${
+    input.trends?.freeCashFlowMargin.oldest != null &&
+    input.trends?.freeCashFlowMargin.latest != null
+      ? `${input.trends.freeCashFlowMargin.oldest.toFixed(2)}% → ${input.trends.freeCashFlowMargin.latest.toFixed(2)}%`
+      : "Unavailable"
+  }
+FCF margin long-term direction: ${input.trends?.freeCashFlowMargin.longTermDirection ?? "Unavailable"}
+FCF margin recent direction: ${input.trends?.freeCashFlowMargin.recentDirection ?? "Unavailable"}
 
-Operating Margin Direction:
-${
-  input.trends?.operatingMargin.direction ??
-  "Unavailable"
-}
+ROIC endpoints: ${
+    input.trends?.returnOnInvestedCapital.oldest != null &&
+    input.trends?.returnOnInvestedCapital.latest != null
+      ? `${input.trends.returnOnInvestedCapital.oldest.toFixed(2)}% → ${input.trends.returnOnInvestedCapital.latest.toFixed(2)}%`
+      : "Unavailable"
+  }
+ROIC long-term direction: ${input.trends?.returnOnInvestedCapital.longTermDirection ?? "Unavailable"}
+ROIC recent direction: ${input.trends?.returnOnInvestedCapital.recentDirection ?? "Unavailable"}
 
-Free Cash Flow Margin:
-${
-  input.trends?.freeCashFlowMargin.oldest != null &&
-  input.trends?.freeCashFlowMargin.latest != null
-    ? `${input.trends.freeCashFlowMargin.oldest.toFixed(
-        2
-      )}% → ${input.trends.freeCashFlowMargin.latest.toFixed(
-        2
-      )}%`
-    : "Unavailable"
-}
+Share-count endpoints: ${
+    input.trends?.shareCount.oldest != null &&
+    input.trends?.shareCount.latest != null
+      ? `${input.trends.shareCount.oldest.toLocaleString("en-US")} → ${input.trends.shareCount.latest.toLocaleString("en-US")}`
+      : "Unavailable"
+  }
+Share-count long-term direction: ${input.trends?.shareCount.longTermDirection ?? "Unavailable"}
+Share-count recent direction: ${input.trends?.shareCount.recentDirection ?? "Unavailable"}
 
-Free Cash Flow Margin Direction:
-${
-  input.trends?.freeCashFlowMargin.direction ??
-  "Unavailable"
-}
-
-Return on Invested Capital:
-${
-  input.trends?.returnOnInvestedCapital.oldest != null &&
-  input.trends?.returnOnInvestedCapital.latest != null
-    ? `${input.trends.returnOnInvestedCapital.oldest.toFixed(
-        2
-      )}% → ${input.trends.returnOnInvestedCapital.latest.toFixed(
-        2
-      )}%`
-    : "Unavailable"
-}
-
-ROIC Direction:
-${
-  input.trends?.returnOnInvestedCapital.direction ??
-  "Unavailable"
-}
-
-Share Count:
-${
-  input.trends?.shareCount.oldest != null &&
-  input.trends?.shareCount.latest != null
-    ? `${input.trends.shareCount.oldest.toLocaleString(
-        "en-US"
-      )} → ${input.trends.shareCount.latest.toLocaleString(
-        "en-US"
-      )}`
-    : "Unavailable"
-}
-
-Share Count Direction:
-${
-  input.trends?.shareCount.direction ??
-  "Unavailable"
-}
-
-CapEx / Revenue:
-${
-  input.trends?.capexToRevenue.oldest != null &&
-  input.trends?.capexToRevenue.latest != null
-    ? `${input.trends.capexToRevenue.oldest.toFixed(
-        2
-      )}% → ${input.trends.capexToRevenue.latest.toFixed(
-        2
-      )}%`
-    : "Unavailable"
-}
-
-CapEx / Revenue Direction:
-${
-  input.trends?.capexToRevenue.direction ??
-  "Unavailable"
-}
+CapEx/Revenue endpoints: ${
+    input.trends?.capexToRevenue.oldest != null &&
+    input.trends?.capexToRevenue.latest != null
+      ? `${input.trends.capexToRevenue.oldest.toFixed(2)}% → ${input.trends.capexToRevenue.latest.toFixed(2)}%`
+      : "Unavailable"
+  }
+CapEx/Revenue long-term direction: ${input.trends?.capexToRevenue.longTermDirection ?? "Unavailable"}
+CapEx/Revenue recent direction: ${input.trends?.capexToRevenue.recentDirection ?? "Unavailable"}
 
 CURRENT EARNINGS CONTEXT
 
-Latest Reported Quarter:
+Latest reported quarter:
 ${
-  input.earnings?.latestReported
-    ? `
-Report Date:
-${input.earnings.latestReported.date}
+    input.earnings?.latestReported
+      ? `Report date: ${input.earnings.latestReported.date}
+EPS actual: ${formatNumber(input.earnings.latestReported.epsActual)}
+EPS estimate: ${formatNumber(input.earnings.latestReported.epsEstimated)}
+EPS surprise: ${formatNumber(input.earnings.latestReported.epsSurprisePct, "%")}
+Revenue actual: ${formatMoney(input.earnings.latestReported.revenueActual)}
+Revenue estimate: ${formatMoney(input.earnings.latestReported.revenueEstimated)}
+Revenue surprise: ${formatNumber(input.earnings.latestReported.revenueSurprisePct, "%")}`
+      : "Unavailable"
+  }
 
-EPS Actual:
+Previous reported quarter:
 ${
-  input.earnings.latestReported.epsActual != null
-    ? input.earnings.latestReported.epsActual.toFixed(2)
-    : "Unavailable"
-}
+    input.earnings?.previousReported
+      ? `Report date: ${input.earnings.previousReported.date}
+EPS surprise: ${formatNumber(input.earnings.previousReported.epsSurprisePct, "%")}
+Revenue surprise: ${formatNumber(input.earnings.previousReported.revenueSurprisePct, "%")}`
+      : "Unavailable"
+  }
 
-EPS Estimate:
+Next expected earnings:
 ${
-  input.earnings.latestReported.epsEstimated != null
-    ? input.earnings.latestReported.epsEstimated.toFixed(2)
-    : "Unavailable"
-}
-
-EPS Surprise:
-${
-  input.earnings.latestReported.epsSurprisePct != null
-    ? `${input.earnings.latestReported.epsSurprisePct.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Revenue Actual:
-${
-  input.earnings.latestReported.revenueActual != null
-    ? `$${input.earnings.latestReported.revenueActual.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Revenue Estimate:
-${
-  input.earnings.latestReported.revenueEstimated != null
-    ? `$${input.earnings.latestReported.revenueEstimated.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Revenue Surprise:
-${
-  input.earnings.latestReported.revenueSurprisePct != null
-    ? `${input.earnings.latestReported.revenueSurprisePct.toFixed(2)}%`
-    : "Unavailable"
-}
-`
-    : "Unavailable"
-}
-
-Previous Reported Quarter:
-${
-  input.earnings?.previousReported
-    ? `
-Report Date:
-${input.earnings.previousReported.date}
-
-EPS Surprise:
-${
-  input.earnings.previousReported.epsSurprisePct != null
-    ? `${input.earnings.previousReported.epsSurprisePct.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Revenue Surprise:
-${
-  input.earnings.previousReported.revenueSurprisePct != null
-    ? `${input.earnings.previousReported.revenueSurprisePct.toFixed(2)}%`
-    : "Unavailable"
-}
-`
-    : "Unavailable"
-}
-
-Next Expected Earnings:
-${
-  input.earnings?.nextExpected
-    ? `
-Expected Report Date:
-${input.earnings.nextExpected.date}
-
-EPS Estimate:
-${
-  input.earnings.nextExpected.epsEstimated != null
-    ? input.earnings.nextExpected.epsEstimated.toFixed(2)
-    : "Unavailable"
-}
-
-Revenue Estimate:
-${
-  input.earnings.nextExpected.revenueEstimated != null
-    ? `$${input.earnings.nextExpected.revenueEstimated.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-`
-    : "Unavailable"
-}
-
-EV / Sales:
-${
-  input.fundamentals?.evToSales != null
-    ? `${input.fundamentals.evToSales.toFixed(2)}x`
-    : "Unavailable"
-}
-
-EV / Operating Cash Flow:
-${
-  input.fundamentals?.evToOperatingCashFlow != null
-    ? `${input.fundamentals.evToOperatingCashFlow.toFixed(2)}x`
-    : "Unavailable"
-}
-
-EV / Free Cash Flow:
-${
-  input.fundamentals?.evToFreeCashFlow != null
-    ? `${input.fundamentals.evToFreeCashFlow.toFixed(2)}x`
-    : "Unavailable"
-}
-
-EV / EBITDA:
-${
-  input.fundamentals?.evToEbitda != null
-    ? `${input.fundamentals.evToEbitda.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Net Debt / EBITDA:
-${
-  input.fundamentals?.netDebtToEbitda != null
-    ? `${input.fundamentals.netDebtToEbitda.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Free Cash Flow Yield:
-${
-  input.fundamentals?.freeCashFlowYield != null
-    ? `${input.fundamentals.freeCashFlowYield.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Revenue Growth:
-${
-  input.fundamentals?.revenueGrowth != null
-    ? `${input.fundamentals.revenueGrowth.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Operating Income:
-${
-  input.fundamentals?.operatingIncome != null
-    ? `$${input.fundamentals.operatingIncome.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Operating Margin:
-${
-  input.fundamentals?.operatingMargin != null
-    ? `${input.fundamentals.operatingMargin.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Net Income:
-${
-  input.fundamentals?.netIncome != null
-    ? `$${input.fundamentals.netIncome.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Operating Cash Flow:
-${
-  input.fundamentals?.operatingCashFlow != null
-    ? `$${input.fundamentals.operatingCashFlow.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Capital Expenditures:
-${
-  input.fundamentals?.capitalExpenditures != null
-    ? `$${input.fundamentals.capitalExpenditures.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Free Cash Flow:
-${
-  input.fundamentals?.freeCashFlow != null
-    ? `$${input.fundamentals.freeCashFlow.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Cash and Equivalents:
-${
-  input.fundamentals?.cashAndEquivalents != null
-    ? `$${input.fundamentals.cashAndEquivalents.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Total Debt:
-${
-  input.fundamentals?.totalDebt != null
-    ? `$${input.fundamentals.totalDebt.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Return on Equity:
-${
-  input.fundamentals?.returnOnEquity != null
-    ? `${input.fundamentals.returnOnEquity.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Market Capitalization:
-${
-  input.fundamentals?.marketCap != null
-    ? `$${input.fundamentals.marketCap.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-Enterprise Value:
-${
-  input.fundamentals?.enterpriseValue != null
-    ? `$${input.fundamentals.enterpriseValue.toLocaleString("en-US")}`
-    : "Unavailable"
-}
-
-EV / Sales:
-${
-  input.fundamentals?.evToSales != null
-    ? `${input.fundamentals.evToSales.toFixed(2)}x`
-    : "Unavailable"
-}
-
-EV / Operating Cash Flow:
-${
-  input.fundamentals?.evToOperatingCashFlow != null
-    ? `${input.fundamentals.evToOperatingCashFlow.toFixed(2)}x`
-    : "Unavailable"
-}
-
-EV / Free Cash Flow:
-${
-  input.fundamentals?.evToFreeCashFlow != null
-    ? `${input.fundamentals.evToFreeCashFlow.toFixed(2)}x`
-    : "Unavailable"
-}
-
-EV / EBITDA:
-${
-  input.fundamentals?.evToEbitda != null
-    ? `${input.fundamentals.evToEbitda.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Net Debt / EBITDA:
-${
-  input.fundamentals?.netDebtToEbitda != null
-    ? `${input.fundamentals.netDebtToEbitda.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Free Cash Flow Yield:
-${
-  input.fundamentals?.freeCashFlowYield != null
-    ? `${input.fundamentals.freeCashFlowYield.toFixed(2)}%`
-    : "Unavailable"
-}
-
-P/E Ratio:
-${
-  input.fundamentals?.peRatio != null
-    ? input.fundamentals.peRatio.toFixed(2)
-    : "Unavailable"
-}
-
-Price to Sales:
-${
-  input.fundamentals?.priceToSalesRatio != null
-    ? input.fundamentals.priceToSalesRatio.toFixed(2)
-    : "Unavailable"
-}
-
-Price to Book:
-${
-  input.fundamentals?.priceToBookRatio != null
-    ? input.fundamentals.priceToBookRatio.toFixed(2)
-    : "Unavailable"
-}
-
-Price / Earnings:
-${
-  input.fundamentals?.peRatio != null
-    ? `${input.fundamentals.peRatio.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Price / Sales:
-${
-  input.fundamentals?.priceToSalesRatio != null
-    ? `${input.fundamentals.priceToSalesRatio.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Price / Book:
-${
-  input.fundamentals?.priceToBookRatio != null
-    ? `${input.fundamentals.priceToBookRatio.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Price / Free Cash Flow:
-${
-  input.fundamentals?.priceToFreeCashFlowRatio != null
-    ? `${input.fundamentals.priceToFreeCashFlowRatio.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Earnings Yield:
-${
-  input.fundamentals?.earningsYield != null
-    ? `${input.fundamentals.earningsYield.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Return on Equity:
-${
-  input.fundamentals?.returnOnEquity != null
-    ? `${input.fundamentals.returnOnEquity.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Return on Assets:
-${
-  input.fundamentals?.returnOnAssets != null
-    ? `${input.fundamentals.returnOnAssets.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Return on Invested Capital:
-${
-  input.fundamentals?.returnOnInvestedCapital != null
-    ? `${input.fundamentals.returnOnInvestedCapital.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Return on Capital Employed:
-${
-  input.fundamentals?.returnOnCapitalEmployed != null
-    ? `${input.fundamentals.returnOnCapitalEmployed.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Debt / Equity:
-${
-  input.fundamentals?.debtToEquity != null
-    ? `${input.fundamentals.debtToEquity.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Interest Coverage:
-${
-  input.fundamentals?.interestCoverage != null
-    ? `${input.fundamentals.interestCoverage.toFixed(2)}x`
-    : "Unavailable"
-}
-
-Current Ratio:
-${
-  input.fundamentals?.currentRatio != null
-    ? input.fundamentals.currentRatio.toFixed(2)
-    : "Unavailable"
-}
-
-Free Cash Flow / Operating Cash Flow:
-${
-  input.fundamentals?.freeCashFlowToOperatingCashFlow != null
-    ? `${input.fundamentals.freeCashFlowToOperatingCashFlow.toFixed(2)}%`
-    : "Unavailable"
-}
-
-CapEx / Operating Cash Flow:
-${
-  input.fundamentals?.capexToOperatingCashFlow != null
-    ? `${input.fundamentals.capexToOperatingCashFlow.toFixed(2)}%`
-    : "Unavailable"
-}
-
-CapEx / Revenue:
-${
-  input.fundamentals?.capexToRevenue != null
-    ? `${input.fundamentals.capexToRevenue.toFixed(2)}%`
-    : "Unavailable"
-}
-
-R&D / Revenue:
-${
-  input.fundamentals?.researchAndDevelopmentToRevenue != null
-    ? `${input.fundamentals.researchAndDevelopmentToRevenue.toFixed(2)}%`
-    : "Unavailable"
-}
-
-Stock-Based Compensation / Revenue:
-${
-  input.fundamentals?.stockBasedCompensationToRevenue != null
-    ? `${input.fundamentals.stockBasedCompensationToRevenue.toFixed(2)}%`
-    : "Unavailable"
-}
+    input.earnings?.nextExpected
+      ? `Expected report date: ${input.earnings.nextExpected.date}
+EPS estimate: ${formatNumber(input.earnings.nextExpected.epsEstimated)}
+Revenue estimate: ${formatMoney(input.earnings.nextExpected.revenueEstimated)}`
+      : "Unavailable"
+  }
 
 Produce five distinct analyses:
 
@@ -750,48 +340,24 @@ Present the strongest evidence-based case against owning or increasing exposure.
 Evaluate downside risk, valuation risk, business risk, concentration risk, volatility, portfolio-specific risk, and possible permanent capital impairment.
 
 5. PORTFOLIO MANAGER
-Evaluate whether the security fits this specific portfolio mandate and whether an existing position should be increased, reduced, or held.
-
-Do not calculate or recommend dollar allocations, portfolio percentages, share quantities, or trade sizes.
-Position sizing is handled separately by Retirement Rebuild's deterministic position-sizing engine.
-Focus on portfolio fit, concentration risk, diversification, thesis strength, and whether exposure should directionally increase, decrease, remain unchanged, or be avoided.
+Evaluate whether the security fits this specific portfolio mandate and the actual current holdings. For an existing position, determine whether exposure should directionally increase, decrease, or remain unchanged. For a new position, evaluate overlap, diversification and correlated risks.
 
 Important rules:
 - Clearly distinguish facts from inference.
 - Do not fabricate financial metrics, news, earnings results, analyst estimates, or company events.
 - If relevant information is unavailable, explicitly say so.
-- Treat the market price supplied above as the reference price.
-- Be skeptical of weak evidence.
-- Avoid false precision.
-- When evaluating historical trends, distinguish the long-term endpoint change from the recent trajectory.
-- Do not describe a metric simply as "declining" or "improving" when the most recent direction materially differs from the full-period comparison.
-- For volatile metrics such as margins, ROIC, revenue growth, free cash flow, leverage, and share count, explicitly identify whether the recent trend is improving, deteriorating, stable, or mixed.
-- Give greater analytical weight to sustained multi-period trends than to a single unusually strong or weak historical endpoint, while still identifying meaningful long-term deterioration.
+- Treat the supplied market price as the reference price.
+- Be skeptical of weak evidence and avoid false precision.
+- Distinguish long-term trend direction from recent direction whenever they conflict.
 - Do not issue the final committee recommendation. The Committee Chair will do that separately.
-- Use the supplied valuation metrics explicitly and comparatively. A low P/E or EV/FCF is not automatically attractive if growth, returns on capital, or cash conversion are weak; a high multiple is not automatically unattractive if durable growth and returns on capital justify it.
-- Do not describe valuation as unknown when EV-based valuation metrics are available.
-- If P/E, P/S, or P/B are unavailable, do not invent them; use the available EV and cash-flow metrics instead.
-- Treat capital expenditures as a cash outflow and evaluate their effect on free-cash-flow conversion and return on invested capital.
-- Use return-on-capital metrics such as ROIC and ROCE to evaluate business quality, not just revenue growth and margins.
-- Evaluate valuation using the full set of available measures, including P/E, P/FCF, EV/FCF, EV/EBITDA, earnings yield, and free-cash-flow yield.
-- Evaluate free-cash-flow conversion explicitly when FCF/OCF is available.
-- Treat CapEx/OCF and CapEx/Revenue as evidence of capital intensity; distinguish productive reinvestment from structurally weak cash conversion.
-- Consider stock-based compensation as an economic cost and dilution risk when SBC/Revenue is material.
-- Use R&D/Revenue as context for innovation intensity, but do not assume higher R&D automatically means better returns.
+- Use valuation metrics comparatively; cheap-looking multiples do not override weak durability or cash quality.
+- Treat capital expenditures as a cash outflow and evaluate their effect on cash conversion and returns.
+- Consider SBC as an economic cost and dilution risk when material.
 - Use leverage and interest coverage together when assessing financial risk.
-- Distinguish current absolute quality from historical direction. A company can still have excellent current margins or ROIC while those metrics are deteriorating.
-- Treat improving operating margins alongside deteriorating free-cash-flow margins as a potential warning that capital intensity or cash conversion is worsening.
-- Use ROIC trend to judge whether incremental capital is becoming more or less productive.
-- Treat rising CapEx/Revenue as evidence of increasing capital intensity; determine whether current growth and returns justify that investment.
-- Use share-count trend to identify meaningful dilution or shareholder-friendly buybacks.
-- Do not treat one favorable current metric as sufficient if the multi-year trend is materially deteriorating.
-- When adjudicating historical trends, distinguish long-term endpoint changes from the recent trajectory.
-- Do not characterize a metric as simply declining or improving when recent periods show a materially different direction.
-- If long-term and recent trends conflict, state both and explain which is more relevant to the final decision.
 - Do not calculate or recommend dollar allocations, portfolio weights, share quantities, or trade sizes.
 - Do not insert hypothetical dollar position sizes into any analysis.
-- Fractional-share execution is supported by the portfolio system. Do not treat inability to purchase a whole share as an investment risk or reason to delay an otherwise justified investment.
-- Brokerage minimums, fractional-share precision, available executable quantity, and actual trade implementation are handled separately from the investment thesis.
+- Fractional-share execution is supported. Whole-share affordability is not an investment risk.
+- Brokerage minimums, fractional precision, available executable quantity, and actual implementation are handled separately from the investment thesis.
 `;
 }
 
@@ -801,10 +367,9 @@ export function buildChairPrompt(input: {
   portfolioMode: CommitteePortfolioMode;
   portfolioName: string;
   availableCash: number;
+  portfolioHoldings: CommitteePortfolioHolding[];
   specialistAnalysis: SpecialistAnalysis;
-
-  discoveryEvidence:
-    DiscoveryEvidence | null;
+  discoveryEvidence: DiscoveryEvidence | null;
 }) {
   const mandate =
     getPortfolioMandate(
@@ -820,78 +385,21 @@ ${mandate}
 
 PORTFOLIO CONTEXT
 
-Portfolio:
-${input.portfolioName}
+Portfolio: ${input.portfolioName}
+Ticker: ${input.ticker}
+Reference market price: ${formatMoney(input.marketPrice)}
+Available cash: ${formatMoney(input.availableCash)}
 
-Ticker:
-${input.ticker}
+Actual current portfolio holdings:
+${formatPortfolioHoldings(input.portfolioHoldings)}
 
-Reference market price:
-${
-  input.marketPrice != null
-    ? `$${input.marketPrice.toFixed(2)}`
-    : "Unavailable"
-}
-
-Available cash:
-$${input.availableCash.toFixed(2)}
+Use the holdings only to judge ownership merit, concentration, diversification, overlap, and correlated risk. Do not size a BUY from them.
 
 DISCOVERY V2 SCREENING CONTEXT
 
-This is prior quantitative screening evidence, not a recommendation.
+This is prior quantitative screening evidence, not a recommendation. Use it to understand why the security reached committee review, but do not allow a high Discovery score to substitute for independent judgment.
 
-Use it to understand why the security reached committee review, but do not allow a high Discovery score to substitute for independent judgment.
-
-If the specialist evidence conflicts with Discovery V2, identify the conflict and resolve it based on the stronger underlying evidence.
-
-${
-  input.discoveryEvidence
-    ? `
-Discovery date:
-${input.discoveryEvidence.discoveryDate}
-
-Market-cap bucket:
-${input.discoveryEvidence.marketCapBucket ?? "Unavailable"}
-
-Sector:
-${input.discoveryEvidence.sector ?? "Unavailable"}
-
-Industry:
-${input.discoveryEvidence.industry ?? "Unavailable"}
-
-Quality score:
-${input.discoveryEvidence.qualityScore.toFixed(2)}/100
-
-Growth score:
-${input.discoveryEvidence.growthScore.toFixed(2)}/100
-
-Valuation score:
-${input.discoveryEvidence.valuationScore.toFixed(2)}/100
-
-Trend quality score:
-${input.discoveryEvidence.trendQualityScore.toFixed(2)}/100
-
-Capital discipline score:
-${input.discoveryEvidence.capitalDisciplineScore.toFixed(2)}/100
-
-Deep score:
-${input.discoveryEvidence.deepScore.toFixed(2)}/100
-
-Portfolio fit score:
-${input.discoveryEvidence.portfolioFitScore.toFixed(2)}/100
-
-Final Discovery score:
-${input.discoveryEvidence.totalScore.toFixed(2)}/100
-
-Discovery summary:
-${input.discoveryEvidence.reasonSummary ?? "Unavailable"}
-`
-    : `
-No Discovery V2 screening record is available for this security.
-`
-}
-
-SPECIALIST ANALYSIS
+${formatDiscoveryEvidence(input.discoveryEvidence)}
 
 SPECIALIST ANALYSIS
 
@@ -910,8 +418,7 @@ ${input.specialistAnalysis.riskAnalysis}
 PORTFOLIO MANAGER:
 ${input.specialistAnalysis.portfolioAnalysis}
 
-You must select exactly one final recommendation:
-
+Select exactly one final recommendation:
 buy
 sell
 hold
@@ -922,56 +429,31 @@ rebalance
 Definitions:
 
 BUY:
-Initiate or materially increase a position because the current evidence supports a favorable risk-adjusted investment case for this portfolio.
-
-A BUY does not require the company to be low risk, flawless, or free of uncertainty.
-Material risks do not automatically require WATCH because the separate deterministic position-sizing engine can constrain exposure.
-Use BUY when the expected upside, valuation, business quality, and evidence are sufficient to justify owning the security now.
-Material risks may justify a smaller position rather than automatically requiring WATCH.
-Use BUY when the expected upside, valuation, business quality, and evidence are sufficient to justify owning the security now at an appropriately sized position.
+Initiate or materially increase a position because current evidence supports a favorable risk-adjusted ownership case for this portfolio. A BUY does not require certainty or low risk. Risks that can reasonably be managed by deterministic sizing should not automatically force WATCH.
 
 SELL:
 Exit a position because the investment thesis has materially weakened, valuation no longer justifies ownership, downside risk has become unacceptable, or a superior portfolio action is warranted.
 
 HOLD:
-Maintain an existing position without meaningful change because the investment thesis remains intact and the current position size remains appropriate.
+Maintain an existing position without meaningful change because the thesis remains intact and continued ownership is justified.
 
 WATCH:
-Do not initiate a position yet because there is a specific, material unresolved issue that prevents the investment case from clearing the portfolio's action threshold.
-
-WATCH must not be used merely because the investment has normal uncertainty or identifiable risk.
-If the security is attractive enough to own now but risk is elevated, prefer BUY rather than WATCH when the remaining risk can reasonably be managed by the separate deterministic position-sizing engine.
-
-When selecting WATCH, identify the concrete evidence, valuation level, catalyst, trend, or risk condition that currently blocks a BUY.
+Do not initiate or increase yet because a specific material unresolved issue prevents the case from clearing the action threshold. WATCH must not be a default response to normal uncertainty. Identify the concrete evidence, valuation level, catalyst, trend, or risk condition blocking action.
 
 AVOID:
-The security does not currently meet the portfolio mandate or the expected risk-adjusted return is insufficient to justify continued consideration.
+The security does not currently meet the portfolio mandate or expected risk-adjusted return is insufficient to justify continued consideration.
 
 REBALANCE:
-Adjust an existing position without fully exiting it because the thesis remains valid but the current position size is no longer appropriate.
+Adjust an existing position without fully exiting it because the thesis remains valid but current exposure is no longer appropriate.
 
 Confidence:
-Return a score from 0 to 100.
-
-Confidence measures how strongly the available evidence supports the selected recommendation.
-A high-confidence WATCH is appropriate only when there is strong evidence that waiting is specifically preferable to acting now.
-Do not reduce confidence merely because every investment contains uncertainty.
+Return 0 to 100. High-confidence WATCH is appropriate only when evidence strongly supports waiting rather than acting now.
 
 Risk:
-Classify as low, medium, or high relative to this portfolio mandate.
-
-Risk level and recommendation are separate judgments.
-High risk does not automatically require WATCH or AVOID.
-When the expected return justifies ownership, elevated risk should influence monitoring requirements and may be handled by the separate deterministic position-sizing engine.
+Classify low, medium, or high relative to this portfolio mandate. Risk level and recommendation are separate judgments.
 
 Recommended allocation:
-Position sizing for BUY decisions is handled separately by Retirement Rebuild's deterministic position-sizing engine.
-
-For BUY, SELL, HOLD, WATCH, and AVOID decisions, return null for recommendedAllocation.
-
-For REBALANCE only, return the recommended total dollar allocation after the rebalance because the current REBALANCE execution workflow still requires a target allocation.
-
-Do not mention dollar allocations, portfolio percentages, share quantities, or trade sizes in the final thesis, reassessment conditions, or exit conditions unless the recommendation is REBALANCE.
+For BUY, SELL, HOLD, WATCH, and AVOID return null. BUY sizing is handled separately by Retirement Rebuild's deterministic sizing engine. For REBALANCE only, return the recommended total dollar allocation because the current REBALANCE workflow still requires it.
 
 Final thesis:
 Explain concisely why the committee reached its conclusion.
@@ -980,29 +462,19 @@ Reassessment conditions:
 State observable developments that should trigger a fresh committee review.
 
 Exit conditions:
-For a BUY/HOLD/REBALANCE decision, state the conditions that would invalidate the thesis or justify exiting.
-For WATCH/AVOID/SELL, state what would need to change before reconsideration where appropriate.
+For BUY/HOLD/REBALANCE, state conditions that would invalidate the thesis or justify exiting. For WATCH/AVOID/SELL, state what would need to change before reconsideration where appropriate.
 
 Important rules:
-- Do not simply average the specialists.
-- Resolve disagreements explicitly.
-- The bear and risk cases must materially influence the final decision, but they do not automatically override an otherwise favorable investment case.
-- Separate the question "Is this worth owning?" from implementation and position sizing.
-- The Committee decides whether ownership is justified; Retirement Rebuild's deterministic position-sizing engine decides how large a BUY should be.
-- Elevated but acceptable investment risk may support a BUY rather than WATCH because the separate deterministic sizing engine can constrain exposure.
+- Do not simply average the specialists; resolve disagreements.
+- Separate "Is this worth owning?" from implementation and position sizing.
+- The Committee decides whether ownership is justified; deterministic sizing decides how large a BUY should be.
 - Do not calculate, invent, or recommend BUY dollar allocations, portfolio percentages, share quantities, or trade sizes.
-- Fractional-share execution is supported by the portfolio system. Do not treat inability to purchase a whole share as a reason for WATCH, AVOID, or delayed execution.
-- Brokerage minimums, fractional-share precision, and execution mechanics are handled outside the investment thesis.
-- Do not require certainty before issuing a BUY.
-- Do not use WATCH as a default response to ordinary investment uncertainty.
-- A WATCH decision must identify at least one specific material condition that currently prevents ownership.
-- If the current evidence supports ownership at today's price and the remaining risks can reasonably be managed by the separate deterministic position-sizing engine, prefer BUY over WATCH.
+- Fractional-share execution is supported; whole-share affordability is not a reason for WATCH or AVOID.
+- Do not require certainty before BUY and do not use WATCH for ordinary uncertainty.
 - Do not fabricate information.
-- For REBALANCE only, do not recommend a target allocation greater than the portfolio could reasonably support.
 - Preserve meaningful uncertainty where evidence is incomplete.
-- Treat earnings surprises as current evidence, not as proof of future performance.
+- Treat earnings surprises as current evidence, not proof of future performance.
 - Distinguish reported results from future estimates.
-- Use the next expected earnings date as a potential reassessment catalyst.
-- Do not invent management guidance that is not explicitly supplied.
+- Do not invent management guidance.
 `;
 }
