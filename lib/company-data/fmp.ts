@@ -87,6 +87,75 @@ function first<T>(
   return value?.[0] ?? null;
 }
 
+function safeRatio(
+  numerator: number | null,
+  denominator: number | null
+) {
+  if (
+    numerator == null ||
+    denominator == null ||
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    denominator === 0
+  ) {
+    return null;
+  }
+
+  return numerator / denominator;
+}
+
+function safePositiveMultiple(
+  numerator: number | null,
+  denominator: number | null
+) {
+  if (
+    numerator == null ||
+    denominator == null ||
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    numerator <= 0 ||
+    denominator <= 0
+  ) {
+    return null;
+  }
+
+  return numerator / denominator;
+}
+
+function warnOnMaterialDifference(
+  symbol: string,
+  label: string,
+  calculated: number | null,
+  vendor: number | null
+) {
+  if (
+    calculated == null ||
+    vendor == null ||
+    !Number.isFinite(calculated) ||
+    !Number.isFinite(vendor)
+  ) {
+    return;
+  }
+
+  const scale = Math.max(
+    Math.abs(calculated),
+    Math.abs(vendor),
+    0.0001
+  );
+
+  const relativeDifference =
+    Math.abs(calculated - vendor) /
+    scale;
+
+  if (relativeDifference >= 0.2) {
+    console.warn(
+      `[fundamentals:${symbol}] ${label} differs materially: calculated=${calculated.toFixed(
+        4
+      )}, vendor=${vendor.toFixed(4)}. Calculated latest-annual value will be used where available.`
+    );
+  }
+}
+
 async function fetchFmp<T>(
   path: string,
   params: Record<string, string> = {}
@@ -278,15 +347,196 @@ export async function getCompanyFundamentals(
         ) * 100
       : null;
 
+  const netIncome =
+    latestIncome?.netIncome ??
+    null;
+
   const marketCap =
     profile?.marketCap ??
     profile?.mktCap ??
     metrics?.marketCap ??
     null;
 
+  const operatingCashFlow =
+    cashFlow?.operatingCashFlow ??
+    null;
+
+  const capitalExpenditures =
+    cashFlow?.capitalExpenditure != null
+      ? Math.abs(
+          cashFlow.capitalExpenditure
+        )
+      : cashFlow?.capitalExpenditures != null
+        ? Math.abs(
+            cashFlow.capitalExpenditures
+          )
+        : null;
+
   const freeCashFlow =
     cashFlow?.freeCashFlow ??
     null;
+
+  const enterpriseValue =
+    metrics?.enterpriseValueTTM ??
+    ratios?.enterpriseValueTTM ??
+    metrics?.enterpriseValue ??
+    null;
+
+  /*
+    Discovery should not mix vendor TTM ratios with
+    latest-annual statement dollars when the same ratio
+    can be calculated directly from one coherent set of
+    raw values. Prefer deterministic calculations from
+    latest annual statements and current market values;
+    retain vendor metrics only as fallbacks.
+  */
+
+  const calculatedPe =
+    safePositiveMultiple(
+      marketCap,
+      netIncome
+    );
+
+  const calculatedPriceToSales =
+    safePositiveMultiple(
+      marketCap,
+      revenue
+    );
+
+  const calculatedPriceToFcf =
+    safePositiveMultiple(
+      marketCap,
+      freeCashFlow
+    );
+
+  const calculatedEvToSales =
+    safePositiveMultiple(
+      enterpriseValue,
+      revenue
+    );
+
+  const calculatedEvToOcf =
+    safePositiveMultiple(
+      enterpriseValue,
+      operatingCashFlow
+    );
+
+  const calculatedEvToFcf =
+    safePositiveMultiple(
+      enterpriseValue,
+      freeCashFlow
+    );
+
+  const calculatedFcfYieldRatio =
+    safeRatio(
+      freeCashFlow,
+      marketCap
+    );
+
+  const calculatedFcfToOcfRatio =
+    safeRatio(
+      freeCashFlow,
+      operatingCashFlow
+    );
+
+  const calculatedCapexToOcfRatio =
+    operatingCashFlow != null &&
+    operatingCashFlow > 0
+      ? safeRatio(
+          capitalExpenditures,
+          operatingCashFlow
+        )
+      : null;
+
+  const calculatedCapexToRevenueRatio =
+    revenue != null &&
+    revenue > 0
+      ? safeRatio(
+          capitalExpenditures,
+          revenue
+        )
+      : null;
+
+  const vendorFcfYield =
+    metrics?.freeCashFlowYieldTTM != null
+      ? metrics.freeCashFlowYieldTTM * 100
+      : null;
+
+  const vendorFcfToOcf =
+    ratios?.freeCashFlowOperatingCashFlowRatioTTM != null
+      ? ratios.freeCashFlowOperatingCashFlowRatioTTM *
+        100
+      : null;
+
+  const vendorCapexToOcf =
+    metrics?.capexToOperatingCashFlowTTM != null
+      ? metrics.capexToOperatingCashFlowTTM *
+        100
+      : null;
+
+  const vendorCapexToRevenue =
+    metrics?.capexToRevenueTTM != null
+      ? metrics.capexToRevenueTTM * 100
+      : null;
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "P/E",
+    calculatedPe,
+    ratios?.priceToEarningsRatioTTM ?? null
+  );
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "P/FCF",
+    calculatedPriceToFcf,
+    ratios?.priceToFreeCashFlowRatioTTM ?? null
+  );
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "EV/FCF",
+    calculatedEvToFcf,
+    metrics?.evToFreeCashFlowTTM ??
+      metrics?.evToFreeCashFlow ??
+      null
+  );
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "FCF yield (%)",
+    calculatedFcfYieldRatio != null
+      ? calculatedFcfYieldRatio * 100
+      : null,
+    vendorFcfYield
+  );
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "FCF/OCF (%)",
+    calculatedFcfToOcfRatio != null
+      ? calculatedFcfToOcfRatio * 100
+      : null,
+    vendorFcfToOcf
+  );
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "CapEx/OCF (%)",
+    calculatedCapexToOcfRatio != null
+      ? calculatedCapexToOcfRatio * 100
+      : null,
+    vendorCapexToOcf
+  );
+
+  warnOnMaterialDifference(
+    normalizedSymbol,
+    "CapEx/Revenue (%)",
+    calculatedCapexToRevenueRatio != null
+      ? calculatedCapexToRevenueRatio * 100
+      : null,
+    vendorCapexToRevenue
+  );
 
   return {
     symbol:
@@ -301,10 +551,12 @@ export async function getCompanyFundamentals(
     marketCap,
 
     peRatio:
+      calculatedPe ??
       ratios?.priceToEarningsRatioTTM ??
       null,
 
     priceToSalesRatio:
+      calculatedPriceToSales ??
       ratios?.priceToSalesRatioTTM ??
       null,
 
@@ -313,26 +565,26 @@ export async function getCompanyFundamentals(
       null,
 
     priceToFreeCashFlowRatio:
+      calculatedPriceToFcf ??
       ratios?.priceToFreeCashFlowRatioTTM ??
       null,
 
-    enterpriseValue:
-      metrics?.enterpriseValueTTM ??
-      ratios?.enterpriseValueTTM ??
-      metrics?.enterpriseValue ??
-      null,
+    enterpriseValue,
 
     evToSales:
+      calculatedEvToSales ??
       metrics?.evToSalesTTM ??
       metrics?.evToSales ??
       null,
 
     evToOperatingCashFlow:
+      calculatedEvToOcf ??
       metrics?.evToOperatingCashFlowTTM ??
       metrics?.evToOperatingCashFlow ??
       null,
 
     evToFreeCashFlow:
+      calculatedEvToFcf ??
       metrics?.evToFreeCashFlowTTM ??
       metrics?.evToFreeCashFlow ??
       null,
@@ -343,21 +595,20 @@ export async function getCompanyFundamentals(
       null,
 
     earningsYield:
-      metrics?.earningsYieldTTM != null
-        ? metrics.earningsYieldTTM * 100
-        : null,
+      calculatedPe != null &&
+      calculatedPe > 0
+        ? (1 / calculatedPe) * 100
+        : metrics?.earningsYieldTTM != null
+          ? metrics.earningsYieldTTM * 100
+          : null,
 
     freeCashFlowYield:
-      metrics?.freeCashFlowYieldTTM != null
-        ? metrics.freeCashFlowYieldTTM * 100
-        : freeCashFlow != null &&
-            marketCap != null &&
-            marketCap > 0
-          ? (
-              freeCashFlow /
-              marketCap
-            ) * 100
-          : null,
+      calculatedFcfYieldRatio != null &&
+      Number.isFinite(
+        calculatedFcfYieldRatio
+      )
+        ? calculatedFcfYieldRatio * 100
+        : vendorFcfYield,
 
     returnOnEquity:
       metrics?.returnOnEquityTTM != null
@@ -399,22 +650,19 @@ export async function getCompanyFundamentals(
       null,
 
     freeCashFlowToOperatingCashFlow:
-      ratios?.freeCashFlowOperatingCashFlowRatioTTM != null
-        ? ratios
-            .freeCashFlowOperatingCashFlowRatioTTM *
-          100
-        : null,
+      calculatedFcfToOcfRatio != null
+        ? calculatedFcfToOcfRatio * 100
+        : vendorFcfToOcf,
 
     capexToOperatingCashFlow:
-      metrics?.capexToOperatingCashFlowTTM != null
-        ? metrics.capexToOperatingCashFlowTTM *
-          100
-        : null,
+      calculatedCapexToOcfRatio != null
+        ? calculatedCapexToOcfRatio * 100
+        : vendorCapexToOcf,
 
     capexToRevenue:
-      metrics?.capexToRevenueTTM != null
-        ? metrics.capexToRevenueTTM * 100
-        : null,
+      calculatedCapexToRevenueRatio != null
+        ? calculatedCapexToRevenueRatio * 100
+        : vendorCapexToRevenue,
 
     researchAndDevelopmentToRevenue:
       metrics?.researchAndDevelopementToRevenueTTM != null
@@ -438,24 +686,11 @@ export async function getCompanyFundamentals(
 
     operatingMargin,
 
-    netIncome:
-      latestIncome?.netIncome ??
-      null,
+    netIncome,
 
-    operatingCashFlow:
-      cashFlow?.operatingCashFlow ??
-      null,
+    operatingCashFlow,
 
-    capitalExpenditures:
-      cashFlow?.capitalExpenditure != null
-        ? Math.abs(
-            cashFlow.capitalExpenditure
-          )
-        : cashFlow?.capitalExpenditures != null
-          ? Math.abs(
-              cashFlow.capitalExpenditures
-            )
-          : null,
+    capitalExpenditures,
 
     freeCashFlow,
 
