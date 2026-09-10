@@ -34,6 +34,11 @@ type ProcessScanResult = {
   message?: string;
 };
 
+type DiscoveryPortfolioMode =
+  | "real"
+  | "paper_long_term"
+  | "paper_active";
+
 export default function DiscoveryRunForm() {
   const [
     runState,
@@ -57,6 +62,14 @@ export default function DiscoveryRunForm() {
     processing,
     setProcessing,
   ] = useState(false);
+
+  const [
+    selectedPortfolioMode,
+    setSelectedPortfolioMode,
+  ] =
+    useState<DiscoveryPortfolioMode>(
+      "real"
+    );
 
   const processingRunId =
     useRef<string | null>(
@@ -159,7 +172,9 @@ export default function DiscoveryRunForm() {
 
             finished = true;
 
-            window.location.reload();
+            window.location.assign(
+              `/discovery?mode=${selectedPortfolioMode}`
+            );
 
             break;
           }
@@ -209,6 +224,7 @@ export default function DiscoveryRunForm() {
   }, [
     runState.success,
     runState.scanRunId,
+    selectedPortfolioMode,
   ]);
 
   return (
@@ -218,7 +234,7 @@ export default function DiscoveryRunForm() {
       </h2>
 
       <p className="mt-1 text-sm text-gray-600">
-        Screen the current stock universe using deterministic financial scoring.
+        Screen the current stock universe using deterministic financial scoring and portfolio fit.
       </p>
 
       <div className="mt-4">
@@ -248,23 +264,29 @@ export default function DiscoveryRunForm() {
           <select
             id="portfolio_mode"
             name="portfolio_mode"
-            defaultValue="paper_long_term"
+            value={selectedPortfolioMode}
+            onChange={(event) =>
+              setSelectedPortfolioMode(
+                event.target
+                  .value as DiscoveryPortfolioMode
+              )
+            }
             disabled={
               runPending ||
               processing
             }
             className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50"
           >
+            <option value="real">
+              Real Portfolio
+            </option>
+
             <option value="paper_long_term">
-              AI Long-Term
+              Paper Long-Term
             </option>
 
             <option value="paper_active">
               AI Active
-            </option>
-
-            <option value="real">
-              Real Portfolio (AI Long-Term strategy)
             </option>
           </select>
         </div>
