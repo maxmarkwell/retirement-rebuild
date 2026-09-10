@@ -709,6 +709,11 @@ type DiscoveryEvidence = {
       portfolio.type === "real"
         ? 3
         : 4,
+    minimumBuyNotional:
+      portfolio.type === "real"
+        ? 5
+        : 0,
+
   });
       recommendedQuantity =
         sizing.suggestedShares;

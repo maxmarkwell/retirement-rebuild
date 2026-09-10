@@ -20,6 +20,7 @@ export type PositionSizingInput = {
     | "high";
 
   fractionalSharePrecision?: number;
+  minimumBuyNotional?: number;
 };
 
 export type PositionSizingResult = {
@@ -142,6 +143,7 @@ export function calculatePositionSizing(
     confidenceScore,
     riskLevel,
     fractionalSharePrecision = 4,
+    minimumBuyNotional = 0,
   } = input;
 
   if (
@@ -252,16 +254,62 @@ export function calculatePositionSizing(
     suggestedInitialCapital /
     currentPrice;
 
-  const suggestedShares =
-    roundShares(
-      rawSuggestedShares,
+let suggestedShares =
+  roundShares(
+    rawSuggestedShares,
+    fractionalSharePrecision
+  );
+
+let actualPurchaseValue =
+  suggestedShares *
+  currentPrice;
+
+if (
+  minimumBuyNotional > 0 &&
+  actualPurchaseValue < minimumBuyNotional
+) {
+  const shareIncrement =
+    1 / Math.pow(
+      10,
       fractionalSharePrecision
     );
 
-  const actualPurchaseValue =
-    suggestedShares *
+  const minimumSharesNeeded =
+    Math.ceil(
+      minimumBuyNotional /
+        currentPrice /
+        shareIncrement
+    ) * shareIncrement;
+
+  const minimumPurchaseValue =
+    minimumSharesNeeded *
     currentPrice;
 
+  const maxAllowedPurchase =
+    Math.min(
+      availableCash,
+      maxAdditionalCapital
+    );
+
+  if (
+  minimumPurchaseValue <=
+  maxAllowedPurchase
+) {
+  suggestedShares =
+    Number(
+      minimumSharesNeeded.toFixed(
+        fractionalSharePrecision
+      )
+    );
+
+  actualPurchaseValue =
+    suggestedShares *
+    currentPrice;
+} else {
+  suggestedShares = 0;
+  actualPurchaseValue = 0;
+}
+}
   const cashAfterPurchase =
     availableCash -
     actualPurchaseValue;
