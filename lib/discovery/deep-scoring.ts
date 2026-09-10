@@ -1,6 +1,7 @@
 import type {
   CompanyFundamentals,
   CompanyFundamentalTrends,
+  TrendDirection,
 } from "@/lib/company-data/types";
 
 export type DeepDiscoveryScore = {
@@ -37,12 +38,7 @@ function round(
 }
 
 function scoreDirection(
-  direction:
-    | "improving"
-    | "stable"
-    | "deteriorating"
-    | "mixed"
-    | "unavailable"
+  direction: TrendDirection
 ) {
   switch (direction) {
     case "improving":
@@ -60,6 +56,26 @@ function scoreDirection(
     default:
       return 45;
   }
+}
+
+function scoreTrendDirections(
+  longTermDirection: TrendDirection,
+  recentDirection: TrendDirection
+) {
+  /*
+    Discovery previously let a three-period recovery
+    completely replace a weak five-year endpoint.
+    Weight both explicitly so a recent improvement is
+    rewarded without erasing long-term deterioration.
+  */
+  return (
+    scoreDirection(
+      longTermDirection
+    ) * 0.6 +
+    scoreDirection(
+      recentDirection
+    ) * 0.4
+  );
 }
 
 function scoreOperatingMargin(
@@ -415,8 +431,9 @@ function scoreShareCountTrend(
   if (
     trend.percentChange == null
   ) {
-    return scoreDirection(
-      trend.direction
+    return scoreTrendDirections(
+      trend.longTermDirection,
+      trend.recentDirection
     );
   }
 
@@ -484,8 +501,11 @@ function scoreCapexIntensity(
   }
 
   const trendScore =
-    scoreDirection(
-      trends.capexToRevenue.direction
+    scoreTrendDirections(
+      trends.capexToRevenue
+        .longTermDirection,
+      trends.capexToRevenue
+        .recentDirection
     );
 
   return (
@@ -578,24 +598,35 @@ export function scoreDeepDiscoveryCandidate(
   // ---------------------------------------------------------
 
   const revenueTrend =
-    scoreDirection(
-      trends.revenue.direction
+    scoreTrendDirections(
+      trends.revenue
+        .longTermDirection,
+      trends.revenue
+        .recentDirection
     );
 
   const marginTrend =
-    scoreDirection(
-      trends.operatingMargin.direction
+    scoreTrendDirections(
+      trends.operatingMargin
+        .longTermDirection,
+      trends.operatingMargin
+        .recentDirection
     );
 
   const fcfMarginTrend =
-    scoreDirection(
-      trends.freeCashFlowMargin.direction
+    scoreTrendDirections(
+      trends.freeCashFlowMargin
+        .longTermDirection,
+      trends.freeCashFlowMargin
+        .recentDirection
     );
 
   const roicTrend =
-    scoreDirection(
+    scoreTrendDirections(
       trends.returnOnInvestedCapital
-        .direction
+        .longTermDirection,
+      trends.returnOnInvestedCapital
+        .recentDirection
     );
 
   const trendQuality =
