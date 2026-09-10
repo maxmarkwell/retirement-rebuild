@@ -32,6 +32,43 @@ function formatBucket(
   );
 }
 
+function getPortfolioFitExplanation(
+  value: number | string | null,
+  isCurrentHolding: boolean
+) {
+  const score =
+    value == null
+      ? null
+      : Number(value);
+
+  if (isCurrentHolding) {
+    if (
+      score != null &&
+      score < 75
+    ) {
+      return "Current holding. Existing position size, sector exposure, or cash is reducing portfolio fit.";
+    }
+
+    return "Current holding. Fit reflects existing position size, sector exposure, and available cash.";
+  }
+
+  if (
+    score != null &&
+    score >= 90
+  ) {
+    return "New position. Strong fit after current diversification and available cash are considered.";
+  }
+
+  if (
+    score != null &&
+    score >= 75
+  ) {
+    return "New position. Favorable fit after current sector exposure and available cash are considered.";
+  }
+
+  return "New position. Current sector exposure or available cash is limiting portfolio fit.";
+}
+
 export default async function DiscoveryPage({
   searchParams,
 }: DiscoveryPageProps) {
@@ -53,9 +90,12 @@ export default async function DiscoveryPage({
   const selectedMode =
     mode === "paper_active"
       ? "paper_active"
-      : mode === "real"
-        ? "real"
-        : "paper_long_term";
+      : mode === "paper_long_term"
+        ? "paper_long_term"
+        : "real";
+
+  const isRealPortfolio =
+    selectedMode === "real";
 
   const discoveryDate =
     new Intl.DateTimeFormat(
@@ -135,6 +175,121 @@ export default async function DiscoveryPage({
     throw new Error(
       `Unable to load discovery candidates: ${candidatesError.message}`
     );
+  }
+
+  const currentHoldingTickers =
+    new Set<string>();
+
+  if (isRealPortfolio) {
+    const {
+      data: realPortfolio,
+      error: realPortfolioError,
+    } =
+      await supabase
+        .from("portfolios")
+        .select("id")
+        .eq("type", "real")
+        .eq("is_active", true)
+        .maybeSingle();
+
+    if (realPortfolioError) {
+      throw new Error(
+        `Unable to load Real Portfolio: ${realPortfolioError.message}`
+      );
+    }
+
+    if (realPortfolio) {
+      const {
+        data: transactions,
+        error: transactionsError,
+      } =
+        await supabase
+          .from("transactions")
+          .select(
+            "transaction_type, ticker, quantity"
+          )
+          .eq(
+            "portfolio_id",
+            realPortfolio.id
+          );
+
+      if (transactionsError) {
+        throw new Error(
+          `Unable to load Real Portfolio holdings: ${transactionsError.message}`
+        );
+      }
+
+      const quantities =
+        new Map<string, number>();
+
+      for (
+        const transaction
+        of transactions ?? []
+      ) {
+        if (
+          !transaction.ticker ||
+          transaction.quantity == null
+        ) {
+          continue;
+        }
+
+        const ticker =
+          transaction.ticker
+            .trim()
+            .toUpperCase();
+
+        const quantity =
+          Number(
+            transaction.quantity
+          );
+
+        if (
+          !Number.isFinite(
+            quantity
+          )
+        ) {
+          continue;
+        }
+
+        const transactionType =
+          transaction.transaction_type
+            .trim()
+            .toLowerCase();
+
+        if (
+          transactionType !== "buy" &&
+          transactionType !== "sell"
+        ) {
+          continue;
+        }
+
+        const signedQuantity =
+          transactionType === "sell"
+            ? -quantity
+            : quantity;
+
+        quantities.set(
+          ticker,
+          (
+            quantities.get(
+              ticker
+            ) ?? 0
+          ) +
+            signedQuantity
+        );
+      }
+
+      for (
+        const [ticker, quantity]
+        of quantities
+      ) {
+        if (quantity > 0.0000001) {
+          currentHoldingTickers.add(
+            ticker
+          );
+        }
+      }
+    }
   }
 
   const {
@@ -226,11 +381,15 @@ export default async function DiscoveryPage({
           </p>
 
           <h1 className="mt-1 text-3xl font-bold text-gray-900">
-            Stock Discovery
+            {isRealPortfolio
+              ? "Real Portfolio Discovery"
+              : "Stock Discovery"}
           </h1>
 
           <p className="mt-2 text-gray-600">
-            Screen the investable universe before spending AI research dollars.
+            {isRealPortfolio
+              ? "Find opportunities for your current portfolio using deterministic financial scoring and portfolio fit."
+              : "Screen the investable universe before spending AI research dollars."}
           </p>
         </div>
 
@@ -240,6 +399,18 @@ export default async function DiscoveryPage({
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
+            href="/discovery?mode=real"
+            className={`rounded px-4 py-2 text-sm font-medium ${
+              selectedMode ===
+              "real"
+                ? "bg-black text-white"
+                : "border border-gray-300 bg-white text-gray-700"
+            }`}
+          >
+            Real Portfolio
+          </Link>
+
+          <Link
             href="/discovery?mode=paper_long_term"
             className={`rounded px-4 py-2 text-sm font-medium ${
               selectedMode ===
@@ -248,7 +419,7 @@ export default async function DiscoveryPage({
                 : "border border-gray-300 bg-white text-gray-700"
             }`}
           >
-            AI Long-Term
+            Paper Long-Term
           </Link>
 
           <Link
@@ -262,18 +433,6 @@ export default async function DiscoveryPage({
           >
             AI Active
           </Link>
-
-          <Link
-            href="/discovery?mode=real"
-            className={`rounded px-4 py-2 text-sm font-medium ${
-              selectedMode ===
-              "real"
-                ? "bg-black text-white"
-                : "border border-gray-300 bg-white text-gray-700"
-            }`}
-          >
-            Real Portfolio
-          </Link>
         </div>
 
         <div className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -281,11 +440,15 @@ export default async function DiscoveryPage({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Today&apos;s Candidates
+                  {isRealPortfolio
+                    ? "Opportunities for Your Real Portfolio"
+                    : "Today's Candidates"}
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Ranked by Discovery V2 deterministic scoring and portfolio fit.
+                  {isRealPortfolio
+                    ? "Ranked by company fundamentals and fit with your current holdings, sector exposure, and available cash."
+                    : "Ranked by Discovery V2 deterministic scoring and portfolio fit."}
                 </p>
               </div>
 
@@ -303,51 +466,83 @@ export default async function DiscoveryPage({
                   index
                 ) => {
                   const isV2 =
-  candidate.scoring_version ===
-  "v2";
+                    candidate.scoring_version ===
+                    "v2";
 
-const isNew =
-  previousCandidateDate != null &&
-  !previousTickers.has(
-    candidate.ticker
-  );
+                  const ticker =
+                    candidate.ticker
+                      .trim()
+                      .toUpperCase();
+
+                  const isCurrentHolding =
+                    isRealPortfolio &&
+                    currentHoldingTickers.has(
+                      ticker
+                    );
+
+                  const isNewCandidate =
+                    !isRealPortfolio &&
+                    previousCandidateDate != null &&
+                    !previousTickers.has(
+                      candidate.ticker
+                    );
+
+                  const portfolioFitExplanation =
+                    isRealPortfolio
+                      ? getPortfolioFitExplanation(
+                          candidate.portfolio_fit_score,
+                          isCurrentHolding
+                        )
+                      : null;
+
                   return (
-<div
-  key={
-    candidate.id
-  }
-  className={`p-6 transition-colors ${
-    isNew
-      ? "bg-emerald-50"
-      : "bg-white"
-  }`}
->                    
+                    <div
+                      key={candidate.id}
+                      className={`p-6 transition-colors ${
+                        isCurrentHolding
+                          ? "bg-blue-50/40"
+                          : isRealPortfolio ||
+                              isNewCandidate
+                            ? "bg-emerald-50/40"
+                            : "bg-white"
+                      }`}
+                    >
                       <div className="flex flex-wrap items-start justify-between gap-6">
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
                             <span className="text-sm font-semibold text-gray-400">
-                              #
-                              {index +
-                                1}
+                              #{index + 1}
                             </span>
 
                             <span className="text-xl font-bold text-gray-900">
-                              {
-                                candidate.ticker
-                              }
+                              {candidate.ticker}
                             </span>
 
-                           {isNew && (
-  <span className="rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
-    New
-  </span>
-)}
+                            {isRealPortfolio ? (
+                              <span
+                                className={`rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${
+                                  isCurrentHolding
+                                    ? "border-blue-300 bg-blue-100 text-blue-800"
+                                    : "border-emerald-300 bg-emerald-100 text-emerald-800"
+                                }`}
+                              >
+                                {isCurrentHolding
+                                  ? "Current Holding"
+                                  : "New Position"}
+                              </span>
+                            ) : (
+                              <>
+                                {isNewCandidate && (
+                                  <span className="rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
+                                    New Candidate
+                                  </span>
+                                )}
 
-                            <span className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
-                              {
-                                candidate.status
-                              }
-                            </span>
+                                <span className="rounded bg-gray-100 px-2 py-1 text-xs font-semibold uppercase text-gray-700">
+                                  {candidate.status}
+                                </span>
+                              </>
+                            )}
 
                             {candidate.market_cap_bucket && (
                               <span className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600">
@@ -360,9 +555,7 @@ const isNew =
 
                             {candidate.sector && (
                               <span className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600">
-                                {
-                                  candidate.sector
-                                }
+                                {candidate.sector}
                               </span>
                             )}
 
@@ -375,23 +568,18 @@ const isNew =
 
                           {candidate.industry && (
                             <p className="mt-2 text-xs text-gray-400">
-                              {
-                                candidate.industry
-                              }
+                              {candidate.industry}
                             </p>
                           )}
 
                           <p className="mt-3 text-sm text-gray-500">
-                            {
-                              candidate.reason_summary
-                            }
+                            {candidate.reason_summary}
                           </p>
                         </div>
 
                         <div className="text-right">
                           <p className="text-xs uppercase tracking-wide text-gray-500">
-                            Discovery
-                            Score
+                            Discovery Score
                           </p>
 
                           <p className="mt-1 text-2xl font-bold text-gray-900">
@@ -419,7 +607,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Quality
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.quality_score
@@ -431,7 +618,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Growth
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.growth_score
@@ -443,7 +629,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Valuation
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.valuation_score
@@ -455,7 +640,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Trend Quality
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.trend_quality_score
@@ -467,7 +651,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Capital Discipline
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.capital_discipline_score
@@ -479,7 +662,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Portfolio Fit
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.portfolio_fit_score
@@ -493,7 +675,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Quality
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.quality_score
@@ -505,7 +686,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Growth
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.growth_score
@@ -517,7 +697,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Valuation
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.valuation_score
@@ -529,7 +708,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Earnings
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.earnings_score
@@ -541,7 +719,6 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Risk
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.risk_score
@@ -553,13 +730,23 @@ const isNew =
                             <p className="text-xs uppercase text-gray-500">
                               Portfolio Fit
                             </p>
-
                             <p className="mt-1 font-medium text-gray-900">
                               {formatScore(
                                 candidate.portfolio_fit_score
                               )}
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {portfolioFitExplanation && (
+                        <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Portfolio Fit Context
+                          </p>
+                          <p className="mt-1 text-sm text-gray-700">
+                            {portfolioFitExplanation}
+                          </p>
                         </div>
                       )}
 
@@ -572,11 +759,15 @@ const isNew =
                           )}`}
                           className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
                         >
-                          Research Candidate
+                          {isCurrentHolding
+                            ? "Review Holding"
+                            : "Research Candidate"}
                         </Link>
 
                         <p className="text-xs text-gray-500">
-                          Opens Research for review. No AI cost until you start the committee run.
+                          {isCurrentHolding
+                            ? "Opens Research with this existing Real Portfolio position in context."
+                            : "Opens Research for review. No AI cost until you start the committee run."}
                         </p>
                       </div>
                     </div>
