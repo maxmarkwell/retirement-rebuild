@@ -98,6 +98,11 @@ const portfolioMode: CommitteePortfolioMode =
   portfolio.type === "real"
     ? "paper_long_term"
     : (portfolio.type as CommitteePortfolioMode);
+
+const discoveryPortfolioMode =
+  portfolio.type === "real"
+    ? "real"
+    : portfolioMode;
  // ---------------------------------------------------------
 // Load reassessment context
 // ---------------------------------------------------------
@@ -318,7 +323,7 @@ if (reassessmentId) {
       )
       .eq(
         "portfolio_type",
-        portfolioMode
+        discoveryPortfolioMode
       )
       .eq(
         "ticker",

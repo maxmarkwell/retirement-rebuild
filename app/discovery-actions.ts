@@ -49,13 +49,13 @@ export async function processDiscoveryAction(
 
     return {
       success: true,
-message:
-  result.message ??
-  (
-    result.nextStage
-      ? `Discovery advanced to ${result.nextStage}.`
-      : `Discovery stage: ${result.stage}.`
-  ),
+      message:
+        result.message ??
+        (
+          result.nextStage
+            ? `Discovery advanced to ${result.nextStage}.`
+            : `Discovery stage: ${result.stage}.`
+        ),
     };
   } catch (error) {
     return {
@@ -81,7 +81,9 @@ export async function runDiscoveryAction(
     portfolioMode !==
       "paper_active" &&
     portfolioMode !==
-      "paper_long_term"
+      "paper_long_term" &&
+    portfolioMode !==
+      "real"
   ) {
     return {
       success: false,
@@ -149,14 +151,14 @@ export async function runDiscoveryAction(
     }
 
     if (existingRun) {
-  return {
-    success: true,
-    message:
-      `Resuming Discovery V2. Current stage: ${existingRun.stage}.`,
-    scanRunId:
-      existingRun.id,
-  };
-}
+      return {
+        success: true,
+        message:
+          `Resuming Discovery V2. Current stage: ${existingRun.stage}.`,
+        scanRunId:
+          existingRun.id,
+      };
+    }
 
     // -------------------------------------------------------
     // Create Discovery V2 scan run
@@ -208,13 +210,12 @@ export async function runDiscoveryAction(
     );
 
     return {
-  success: true,
-  message:
-    "Discovery V2 started.",
-  scanRunId:
-    scanRun.id,
-};
-    
+      success: true,
+      message:
+        "Discovery V2 started.",
+      scanRunId:
+        scanRun.id,
+    };
   } catch (error) {
     const message =
       error instanceof Error

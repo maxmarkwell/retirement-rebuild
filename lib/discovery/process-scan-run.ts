@@ -37,6 +37,10 @@ import {
 } from "./finalize-scan";
 
 import type {
+  DiscoveryPortfolioMode,
+} from "./types";
+
+import type {
   CompanyFundamentals,
   CompanyFundamentalTrends,
 } from "@/lib/company-data/types";
@@ -1648,8 +1652,7 @@ if (
 
   const portfolioMode =
     scanRun.portfolio_type as
-      | "paper_active"
-      | "paper_long_term";
+      DiscoveryPortfolioMode;
 
   const result =
     await finalizeDiscoveryScan(
