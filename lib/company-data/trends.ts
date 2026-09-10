@@ -2,6 +2,7 @@ import type {
   CompanyFundamentalTrends,
   HistoricalMetricPoint,
   HistoricalMetricTrend,
+  TrendDirection,
 } from "./types";
 
 type FmpIncomeStatement = {
@@ -124,89 +125,110 @@ function sortPoints(
   );
 }
 
-function classifyDirection(
+function getValidValues(
+  points: HistoricalMetricPoint[]
+) {
+  return sortPoints(points)
+    .map(
+      (point) =>
+        point.value
+    )
+    .filter(
+      (
+        value
+      ): value is number =>
+        value != null &&
+        Number.isFinite(value)
+    );
+}
+
+function classifyRecentDirection(
   points: HistoricalMetricPoint[],
   higherIsBetter = true
-): HistoricalMetricTrend["direction"] {
+): TrendDirection {
   const values =
-    points
-      .map(
-        (point) =>
-          point.value
-      )
-      .filter(
-        (
-          value
-        ): value is number =>
-          value != null &&
-          Number.isFinite(value)
-      );
+    getValidValues(points);
 
   if (values.length < 2) {
     return "unavailable";
   }
 
-  // ---------------------------------------------------------
-  // Recent trajectory
-  // ---------------------------------------------------------
+  const recent =
+    values.slice(-3);
 
-  /*
-    Give greater importance to the most recent
-    three observations.
+  const first =
+    recent[0];
 
-    This prevents an unusual older year from
-    overwhelming a clear recent recovery or
-    deterioration.
-  */
+  const last =
+    recent[
+      recent.length - 1
+    ];
 
-  if (values.length >= 3) {
-    const recent =
-      values.slice(-3);
-
-    const recentChanges =
-      recent
-        .slice(1)
-        .map(
-          (
-            value,
-            index
-          ) =>
-            value -
-            recent[index]
-        );
-
-    const allRecentPositive =
-      recentChanges.every(
-        (change) =>
-          change > 0
-      );
-
-    const allRecentNegative =
-      recentChanges.every(
-        (change) =>
-          change < 0
-      );
-
-    if (
-      allRecentPositive
-    ) {
-      return higherIsBetter
-        ? "improving"
-        : "deteriorating";
-    }
-
-    if (
-      allRecentNegative
-    ) {
-      return higherIsBetter
-        ? "deteriorating"
-        : "improving";
-    }
+  if (first === 0) {
+    return "mixed";
   }
 
-  // ---------------------------------------------------------
-  // Full-period change
-  // ---------------------------------------------------------
+  const changePct =
+    (
+      (last - first) /
+      Math.abs(first)
+    ) * 100;
+
+  if (
+    Math.abs(changePct) < 5
+  ) {
+    return "stable";
+  }
+
+  const changes =
+    recent
+      .slice(1)
+      .map(
+        (
+          value,
+          index
+        ) =>
+          value -
+          recent[index]
+      );
+
+  const allPositive =
+    changes.every(
+      (change) =>
+        change > 0
+    );
+
+  const allNegative =
+    changes.every(
+      (change) =>
+        change < 0
+    );
+
+  if (allPositive) {
+    return higherIsBetter
+      ? "improving"
+      : "deteriorating";
+  }
+
+  if (allNegative) {
+    return higherIsBetter
+      ? "deteriorating"
+      : "improving";
+  }
+
+  return "mixed";
+}
+
+function classifyLongTermDirection(
+  points: HistoricalMetricPoint[],
+  higherIsBetter = true
+): TrendDirection {
+  const values =
+    getValidValues(points);
+
+  if (values.length < 2) {
+    return "unavailable";
+  }
 
   const first =
     values[0];
@@ -231,10 +253,6 @@ function classifyDirection(
   ) {
     return "stable";
   }
-
-  // ---------------------------------------------------------
-  // Overall consistency
-  // ---------------------------------------------------------
 
   const stepChanges =
     values
@@ -284,8 +302,44 @@ function classifyDirection(
     return "deteriorating";
   }
 
+  const endpointImproved =
+    higherIsBetter
+      ? last > first
+      : last < first;
+
+  return endpointImproved
+    ? "improving"
+    : "deteriorating";
+}
+
+function compatibilityDirection(
+  longTermDirection: TrendDirection,
+  recentDirection: TrendDirection
+): TrendDirection {
+  if (
+    longTermDirection ===
+    recentDirection
+  ) {
+    return longTermDirection;
+  }
+
+  if (
+    longTermDirection ===
+    "unavailable"
+  ) {
+    return recentDirection;
+  }
+
+  if (
+    recentDirection ===
+    "unavailable"
+  ) {
+    return longTermDirection;
+  }
+
   return "mixed";
 }
+
 function buildTrend(
   rawPoints: HistoricalMetricPoint[],
   higherIsBetter = true
@@ -339,6 +393,18 @@ function buildTrend(
         ) * 100
       : null;
 
+  const longTermDirection =
+    classifyLongTermDirection(
+      points,
+      higherIsBetter
+    );
+
+  const recentDirection =
+    classifyRecentDirection(
+      points,
+      higherIsBetter
+    );
+
   return {
     points,
 
@@ -350,10 +416,13 @@ function buildTrend(
     percentChange,
 
     direction:
-      classifyDirection(
-        points,
-        higherIsBetter
+      compatibilityDirection(
+        longTermDirection,
+        recentDirection
       ),
+
+    longTermDirection,
+    recentDirection,
   };
 }
 
@@ -613,23 +682,6 @@ export async function getCompanyFundamentalTrends(
             item
           );
 
-        const metric =
-          metricsByYear.get(
-            fiscalYear
-          );
-
-        if (
-          metric?.capexToRevenue != null
-        ) {
-          return {
-            fiscalYear,
-
-            value:
-              metric.capexToRevenue *
-              100,
-          };
-        }
-
         const cashFlow =
           cashFlowByYear.get(
             fiscalYear
@@ -653,17 +705,40 @@ export async function getCompanyFundamentalTrends(
               )
             : null;
 
+        /*
+          Prefer raw statement arithmetic so historical
+          capital intensity is internally consistent.
+          Vendor key-metric values remain available only
+          when statement data for that year is missing.
+        */
+        if (
+          revenue != null &&
+          capex != null &&
+          revenue !== 0
+        ) {
+          return {
+            fiscalYear,
+
+            value:
+              (
+                capex /
+                revenue
+              ) * 100,
+          };
+        }
+
+        const metric =
+          metricsByYear.get(
+            fiscalYear
+          );
+
         return {
           fiscalYear,
 
           value:
-            revenue != null &&
-            capex != null &&
-            revenue !== 0
-              ? (
-                  capex /
-                  revenue
-                ) * 100
+            metric?.capexToRevenue != null
+              ? metric.capexToRevenue *
+                100
               : null,
         };
       }
@@ -672,6 +747,18 @@ export async function getCompanyFundamentalTrends(
   const revenueSorted =
     sortPoints(
       revenuePoints
+    );
+
+  const revenueLongTermDirection =
+    classifyLongTermDirection(
+      revenueSorted,
+      true
+    );
+
+  const revenueRecentDirection =
+    classifyRecentDirection(
+      revenueSorted,
+      true
     );
 
   return {
@@ -688,10 +775,16 @@ export async function getCompanyFundamentalTrends(
         ),
 
       direction:
-        classifyDirection(
-          revenueSorted,
-          true
+        compatibilityDirection(
+          revenueLongTermDirection,
+          revenueRecentDirection
         ),
+
+      longTermDirection:
+        revenueLongTermDirection,
+
+      recentDirection:
+        revenueRecentDirection,
     },
 
     operatingMargin:

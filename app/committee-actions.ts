@@ -86,9 +86,9 @@ export async function createCommitteeRun(
 }
 
 /*
-  Real-money Phase 2 uses the AI Long-Term
-  strategy while evaluating and sizing against
-  the actual Real Portfolio.
+  Real-money Phase 2 uses the long-term
+  investment mandate while evaluating and sizing
+  against the actual Real Portfolio.
 
   This keeps strategy selection separate from
   execution/accounting.
@@ -519,6 +519,29 @@ if (reassessmentId) {
   const currentHoldingCostBasis =
     currentHolding?.totalCost ?? 0;
 
+  /*
+    Give the Committee the complete portfolio, not just
+    the candidate's own position. Market values use live
+    prices when available to this accounting pass and
+    otherwise fall back to cost basis, which is still
+    sufficient for concentration/overlap context.
+  */
+  const portfolioHoldings =
+    accounting.holdings.map(
+      (holding) => ({
+        ticker:
+          holding.ticker
+            .trim()
+            .toUpperCase(),
+        quantity:
+          holding.quantity,
+        costBasis:
+          holding.totalCost,
+        marketValue:
+          holding.marketValue,
+      })
+    );
+
   // ---------------------------------------------------------
   // Create committee run
   // ---------------------------------------------------------
@@ -544,7 +567,7 @@ if (reassessmentId) {
     "researching",
 
   prompt_version:
-    "phase-1-v1",
+    "phase-2-v1",
 
   discovery_candidate_id:
     discoveryCandidate?.id ??
@@ -659,6 +682,7 @@ type DiscoveryEvidence = {
           portfolio.name,
         availableCash:
           accounting.cash,
+        portfolioHoldings,
         currentHoldingQuantity,
         currentHoldingMarketValue,
         currentHoldingCostBasis,
@@ -667,8 +691,6 @@ type DiscoveryEvidence = {
         trends,
 
         discoveryEvidence,
-
-
       });
 
     const finalDecision =
@@ -1078,6 +1100,8 @@ if (
                 earnings,
 
                 trends,
+
+                portfolioHoldings,
 
                 specialistAnalysis:
                   result.specialistAnalysis,

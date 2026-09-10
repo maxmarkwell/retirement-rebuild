@@ -6,13 +6,16 @@ import {
 } from "./prompts";
 import type {
   CommitteeFinalDecision,
+  CommitteePortfolioHolding,
   CommitteePortfolioMode,
   CommitteeRunResult,
   SpecialistAnalysis,
 } from "./committee-types";
-import type { CompanyFundamentals } from "@/lib/company-data/types";
+import type {
+  CompanyFundamentals,
+  CompanyFundamentalTrends,
+} from "@/lib/company-data/types";
 import type { CompanyEarningsContext } from "@/lib/company-data/earnings";
-import type { CompanyFundamentalTrends } from "@/lib/company-data/types";
 
 const SPECIALIST_MODEL = "gpt-5.6-terra";
 const CHAIR_MODEL = "gpt-5.6-sol";
@@ -203,14 +206,17 @@ export async function runInvestmentCommittee(input: {
 
   availableCash: number;
 
+  portfolioHoldings:
+    CommitteePortfolioHolding[];
+
   currentHoldingQuantity: number;
 
   currentHoldingMarketValue: number;
 
   currentHoldingCostBasis: number;
- 
+
   earnings: CompanyEarningsContext | null;
-  
+
   trends: CompanyFundamentalTrends | null;
 
   fundamentals: CompanyFundamentals | null;
@@ -227,8 +233,7 @@ export async function runInvestmentCommittee(input: {
       .toUpperCase();
 
   // ---------------------------------------------------------
-  // Call 1:
-  // Combined specialist panel
+  // Call 1: combined specialist panel
   // ---------------------------------------------------------
 
   const specialistPrompt =
@@ -242,16 +247,21 @@ export async function runInvestmentCommittee(input: {
         input.portfolioName,
       availableCash:
         input.availableCash,
+      portfolioHoldings:
+        input.portfolioHoldings,
       currentHoldingQuantity:
         input.currentHoldingQuantity,
       currentHoldingMarketValue:
         input.currentHoldingMarketValue,
       currentHoldingCostBasis:
         input.currentHoldingCostBasis,
-      fundamentals: input.fundamentals,
-      earnings: input.earnings,
-      trends: input.trends,
-            discoveryEvidence:
+      fundamentals:
+        input.fundamentals,
+      earnings:
+        input.earnings,
+      trends:
+        input.trends,
+      discoveryEvidence:
         input.discoveryEvidence,
     });
 
@@ -299,31 +309,33 @@ export async function runInvestmentCommittee(input: {
     ticker;
 
   // ---------------------------------------------------------
-  // Call 2:
-  // Committee Chair
+  // Call 2: Committee Chair
   // ---------------------------------------------------------
 
-const chairPrompt =
-  buildChairPrompt({
-    ticker,
+  const chairPrompt =
+    buildChairPrompt({
+      ticker,
 
-    marketPrice:
-      input.marketPrice,
+      marketPrice:
+        input.marketPrice,
 
-    portfolioMode:
-      input.portfolioMode,
+      portfolioMode:
+        input.portfolioMode,
 
-    portfolioName:
-      input.portfolioName,
+      portfolioName:
+        input.portfolioName,
 
-    availableCash:
-      input.availableCash,
+      availableCash:
+        input.availableCash,
 
-    specialistAnalysis,
+      portfolioHoldings:
+        input.portfolioHoldings,
 
-    discoveryEvidence:
-      input.discoveryEvidence,
-  });
+      specialistAnalysis,
+
+      discoveryEvidence:
+        input.discoveryEvidence,
+    });
 
   const chairResponse =
     await client.responses.create({
@@ -364,10 +376,16 @@ const chairPrompt =
     );
 
   // ---------------------------------------------------------
-  // Portfolio-level safety guardrail
+  // Allocation normalization / safety guardrail
   // ---------------------------------------------------------
 
   if (
+    finalDecision.recommendation !==
+    "rebalance"
+  ) {
+    finalDecision.recommendedAllocation =
+      null;
+  } else if (
     finalDecision.recommendedAllocation !=
       null &&
     finalDecision.recommendedAllocation >
