@@ -1,6 +1,7 @@
 export type DiscoveryPortfolioMode =
   | "paper_active"
-  | "paper_long_term";
+  | "paper_long_term"
+  | "real";
 
 export type DiscoveryScoreBreakdown = {
   quality: number;
