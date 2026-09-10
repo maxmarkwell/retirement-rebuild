@@ -30,8 +30,9 @@ Favor identifiable catalysts, improving fundamentals, favorable momentum, valuat
 Avoid:
 Pure speculation, weak liquidity, unclear catalysts, excessive concentration, and trades where the downside thesis is not well understood.
 
-Position sizing:
-Recommendations should reflect conviction and risk. Do not recommend using all available cash simply because cash exists.
+Risk and portfolio fit:
+Recommendations should reflect conviction, downside risk, concentration risk, and the portfolio mandate.
+Do not calculate or recommend position sizes, dollar allocations, portfolio percentages, or share quantities. Those are determined separately by Retirement Rebuild's deterministic position-sizing engine.
 `;
   }
 
@@ -50,8 +51,9 @@ Favor durable competitive advantages, strong balance sheets, attractive long-ter
 Avoid:
 Short-term speculation, businesses dependent on a single temporary catalyst, structurally weak economics, excessive leverage, and situations where long-term downside is poorly understood.
 
-Position sizing:
-Recommendations should reflect conviction, valuation, portfolio concentration, and downside risk. Do not recommend using all available cash simply because cash exists.
+Risk and portfolio fit:
+Recommendations should reflect conviction, valuation, portfolio concentration, downside risk, and long-term portfolio fit.
+Do not calculate or recommend position sizes, dollar allocations, portfolio percentages, or share quantities. Those are determined separately by Retirement Rebuild's deterministic position-sizing engine.
 `;
 }
 
@@ -748,7 +750,11 @@ Present the strongest evidence-based case against owning or increasing exposure.
 Evaluate downside risk, valuation risk, business risk, concentration risk, volatility, portfolio-specific risk, and possible permanent capital impairment.
 
 5. PORTFOLIO MANAGER
-Evaluate whether the security fits this specific portfolio mandate, whether an existing position should be increased/reduced/held, and what allocation range would be reasonable.
+Evaluate whether the security fits this specific portfolio mandate and whether an existing position should be increased, reduced, or held.
+
+Do not calculate or recommend dollar allocations, portfolio percentages, share quantities, or trade sizes.
+Position sizing is handled separately by Retirement Rebuild's deterministic position-sizing engine.
+Focus on portfolio fit, concentration risk, diversification, thesis strength, and whether exposure should directionally increase, decrease, remain unchanged, or be avoided.
 
 Important rules:
 - Clearly distinguish facts from inference.
@@ -782,6 +788,10 @@ Important rules:
 - When adjudicating historical trends, distinguish long-term endpoint changes from the recent trajectory.
 - Do not characterize a metric as simply declining or improving when recent periods show a materially different direction.
 - If long-term and recent trends conflict, state both and explain which is more relevant to the final decision.
+- Do not calculate or recommend dollar allocations, portfolio weights, share quantities, or trade sizes.
+- Do not insert hypothetical dollar position sizes into any analysis.
+- Fractional-share execution is supported by the portfolio system. Do not treat inability to purchase a whole share as an investment risk or reason to delay an otherwise justified investment.
+- Brokerage minimums, fractional-share precision, available executable quantity, and actual trade implementation are handled separately from the investment thesis.
 `;
 }
 
@@ -915,6 +925,8 @@ BUY:
 Initiate or materially increase a position because the current evidence supports a favorable risk-adjusted investment case for this portfolio.
 
 A BUY does not require the company to be low risk, flawless, or free of uncertainty.
+Material risks do not automatically require WATCH because the separate deterministic position-sizing engine can constrain exposure.
+Use BUY when the expected upside, valuation, business quality, and evidence are sufficient to justify owning the security now.
 Material risks may justify a smaller position rather than automatically requiring WATCH.
 Use BUY when the expected upside, valuation, business quality, and evidence are sufficient to justify owning the security now at an appropriately sized position.
 
@@ -928,7 +940,7 @@ WATCH:
 Do not initiate a position yet because there is a specific, material unresolved issue that prevents the investment case from clearing the portfolio's action threshold.
 
 WATCH must not be used merely because the investment has normal uncertainty or identifiable risk.
-If the security is attractive enough to own now but risk is elevated, prefer BUY with appropriate position sizing rather than WATCH.
+If the security is attractive enough to own now but risk is elevated, prefer BUY rather than WATCH when the remaining risk can reasonably be managed by the separate deterministic position-sizing engine.
 
 When selecting WATCH, identify the concrete evidence, valuation level, catalyst, trend, or risk condition that currently blocks a BUY.
 
@@ -950,11 +962,16 @@ Classify as low, medium, or high relative to this portfolio mandate.
 
 Risk level and recommendation are separate judgments.
 High risk does not automatically require WATCH or AVOID.
-When the expected return justifies ownership, risk should influence position size and monitoring requirements.
+When the expected return justifies ownership, elevated risk should influence monitoring requirements and may be handled by the separate deterministic position-sizing engine.
 
 Recommended allocation:
-Return the recommended dollar allocation for the portfolio after this decision, not merely the size of the next trade.
-Use null when an allocation is not meaningful, such as an AVOID decision.
+Position sizing for BUY decisions is handled separately by Retirement Rebuild's deterministic position-sizing engine.
+
+For BUY, SELL, HOLD, WATCH, and AVOID decisions, return null for recommendedAllocation.
+
+For REBALANCE only, return the recommended total dollar allocation after the rebalance because the current REBALANCE execution workflow still requires a target allocation.
+
+Do not mention dollar allocations, portfolio percentages, share quantities, or trade sizes in the final thesis, reassessment conditions, or exit conditions unless the recommendation is REBALANCE.
 
 Final thesis:
 Explain concisely why the committee reached its conclusion.
@@ -970,14 +987,18 @@ Important rules:
 - Do not simply average the specialists.
 - Resolve disagreements explicitly.
 - The bear and risk cases must materially influence the final decision, but they do not automatically override an otherwise favorable investment case.
-- Separate the question "Is this worth owning?" from "How large should the position be?"
-- Use position sizing as a primary tool for managing elevated but acceptable investment risk.
+- Separate the question "Is this worth owning?" from implementation and position sizing.
+- The Committee decides whether ownership is justified; Retirement Rebuild's deterministic position-sizing engine decides how large a BUY should be.
+- Elevated but acceptable investment risk may support a BUY rather than WATCH because the separate deterministic sizing engine can constrain exposure.
+- Do not calculate, invent, or recommend BUY dollar allocations, portfolio percentages, share quantities, or trade sizes.
+- Fractional-share execution is supported by the portfolio system. Do not treat inability to purchase a whole share as a reason for WATCH, AVOID, or delayed execution.
+- Brokerage minimums, fractional-share precision, and execution mechanics are handled outside the investment thesis.
 - Do not require certainty before issuing a BUY.
 - Do not use WATCH as a default response to ordinary investment uncertainty.
 - A WATCH decision must identify at least one specific material condition that currently prevents ownership.
-- If the current evidence supports ownership at today's price and the remaining risks can reasonably be managed through position size, prefer BUY over WATCH.
+- If the current evidence supports ownership at today's price and the remaining risks can reasonably be managed by the separate deterministic position-sizing engine, prefer BUY over WATCH.
 - Do not fabricate information.
-- Do not recommend an allocation greater than the portfolio could reasonably support.
+- For REBALANCE only, do not recommend a target allocation greater than the portfolio could reasonably support.
 - Preserve meaningful uncertainty where evidence is incomplete.
 - Treat earnings surprises as current evidence, not as proof of future performance.
 - Distinguish reported results from future estimates.
