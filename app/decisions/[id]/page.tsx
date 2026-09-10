@@ -6,6 +6,7 @@ import ExecuteDecisionBuyButton from "@/components/execute-decision-buy-button";
 import ExecuteDecisionSellButton from "@/components/execute-decision-sell-button";
 import ExecuteDecisionRebalanceButton from "@/components/execute-decision-rebalance-button";
 import RealMoneyBuyForm from "@/components/real-money-buy-form";
+import { getMarketQuote } from "@/lib/market-data/twelve-data";
 
 type DecisionDetailPageProps = {
   params: Promise<{
@@ -100,6 +101,32 @@ const { data: portfolio } = await supabase
   .select("id, name, is_real_money")
   .eq("id", decision.portfolio_id)
   .single();
+
+let currentMarketPrice: number | null = null;
+
+if (
+  portfolio?.is_real_money &&
+  decision.decision_type === "buy" &&
+  !decision.transaction_id &&
+  decision.status !== "executed"
+) {
+  try {
+    const quote = await getMarketQuote(
+      decision.ticker
+    );
+
+    currentMarketPrice =
+      Number.isFinite(quote.price) &&
+      quote.price > 0
+        ? quote.price
+        : null;
+  } catch (error) {
+    console.error(
+      `Unable to load current market price for ${decision.ticker}:`,
+      error
+    );
+  }
+}
 
   // ---------------------------------------------------------
   // Load linked transaction
@@ -300,17 +327,20 @@ const { data: portfolio } = await supabase
 {portfolio?.is_real_money ? (
   <>
     {decision.decision_type === "buy" ? (
-      <RealMoneyBuyForm
-        decisionId={decision.id}
-        ticker={decision.ticker}
-        recommendedQuantity={
-          decision.recommended_quantity
-        }
-        status={decision.status}
-        hasTransaction={Boolean(
-          decision.transaction_id
-        )}
-      />
+<RealMoneyBuyForm
+  decisionId={decision.id}
+  ticker={decision.ticker}
+  recommendedQuantity={
+    decision.recommended_quantity
+  }
+  currentMarketPrice={
+    currentMarketPrice
+  }
+  status={decision.status}
+  hasTransaction={Boolean(
+    decision.transaction_id
+  )}
+/>
     ) : (
       <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
         <div className="flex flex-wrap items-center gap-3">

@@ -286,10 +286,11 @@ if (
     currentPrice;
 
   const maxAllowedPurchase =
-    Math.min(
-      availableCash,
-      maxAdditionalCapital
-    );
+  Math.min(
+    availableCash,
+    additionalCapitalNeeded,
+    maxAdditionalCapital
+  );
 
   if (
   minimumPurchaseValue <=

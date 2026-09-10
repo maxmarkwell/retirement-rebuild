@@ -15,6 +15,9 @@ type RealMoneyBuyFormProps = {
     | number
     | string
     | null;
+  currentMarketPrice:
+    | number
+    | null;
   status: string;
   hasTransaction: boolean;
 };
@@ -23,6 +26,7 @@ export default function RealMoneyBuyForm({
   decisionId,
   ticker,
   recommendedQuantity,
+  currentMarketPrice,
   status,
   hasTransaction,
 }: RealMoneyBuyFormProps) {
@@ -42,6 +46,52 @@ export default function RealMoneyBuyForm({
         )
       : null;
 
+const brokerageMinimumNotional = 5;
+const brokerageSharePrecision = 3;
+
+const recommendedValue =
+  quantity != null &&
+  Number.isFinite(quantity) &&
+  currentMarketPrice != null &&
+  Number.isFinite(currentMarketPrice) &&
+  currentMarketPrice > 0
+    ? quantity * currentMarketPrice
+    : null;
+
+const shareIncrement =
+  1 / Math.pow(
+    10,
+    brokerageSharePrecision
+  );
+
+const minimumExecutableQuantity =
+  currentMarketPrice != null &&
+  Number.isFinite(currentMarketPrice) &&
+  currentMarketPrice > 0
+    ? Number(
+        (
+          Math.ceil(
+            brokerageMinimumNotional /
+              currentMarketPrice /
+              shareIncrement
+          ) * shareIncrement
+        ).toFixed(
+          brokerageSharePrecision
+        )
+      )
+    : null;
+
+const minimumExecutableValue =
+  minimumExecutableQuantity != null &&
+  currentMarketPrice != null
+    ? minimumExecutableQuantity *
+      currentMarketPrice
+    : null;
+
+const recommendationMeetsBrokerMinimum =
+  recommendedValue != null &&
+  recommendedValue >=
+    brokerageMinimumNotional;
   const alreadyExecuted =
     hasTransaction ||
     status === "executed";
@@ -83,6 +133,76 @@ export default function RealMoneyBuyForm({
               )}{" "}
               shares of {ticker}
             </p>
+          </div>
+        )}
+
+      {currentMarketPrice != null &&
+        minimumExecutableQuantity != null &&
+        minimumExecutableValue != null && (
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+              Brokerage Order Check
+            </p>
+
+            <div className="mt-3 space-y-2 text-sm text-gray-800">
+              <p>
+                Current market price:{" "}
+                <span className="font-semibold">
+                  ${currentMarketPrice.toFixed(2)}
+                </span>
+              </p>
+
+              {recommendedValue != null && (
+                <p>
+                  Recommended quantity at current price:{" "}
+                  <span className="font-semibold">
+                    {quantity?.toFixed(3)} shares
+                  </span>{" "}
+                  ≈{" "}
+                  <span className="font-semibold">
+                    ${recommendedValue.toFixed(2)}
+                  </span>
+                </p>
+              )}
+
+              <p>
+                E*TRADE minimum BUY amount:{" "}
+                <span className="font-semibold">
+                  $5.00
+                </span>
+              </p>
+
+              {!recommendationMeetsBrokerMinimum && (
+                <>
+                  <p className="font-medium text-amber-900">
+                    The Committee quantity is below the brokerage minimum at the current price.
+                  </p>
+
+                  <p>
+                    Minimum executable quantity:{" "}
+                    <span className="font-semibold">
+                      {minimumExecutableQuantity.toFixed(
+                        3
+                      )}{" "}
+                      shares
+                    </span>{" "}
+                    ≈{" "}
+                    <span className="font-semibold">
+                      $
+                      {minimumExecutableValue.toFixed(
+                        2
+                      )}
+                    </span>
+                  </p>
+                </>
+              )}
+
+              {recommendationMeetsBrokerMinimum && (
+                <p className="font-medium text-green-800">
+                  The Committee quantity currently meets the brokerage minimum.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
