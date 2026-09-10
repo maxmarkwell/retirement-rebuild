@@ -262,6 +262,10 @@ export default function DiscoveryRunForm() {
             <option value="paper_active">
               AI Active
             </option>
+
+            <option value="real">
+              Real Portfolio (AI Long-Term strategy)
+            </option>
           </select>
         </div>
 
