@@ -67,7 +67,7 @@ export default async function ResearchPage({
     await supabase
       .from("portfolios")
       .select(
-        "id, name, type"
+        "id, name, type, is_real_money"
       )
       .in(
         "type",
@@ -90,13 +90,24 @@ export default async function ResearchPage({
     );
   }
 
-  const defaultPortfolio =
-    portfolios?.find(
-      (portfolio) =>
-        portfolio.type ===
-        requestedMode
-    ) ??
-    null;
+  const realPortfolio =
+  portfolios?.find(
+    (portfolio) =>
+      portfolio.is_real_money
+  ) ??
+  null;
+
+const strategyPortfolio =
+  portfolios?.find(
+    (portfolio) =>
+      portfolio.type ===
+      requestedMode
+  ) ??
+  null;
+
+const defaultPortfolio =
+  realPortfolio ??
+  strategyPortfolio;
 
   // ---------------------------------------------------------
   // Load latest Discovery V2 context
