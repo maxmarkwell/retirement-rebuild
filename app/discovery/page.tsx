@@ -53,7 +53,9 @@ export default async function DiscoveryPage({
   const selectedMode =
     mode === "paper_active"
       ? "paper_active"
-      : "paper_long_term";
+      : mode === "real"
+        ? "real"
+        : "paper_long_term";
 
   const discoveryDate =
     new Intl.DateTimeFormat(
@@ -259,6 +261,18 @@ export default async function DiscoveryPage({
             }`}
           >
             AI Active
+          </Link>
+
+          <Link
+            href="/discovery?mode=real"
+            className={`rounded px-4 py-2 text-sm font-medium ${
+              selectedMode ===
+              "real"
+                ? "bg-black text-white"
+                : "border border-gray-300 bg-white text-gray-700"
+            }`}
+          >
+            Real Portfolio
           </Link>
         </div>
 
