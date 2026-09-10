@@ -2,6 +2,13 @@ export type CommitteePortfolioMode =
   | "paper_active"
   | "paper_long_term";
 
+export type CommitteePortfolioHolding = {
+  ticker: string;
+  quantity: number;
+  costBasis: number;
+  marketValue: number;
+};
+
 export type SpecialistAnalysis = {
   ticker: string;
   researchAnalysis: string;
