@@ -144,16 +144,23 @@ export async function addBuyTransaction(
   // ---------------------------------------------------------
   // Load portfolio
   // ---------------------------------------------------------
-
-  const { data: portfolio, error: portfolioError } = await supabase
-    .from("portfolios")
-    .select("id, starting_capital")
-    .eq("id", portfolioId)
-    .single();
+const { data: portfolio, error: portfolioError } = await supabase
+  .from("portfolios")
+  .select("id, starting_capital, is_real_money")
+  .eq("id", portfolioId)
+  .single();
 
   if (portfolioError || !portfolio) {
     throw new Error("Unable to load the selected portfolio.");
   }
+
+  if (portfolio.is_real_money) {
+  return {
+    success: false,
+    message:
+      "Real-money purchases must be recorded from the linked investment decision after the brokerage order fills.",
+  };
+}
 
   // ---------------------------------------------------------
   // Calculate contributions

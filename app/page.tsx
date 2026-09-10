@@ -494,7 +494,11 @@ try {
 
         <ContributionForm portfolios={portfolios ?? []} />
 
-        <BuyForm portfolios={portfolios ?? []} />
+        <BuyForm
+  portfolios={(portfolios ?? []).filter(
+    (portfolio) => !portfolio.is_real_money
+  )}
+/>
 
         <SellForm portfolios={portfolios ?? []} />
 

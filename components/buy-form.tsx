@@ -28,11 +28,11 @@ export default function BuyForm({
   return (
     <div className="mt-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="text-xl font-semibold text-gray-900">
-        Record Test Buy
+        Record Manual Buy
       </h2>
 
       <p className="mt-1 text-sm text-gray-600">
-        Paper/test transaction only. This does not execute a brokerage trade.
+        Manually record a transaction in the selected portfolio. This does not place a brokerage order.
       </p>
 
       <div className="mt-4">
@@ -181,7 +181,7 @@ export default function BuyForm({
             disabled={pending}
             className="rounded bg-black px-5 py-2 text-white disabled:opacity-50"
           >
-            {pending ? "Recording..." : "Record Test Buy"}
+            {pending ? "Recording..." : "Record Manual Buy"}
           </button>
         </div>
       </form>
