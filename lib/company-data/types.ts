@@ -28,39 +28,46 @@ export type CompanyFundamentals = {
   fiscalPeriod: string | null;
   fiscalYear: string | null;
 
-enterpriseValue: number | null;
+  enterpriseValue: number | null;
 
-evToSales: number | null;
-evToOperatingCashFlow: number | null;
-evToFreeCashFlow: number | null;
-evToEbitda: number | null;
+  evToSales: number | null;
+  evToOperatingCashFlow: number | null;
+  evToFreeCashFlow: number | null;
+  evToEbitda: number | null;
 
-netDebtToEbitda: number | null;
+  netDebtToEbitda: number | null;
 
-freeCashFlowYield: number | null;
+  freeCashFlowYield: number | null;
 
-priceToFreeCashFlowRatio: number | null;
+  priceToFreeCashFlowRatio: number | null;
 
-earningsYield: number | null;
+  earningsYield: number | null;
 
-returnOnAssets: number | null;
-returnOnInvestedCapital: number | null;
-returnOnCapitalEmployed: number | null;
+  returnOnAssets: number | null;
+  returnOnInvestedCapital: number | null;
+  returnOnCapitalEmployed: number | null;
 
-interestCoverage: number | null;
-currentRatio: number | null;
+  interestCoverage: number | null;
+  currentRatio: number | null;
 
-freeCashFlowToOperatingCashFlow: number | null;
-capexToOperatingCashFlow: number | null;
-capexToRevenue: number | null;
-researchAndDevelopmentToRevenue: number | null;
-stockBasedCompensationToRevenue: number | null;
+  freeCashFlowToOperatingCashFlow: number | null;
+  capexToOperatingCashFlow: number | null;
+  capexToRevenue: number | null;
+  researchAndDevelopmentToRevenue: number | null;
+  stockBasedCompensationToRevenue: number | null;
 };
 
 export type HistoricalMetricPoint = {
   fiscalYear: string;
   value: number | null;
 };
+
+export type TrendDirection =
+  | "improving"
+  | "stable"
+  | "deteriorating"
+  | "mixed"
+  | "unavailable";
 
 export type HistoricalMetricTrend = {
   points: HistoricalMetricPoint[];
@@ -71,12 +78,14 @@ export type HistoricalMetricTrend = {
   absoluteChange: number | null;
   percentChange: number | null;
 
-  direction:
-    | "improving"
-    | "stable"
-    | "deteriorating"
-    | "mixed"
-    | "unavailable";
+  /*
+    direction remains as a compatibility summary.
+    New scoring/research should prefer the explicit
+    long-term and recent directions below.
+  */
+  direction: TrendDirection;
+  longTermDirection: TrendDirection;
+  recentDirection: TrendDirection;
 };
 
 export type CompanyFundamentalTrends = {
@@ -85,12 +94,9 @@ export type CompanyFundamentalTrends = {
   revenue: {
     points: HistoricalMetricPoint[];
     cagrPct: number | null;
-    direction:
-      | "improving"
-      | "stable"
-      | "deteriorating"
-      | "mixed"
-      | "unavailable";
+    direction: TrendDirection;
+    longTermDirection: TrendDirection;
+    recentDirection: TrendDirection;
   };
 
   operatingMargin: HistoricalMetricTrend;
