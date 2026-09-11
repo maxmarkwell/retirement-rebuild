@@ -79,27 +79,52 @@ export function calculatePerformanceSummary(
     snapshotCount: series.length,
   };
 }
+
 export type ExperimentPortfolio = {
   id: string;
   type: string;
+  starting_capital: number | string;
 };
 
 export type ExperimentComparisonPoint = {
   date: string;
-  aiActive: number | null;
-  aiLongTerm: number | null;
+  realPortfolio: number | null;
+  paperLongTerm: number | null;
   benchmark: number | null;
 };
 
+function calculateSnapshotReturnPct(
+  snapshot: PortfolioSnapshotRecord,
+  startingCapital: number
+) {
+  const contributions = Number(
+    snapshot.cumulative_contributions ?? 0
+  );
+
+  const withdrawals = Number(
+    snapshot.cumulative_withdrawals ?? 0
+  );
+
+  const capitalBase =
+    startingCapital + contributions - withdrawals;
+
+  const investmentGrowth = Number(
+    snapshot.investment_growth
+  );
+
+  return capitalBase > 0
+    ? (investmentGrowth / capitalBase) * 100
+    : 0;
+}
+
 export function buildExperimentComparisonSeries(
   snapshots: PortfolioSnapshotRecord[],
-  portfolios: ExperimentPortfolio[],
-  startingCapital = 10000
+  portfolios: ExperimentPortfolio[]
 ): ExperimentComparisonPoint[] {
-  const portfolioTypeById = new Map(
+  const portfolioById = new Map(
     portfolios.map((portfolio) => [
       portfolio.id,
-      portfolio.type,
+      portfolio,
     ])
   );
 
@@ -109,43 +134,45 @@ export function buildExperimentComparisonSeries(
   >();
 
   for (const snapshot of snapshots) {
-    const portfolioType =
-      portfolioTypeById.get(snapshot.portfolio_id);
+    const portfolio =
+      portfolioById.get(snapshot.portfolio_id);
 
     if (
-      portfolioType !== "paper_active" &&
-      portfolioType !== "paper_long_term" &&
-      portfolioType !== "benchmark"
+      !portfolio ||
+      (portfolio.type !== "real" &&
+        portfolio.type !== "paper_long_term" &&
+        portfolio.type !== "benchmark")
     ) {
       continue;
     }
 
-    const totalValue = Number(snapshot.total_value);
+    const startingCapital = Number(
+      portfolio.starting_capital
+    );
 
     const returnPct =
-      startingCapital > 0
-        ? ((totalValue - startingCapital) /
-            startingCapital) *
-          100
-        : 0;
+      calculateSnapshotReturnPct(
+        snapshot,
+        startingCapital
+      );
 
     const point =
       pointsByDate.get(snapshot.snapshot_date) ?? {
         date: snapshot.snapshot_date,
-        aiActive: null,
-        aiLongTerm: null,
+        realPortfolio: null,
+        paperLongTerm: null,
         benchmark: null,
       };
 
-    if (portfolioType === "paper_active") {
-      point.aiActive = returnPct;
+    if (portfolio.type === "real") {
+      point.realPortfolio = returnPct;
     }
 
-    if (portfolioType === "paper_long_term") {
-      point.aiLongTerm = returnPct;
+    if (portfolio.type === "paper_long_term") {
+      point.paperLongTerm = returnPct;
     }
 
-    if (portfolioType === "benchmark") {
+    if (portfolio.type === "benchmark") {
       point.benchmark = returnPct;
     }
 
