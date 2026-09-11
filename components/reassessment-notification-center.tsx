@@ -28,10 +28,10 @@ export default function ReassessmentNotificationCenter() {
   const [notifications, setNotifications] = useState<
     ReassessmentNotification[]
   >([]);
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
-    "unsupported"
-  );
-  const [loading, setLoading] = useState(true);
+  const [permission, setPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported");
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const shownNotificationIds = useRef(new Set<string>());
 
@@ -39,9 +39,7 @@ export default function ReassessmentNotificationCenter() {
     async (id: string, action: "delivered" | "read") => {
       const response = await fetch("/api/reassessments/notifications", {
         method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ id, action }),
       });
 
@@ -72,8 +70,8 @@ export default function ReassessmentNotificationCenter() {
 
       notification.onclick = () => {
         window.focus();
-        window.location.assign("/watchlist");
         void markNotification(item.id, "read");
+        window.location.assign("/watchlist");
         notification.close();
       };
 
@@ -81,7 +79,7 @@ export default function ReassessmentNotificationCenter() {
         try {
           await markNotification(item.id, "delivered");
         } catch {
-          // Keep the browser alert visible even if persistence fails.
+          // Do not suppress a visible alert because persistence failed.
         }
       }
     },
@@ -94,8 +92,13 @@ export default function ReassessmentNotificationCenter() {
         cache: "no-store",
       });
 
+      if (response.status === 401) {
+        setNotifications([]);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error("Unable to load notifications.");
+        throw new Error("Unable to load reassessment alerts.");
       }
 
       const payload = (await response.json()) as {
@@ -113,10 +116,8 @@ export default function ReassessmentNotificationCenter() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Unable to load notifications."
+          : "Unable to load reassessment alerts."
       );
-    } finally {
-      setLoading(false);
     }
   }, [showBrowserNotification]);
 
@@ -153,9 +154,7 @@ export default function ReassessmentNotificationCenter() {
   async function markRead(id: string) {
     try {
       await markNotification(id, "read");
-      setNotifications((current) =>
-        current.filter((item) => item.id !== id)
-      );
+      setNotifications((current) => current.filter((item) => item.id !== id));
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -165,92 +164,113 @@ export default function ReassessmentNotificationCenter() {
     }
   }
 
+  const unreadCount = notifications.length;
+
   return (
-    <section className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-200 p-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">
-            Reassessment Alerts
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm text-gray-500">
-            Alerts created when a WATCH item reaches its review trigger. Browser
-            popups work while Retirement Rebuild is open; background mobile push
-            will use the same queue once a push delivery channel is connected.
-          </p>
-        </div>
-
-        {permission !== "granted" && permission !== "unsupported" && (
-          <button
-            type="button"
-            onClick={enableBrowserAlerts}
-            className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
-          >
-            Enable Browser Alerts
-          </button>
-        )}
-      </div>
-
-      {permission === "unsupported" && (
-        <div className="border-b border-gray-100 bg-gray-50 px-6 py-3 text-sm text-gray-600">
-          Browser notifications are not available in this browser. In-app alerts
-          below will still work.
-        </div>
-      )}
-
-      {permission === "denied" && (
-        <div className="border-b border-gray-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
-          Browser notifications are blocked for this site. In-app alerts below
-          will still work.
-        </div>
-      )}
-
-      {error && (
-        <div className="border-b border-red-100 bg-red-50 px-6 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="p-6 text-sm text-gray-500">Loading alerts…</div>
-      ) : notifications.length ? (
-        <div className="divide-y divide-gray-100">
-          {notifications.map((item) => (
-            <div key={item.id} className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-4xl">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-amber-50 px-2 py-1 text-xs font-semibold uppercase text-amber-800">
-                      Needs Review
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {item.ticker}
-                    </span>
-                  </div>
-                  <p className="mt-3 font-semibold text-gray-900">{item.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-gray-700">
-                    {item.message}
-                  </p>
-                  <p className="mt-2 text-xs text-gray-400">
-                    Created {formatDateTime(item.created_at)}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => void markRead(item.id)}
-                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Mark Read
-                </button>
-              </div>
+    <div className="fixed bottom-4 right-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
+      {open && (
+        <div className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+          <div className="flex items-start justify-between gap-3 border-b border-gray-200 p-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Reassessment Alerts</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                WATCH items that reached a review trigger.
+              </p>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="p-6 text-sm text-gray-500">
-          No reassessment alerts are waiting for you.
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-sm text-gray-500 hover:text-gray-900"
+            >
+              Close
+            </button>
+          </div>
+
+          {permission !== "granted" && permission !== "unsupported" && (
+            <div className="border-b border-gray-100 bg-gray-50 p-4">
+              <button
+                type="button"
+                onClick={enableBrowserAlerts}
+                className="rounded bg-black px-3 py-2 text-sm font-medium text-white"
+              >
+                Enable Browser Popups
+              </button>
+              <p className="mt-2 text-xs leading-5 text-gray-500">
+                These popups work while Retirement Rebuild is open. Background
+                mobile push is the next delivery layer.
+              </p>
+            </div>
+          )}
+
+          {permission === "denied" && (
+            <div className="border-b border-gray-100 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              Browser notifications are blocked for this site. In-app alerts
+              still work.
+            </div>
+          )}
+
+          {error && (
+            <div className="border-b border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length ? (
+              <div className="divide-y divide-gray-100">
+                {notifications.map((item) => (
+                  <div key={item.id} className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-amber-50 px-2 py-1 text-[11px] font-semibold uppercase text-amber-800">
+                        Needs Review
+                      </span>
+                      <span className="text-xs font-semibold text-gray-900">
+                        {item.ticker}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-gray-900">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-gray-600">
+                      {item.message}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-[11px] text-gray-400">
+                        {formatDateTime(item.created_at)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void markRead(item.id)}
+                        className="text-xs font-medium text-gray-700 hover:text-black"
+                      >
+                        Mark read
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-gray-500">
+                No reassessment alerts are waiting for you.
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </section>
+
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-lg hover:bg-gray-50"
+        aria-label="Open reassessment alerts"
+      >
+        Alerts
+        {unreadCount > 0 && (
+          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+    </div>
   );
 }
