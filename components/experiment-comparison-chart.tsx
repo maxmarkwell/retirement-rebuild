@@ -14,8 +14,8 @@ import {
 
 type ComparisonPoint = {
   date: string;
-  aiActive: number | null;
-  aiLongTerm: number | null;
+  realPortfolio: number | null;
+  paperLongTerm: number | null;
   benchmark: number | null;
 };
 
@@ -45,7 +45,7 @@ export default function ExperimentComparisonChart({
     return (
       <div className="flex h-80 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
         <p className="text-sm text-gray-500">
-          No experiment snapshot history available yet.
+          No comparison snapshot history available yet.
         </p>
       </div>
     );
@@ -104,11 +104,10 @@ export default function ExperimentComparisonChart({
 
           <Line
             type="monotone"
-            dataKey="aiActive"
-            name="AI Active"
+            dataKey="realPortfolio"
+            name="Real Portfolio"
             stroke="#2563eb"
             strokeWidth={3}
-            strokeDasharray="8 4"
             dot={{ r: 3 }}
             activeDot={{ r: 6 }}
             connectNulls
@@ -116,8 +115,8 @@ export default function ExperimentComparisonChart({
 
           <Line
             type="monotone"
-            dataKey="aiLongTerm"
-            name="AI Long-Term"
+            dataKey="paperLongTerm"
+            name="Paper Long-Term"
             stroke="#16a34a"
             strokeWidth={3}
             dot={{ r: 3 }}

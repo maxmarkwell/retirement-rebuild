@@ -41,7 +41,7 @@ export default async function PerformancePage({
   const { data: portfolios, error: portfoliosError } =
     await supabase
       .from("portfolios")
-      .select("id, name, type")
+      .select("id, name, type, starting_capital")
       .order("created_at", { ascending: true });
 
   if (portfoliosError) {
@@ -101,7 +101,7 @@ export default async function PerformancePage({
       : null;
 
   // ---------------------------------------------------------
-  // Load all experiment snapshots for scoreboard
+  // Load all snapshots for scoreboard and comparison chart
   // ---------------------------------------------------------
 
   const { data: allSnapshots, error: allSnapshotsError } =
@@ -118,6 +118,7 @@ export default async function PerformancePage({
     );
   }
 
+  // Keep the Phase 1 scoreboard intact for historical comparison.
   const experimentTypes = new Set([
     "paper_active",
     "paper_long_term",
@@ -146,7 +147,7 @@ export default async function PerformancePage({
         const summary =
           calculatePerformanceSummary(
             series,
-            10000
+            Number(portfolio.starting_capital)
           );
 
         return {
@@ -176,11 +177,24 @@ export default async function PerformancePage({
               benchmarkSummary.returnPct,
       })
     );
-const comparisonSeries =
-  buildExperimentComparisonSeries(
-    (allSnapshots ?? []) as PortfolioSnapshotRecord[],
-    experimentPortfolios
-  );
+
+  const comparisonTypes = new Set([
+    "real",
+    "paper_long_term",
+    "benchmark",
+  ]);
+
+  const comparisonPortfolios =
+    (portfolios ?? []).filter((portfolio) =>
+      comparisonTypes.has(portfolio.type)
+    );
+
+  const comparisonSeries =
+    buildExperimentComparisonSeries(
+      (allSnapshots ?? []) as PortfolioSnapshotRecord[],
+      comparisonPortfolios
+    );
+
   // ---------------------------------------------------------
   // Page
   // ---------------------------------------------------------
@@ -247,23 +261,25 @@ const comparisonSeries =
         <ExperimentScoreboard
           rows={scoreboardRows}
         />
-<div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-  <div>
-    <h2 className="text-lg font-semibold text-gray-900">
-      AI vs VOO
-    </h2>
 
-    <p className="mt-1 text-sm text-gray-500">
-      Percentage return from the common $10,000 Phase 1 starting point.
-    </p>
-  </div>
+        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Real Portfolio vs Paper Long-Term vs VOO
+            </h2>
 
-  <div className="mt-6">
-    <ExperimentComparisonChart
-      data={comparisonSeries}
-    />
-  </div>
-</div>
+            <p className="mt-1 text-sm text-gray-500">
+              Percentage investment return from each portfolio&apos;s own starting capital. Cash remains part of portfolio value, and contributions are not counted as investment gains.
+            </p>
+          </div>
+
+          <div className="mt-6">
+            <ExperimentComparisonChart
+              data={comparisonSeries}
+            />
+          </div>
+        </div>
+
         {/* Selected Portfolio Summary */}
 
         <PerformanceSummary
