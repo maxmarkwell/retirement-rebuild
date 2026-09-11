@@ -16,7 +16,7 @@ type DecisionDetailPageProps = {
 
 function formatCurrency(value: number | string | null) {
   if (value == null) {
-    return "—";
+    return "â€”";
   }
 
   return Number(value).toLocaleString("en-US", {
@@ -29,7 +29,7 @@ function formatCurrency(value: number | string | null) {
 
 function formatPercent(value: number | string | null) {
   if (value == null) {
-    return "—";
+    return "â€”";
   }
 
   const numericValue = Number(value);
@@ -184,7 +184,7 @@ if (
           href="/decisions"
           className="text-sm font-medium text-gray-500 hover:text-gray-900"
         >
-          ← Back to Decisions
+          â† Back to Decisions
         </Link>
 
         {/* Decision Overview */}
@@ -250,7 +250,7 @@ if (
 
   <div>
     <p className="text-xs uppercase text-gray-500">
-      Suggested Initial Shares
+      Suggested Buy Shares
     </p>
 
     <p className="mt-1 font-semibold text-gray-900">
@@ -261,13 +261,13 @@ if (
             minimumFractionDigits: 0,
             maximumFractionDigits: 4,
           })
-        : "—"}
+        : "â€”"}
     </p>
   </div>
 
   <div>
     <p className="text-xs uppercase text-gray-500">
-      Target Allocation
+      Target Position Value
     </p>
 
     <p className="mt-1 font-semibold text-gray-900">
@@ -287,7 +287,7 @@ if (
         ? `${Number(
             decision.confidence_score
           ).toFixed(0)}/100`
-        : "—"}
+        : "â€”"}
     </p>
   </div>
 
@@ -297,7 +297,7 @@ if (
     </p>
 
     <p className="mt-1 font-semibold capitalize text-gray-900">
-      {decision.risk_level ?? "—"}
+      {decision.risk_level ?? "â€”"}
     </p>
   </div>
 </div>
@@ -308,7 +308,7 @@ if (
               </p>
 
               <p className="mt-1 text-sm text-gray-900">
-                {decision.expected_holding_period ?? "—"}
+                {decision.expected_holding_period ?? "â€”"}
               </p>
             </div>
 

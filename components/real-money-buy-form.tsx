@@ -1,6 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useState,
+} from "react";
 import { recordRealMoneyBuy } from "@/app/real-money-execution-actions";
 import {
   initialActionState,
@@ -39,11 +43,71 @@ export default function RealMoneyBuyForm({
       initialActionState
     );
 
+  const [
+    currentHoldingQuantity,
+    setCurrentHoldingQuantity,
+  ] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCurrentHolding() {
+      try {
+        const response = await fetch(
+          `/api/decisions/${decisionId}/holding`,
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          quantity?: number;
+        };
+
+        if (
+          !cancelled &&
+          typeof payload.quantity === "number" &&
+          Number.isFinite(payload.quantity)
+        ) {
+          setCurrentHoldingQuantity(
+            Math.max(0, payload.quantity)
+          );
+        }
+      } catch (error) {
+        console.error(
+          `Unable to load existing ${ticker} position:`,
+          error
+        );
+      }
+    }
+
+    void loadCurrentHolding();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [decisionId, ticker]);
+
   const quantity =
     recommendedQuantity != null
       ? Number(
           recommendedQuantity
         )
+      : null;
+
+  const hasExistingPosition =
+    currentHoldingQuantity != null &&
+    currentHoldingQuantity > 0;
+
+  const sharesAfterPurchase =
+    hasExistingPosition &&
+    quantity != null &&
+    Number.isFinite(quantity)
+      ? currentHoldingQuantity + quantity
       : null;
 
 const brokerageMinimumNotional = 5;
@@ -113,14 +177,68 @@ const recommendationMeetsBrokerMinimum =
         After the order fills, enter the actual execution
         details below. Retirement Rebuild does not place
         the brokerage order.
+        {hasExistingPosition
+          ? ` This BUY adds to your existing ${ticker} position.`
+          : ""}
       </p>
+
+      {hasExistingPosition && (
+        <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-indigo-700">
+            Existing Position Recognized
+          </p>
+
+          <div className="mt-2 space-y-1 text-sm text-gray-800">
+            <p>
+              Current shares:{" "}
+              <span className="font-semibold">
+                {currentHoldingQuantity.toLocaleString(
+                  "en-US",
+                  {
+                    maximumFractionDigits: 6,
+                  }
+                )}
+              </span>
+            </p>
+
+            {quantity != null &&
+              Number.isFinite(quantity) && (
+                <p>
+                  Suggested additional shares:{" "}
+                  <span className="font-semibold">
+                    {quantity.toLocaleString(
+                      "en-US",
+                      {
+                        maximumFractionDigits: 6,
+                      }
+                    )}
+                  </span>
+                </p>
+              )}
+
+            {sharesAfterPurchase != null && (
+              <p>
+                Shares after this BUY:{" "}
+                <span className="font-semibold">
+                  {sharesAfterPurchase.toLocaleString(
+                    "en-US",
+                    {
+                      maximumFractionDigits: 6,
+                    }
+                  )}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {quantity != null &&
         Number.isFinite(quantity) &&
         quantity > 0 && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Committee Recommendation
+              Retirement Rebuild Sizing
             </p>
 
             <p className="mt-1 text-sm font-semibold text-gray-900">
@@ -131,7 +249,10 @@ const recommendationMeetsBrokerMinimum =
                     6,
                 }
               )}{" "}
-              shares of {ticker}
+              {hasExistingPosition
+                ? "additional shares"
+                : "shares"}{" "}
+              of {ticker}
             </p>
           </div>
         )}
@@ -154,7 +275,9 @@ const recommendationMeetsBrokerMinimum =
 
               {recommendedValue != null && (
                 <p>
-                  Recommended quantity at current price:{" "}
+                  {hasExistingPosition
+                    ? "Suggested additional quantity at current price:"
+                    : "Suggested quantity at current price:"}{" "}
                   <span className="font-semibold">
                     {quantity?.toFixed(3)} shares
                   </span>{" "}
@@ -175,7 +298,7 @@ const recommendationMeetsBrokerMinimum =
               {!recommendationMeetsBrokerMinimum && (
                 <>
                   <p className="font-medium text-amber-900">
-                    The Committee quantity is below the brokerage minimum at the current price.
+                    The Retirement Rebuild sizing quantity is below the brokerage minimum at the current price.
                   </p>
 
                   <p>
@@ -199,7 +322,7 @@ const recommendationMeetsBrokerMinimum =
 
               {recommendationMeetsBrokerMinimum && (
                 <p className="font-medium text-green-800">
-                  The Committee quantity currently meets the brokerage minimum.
+                  The Retirement Rebuild sizing quantity currently meets the brokerage minimum.
                 </p>
               )}
             </div>
@@ -332,7 +455,9 @@ const recommendationMeetsBrokerMinimum =
           >
             {pending
               ? "Recording..."
-              : `Record Actual ${ticker} Purchase`}
+              : hasExistingPosition
+                ? `Record Actual ${ticker} Add`
+                : `Record Actual ${ticker} Purchase`}
           </button>
         </form>
       )}
