@@ -70,9 +70,19 @@ export default async function Home() {
 // Determine which real tickers are currently held
 // ---------------------------------------------------------
 
+const realPortfolioIds = new Set(
+  (portfolios ?? [])
+    .filter((portfolio) => portfolio.is_real_money)
+    .map((portfolio) => portfolio.id)
+);
+
 const shareBalances = new Map<string, number>();
 
 for (const transaction of transactions ?? []) {
+  if (!realPortfolioIds.has(transaction.portfolio_id)) {
+    continue;
+  }
+
   if (
     !transaction.ticker ||
     transaction.quantity == null
