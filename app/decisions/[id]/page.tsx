@@ -16,7 +16,7 @@ type DecisionDetailPageProps = {
 
 function formatCurrency(value: number | string | null) {
   if (value == null) {
-    return "â€”";
+    return "N/A";
   }
 
   return Number(value).toLocaleString("en-US", {
@@ -29,7 +29,7 @@ function formatCurrency(value: number | string | null) {
 
 function formatPercent(value: number | string | null) {
   if (value == null) {
-    return "â€”";
+    return "N/A";
   }
 
   const numericValue = Number(value);
@@ -184,7 +184,7 @@ if (
           href="/decisions"
           className="text-sm font-medium text-gray-500 hover:text-gray-900"
         >
-          â† Back to Decisions
+          ← Back to Decisions
         </Link>
 
         {/* Decision Overview */}
@@ -248,35 +248,38 @@ if (
     </p>
   </div>
 
-  <div>
-    <p className="text-xs uppercase text-gray-500">
-      Suggested Buy Shares
-    </p>
+  {decision.decision_type === "buy" && (
+    <>
+    <div>
+      <p className="text-xs uppercase text-gray-500">
+        Suggested Buy Shares
+      </p>
 
-    <p className="mt-1 font-semibold text-gray-900">
-      {decision.recommended_quantity != null
-        ? Number(
-            decision.recommended_quantity
-          ).toLocaleString("en-US", {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 4,
-          })
-        : "â€”"}
-    </p>
-  </div>
+      <p className="mt-1 font-semibold text-gray-900">
+        {decision.recommended_quantity != null
+          ? Number(
+              decision.recommended_quantity
+            ).toLocaleString("en-US", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 4,
+            })
+          : "N/A"}
+      </p>
+    </div>
 
-  <div>
-    <p className="text-xs uppercase text-gray-500">
-      Target Position Value
-    </p>
+    <div>
+      <p className="text-xs uppercase text-gray-500">
+        Target Position Value
+      </p>
 
-    <p className="mt-1 font-semibold text-gray-900">
-      {formatCurrency(
-        decision.recommended_allocation
-      )}
-    </p>
-  </div>
-
+      <p className="mt-1 font-semibold text-gray-900">
+        {formatCurrency(
+          decision.recommended_allocation
+        )}
+      </p>
+    </div>
+  </>
+)}
   <div>
     <p className="text-xs uppercase text-gray-500">
       Confidence
@@ -287,7 +290,7 @@ if (
         ? `${Number(
             decision.confidence_score
           ).toFixed(0)}/100`
-        : "â€”"}
+        : "N/A"}
     </p>
   </div>
 
@@ -297,7 +300,7 @@ if (
     </p>
 
     <p className="mt-1 font-semibold capitalize text-gray-900">
-      {decision.risk_level ?? "â€”"}
+      {decision.risk_level ?? "N/A"}
     </p>
   </div>
 </div>
@@ -308,7 +311,9 @@ if (
               </p>
 
               <p className="mt-1 text-sm text-gray-900">
-                {decision.expected_holding_period ?? "â€”"}
+                {decision.decision_type === "watch"
+                  ? "Not applicable until purchased"
+                  : decision.expected_holding_period ?? "N/A"}
               </p>
             </div>
 
@@ -341,8 +346,9 @@ if (
     decision.transaction_id
   )}
 />
-    ) : (
-      <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
+     ) : decision.decision_type === "sell" ||
+       decision.decision_type === "rebalance" ? (
+       <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5">    
         <div className="flex flex-wrap items-center gap-3">
           <span className="rounded-full border border-amber-400 bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-900">
             Real Money
@@ -358,7 +364,7 @@ if (
           type has not been enabled yet.
         </p>
       </div>
-    )}
+    ) : null}
   </>
 ) : (
   <>
