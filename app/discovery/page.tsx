@@ -4,7 +4,10 @@ import DiscoveryRunForm from "@/components/discovery-run-form";
 import { createClient } from "@/lib/supabase/server";
 
 type DiscoveryPageProps = {
-  searchParams: Promise<{ mode?: string }>;
+  searchParams: Promise<{
+    mode?: string;
+    view?: string;
+  }>;
 };
 
 type DecisionSummary = {
@@ -76,7 +79,7 @@ export default async function DiscoveryPage({ searchParams }: DiscoveryPageProps
 
   if (!user) redirect("/login");
 
-  const { mode } = await searchParams;
+  const { mode, view } = await searchParams;
   const selectedMode =
     mode === "paper_active"
       ? "paper_active"
@@ -84,6 +87,12 @@ export default async function DiscoveryPage({ searchParams }: DiscoveryPageProps
         ? "paper_long_term"
         : "real";
   const isRealPortfolio = selectedMode === "real";
+  const selectedRealView =
+    view === "holdings"
+      ? "holdings"
+      : view === "watchlist"
+        ? "watchlist"
+        : "opportunities";
 
   const discoveryDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Denver",
@@ -235,6 +244,46 @@ export default async function DiscoveryPage({ searchParams }: DiscoveryPageProps
     );
   }
 
+    const realHoldingCandidates = isRealPortfolio
+    ? (candidates ?? []).filter((candidate) =>
+        currentHoldingTickers.has(
+          candidate.ticker.trim().toUpperCase()
+        )
+      )
+    : [];
+
+  const realWatchCandidates = isRealPortfolio
+    ? (candidates ?? []).filter((candidate) => {
+        const ticker = candidate.ticker.trim().toUpperCase();
+        const committeeDecision = latestDecisionByTicker.get(ticker);
+
+        return (
+          !currentHoldingTickers.has(ticker) &&
+          committeeDecision?.decision_type === "watch"
+        );
+      })
+    : [];
+
+  const realOpportunityCandidates = isRealPortfolio
+    ? (candidates ?? []).filter((candidate) => {
+        const ticker = candidate.ticker.trim().toUpperCase();
+        const committeeDecision = latestDecisionByTicker.get(ticker);
+
+        return (
+          !currentHoldingTickers.has(ticker) &&
+          !committeeDecision
+        );
+      })
+    : candidates ?? [];
+
+  const displayedCandidates = isRealPortfolio
+    ? selectedRealView === "holdings"
+      ? realHoldingCandidates
+      : selectedRealView === "watchlist"
+        ? realWatchCandidates
+        : realOpportunityCandidates
+    : candidates ?? [];
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-7xl">
@@ -274,26 +323,74 @@ export default async function DiscoveryPage({ searchParams }: DiscoveryPageProps
           ))}
         </div>
 
+        {isRealPortfolio && (
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/discovery?mode=real&view=opportunities"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                selectedRealView === "opportunities"
+                  ? "bg-gray-900 text-white"
+                  : "border border-gray-300 bg-white text-gray-700"
+              }`}
+            >
+              New Opportunities ({realOpportunityCandidates.length})
+            </Link>
+
+            <Link
+              href="/discovery?mode=real&view=holdings"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                selectedRealView === "holdings"
+                  ? "bg-gray-900 text-white"
+                  : "border border-gray-300 bg-white text-gray-700"
+              }`}
+            >
+              Current Holdings ({realHoldingCandidates.length})
+            </Link>
+
+            <Link
+              href="/discovery?mode=real&view=watchlist"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                selectedRealView === "watchlist"
+                  ? "bg-gray-900 text-white"
+                  : "border border-gray-300 bg-white text-gray-700"
+              }`}
+            >
+              Watchlist ({realWatchCandidates.length})
+            </Link>
+
+          </div>
+        )}
+
         <div className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  {isRealPortfolio ? "Opportunities for Your Real Portfolio" : "Today's Candidates"}
+                  {isRealPortfolio
+                    ? selectedRealView === "holdings"
+                      ? "Current Holdings in Today's Discovery"
+                      : selectedRealView === "watchlist"
+                        ? "Watchlist Candidates"
+                      : "New Opportunities for Your Real Portfolio"
+                    : "Today's Candidates"}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
                   {isRealPortfolio
-                    ? "Ranked by company fundamentals and fit with your current holdings, sector exposure, available cash, and current Committee decision state."
-                    : "Ranked by Discovery V2 deterministic scoring and portfolio fit."}
-                </p>
+  ? selectedRealView === "holdings"
+    ? "Current positions that appeared in today's Discovery, including their latest scoring and Committee state."
+    : selectedRealView === "watchlist"
+      ? "Unowned companies already placed on WATCH by the Committee. These remain outside the new-opportunity ranking until reassessment is warranted."
+      : "Unowned, unreviewed companies ranked by fundamentals and fit with your current holdings, sector exposure, and available cash."
+  : "Ranked by Discovery V2 deterministic scoring and portfolio fit."}
+</p>
               </div>
-              <div className="text-sm text-gray-500">{candidates?.length ?? 0} scored</div>
+              <div className="text-sm text-gray-500">{displayedCandidates.length} shown</div>
             </div>
           </div>
 
-          {candidates?.length ? (
+          {displayedCandidates.length ? (
             <div className="divide-y divide-gray-100">
-              {candidates.map((candidate, index) => {
+              {displayedCandidates.map((candidate, index) => {
                 const isV2 = candidate.scoring_version === "v2";
                 const ticker = candidate.ticker.trim().toUpperCase();
                 const isCurrentHolding =
@@ -324,7 +421,11 @@ export default async function DiscoveryPage({ searchParams }: DiscoveryPageProps
                     <div className="flex flex-wrap items-start justify-between gap-6">
                       <div>
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-sm font-semibold text-gray-400">#{index + 1}</span>
+                          {(!isRealPortfolio || selectedRealView === "opportunities") && (
+  <span className="text-sm font-semibold text-gray-400">
+    #{index + 1}
+  </span>
+)}
                           <span className="text-xl font-bold text-gray-900">{candidate.ticker}</span>
 
                           {isRealPortfolio ? (
