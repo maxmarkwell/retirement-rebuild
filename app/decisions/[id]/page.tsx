@@ -184,7 +184,7 @@ if (
           href="/decisions"
           className="text-sm font-medium text-gray-500 hover:text-gray-900"
         >
-          ← Back to Decisions
+          &larr; Back to Decisions
         </Link>
 
         {/* Decision Overview */}
@@ -305,28 +305,28 @@ if (
   </div>
 </div>
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
-            <div>
-              <p className="text-xs uppercase text-gray-500">
-                Holding Period
-              </p>
+  {decision.decision_type !== "watch" && (
+    <div>
+      <p className="text-xs uppercase text-gray-500">
+        Holding Period
+      </p>
 
-              <p className="mt-1 text-sm text-gray-900">
-                {decision.decision_type === "watch"
-                  ? "Not applicable until purchased"
-                  : decision.expected_holding_period ?? "N/A"}
-              </p>
-            </div>
+      <p className="mt-1 text-sm text-gray-900">
+        {decision.expected_holding_period ?? "N/A"}
+      </p>
+    </div>
+  )}
 
-            <div>
-              <p className="text-xs uppercase text-gray-500">
-                Status
-              </p>
+  <div>
+    <p className="text-xs uppercase text-gray-500">
+      Status
+    </p>
 
-              <p className="mt-1 text-sm capitalize text-gray-900">
-                {decision.status}
-              </p>
-            </div>
-          </div>
+    <p className="mt-1 text-sm capitalize text-gray-900">
+      {decision.status}
+    </p>
+    </div>
+</div>
         </div>
 
 {portfolio?.is_real_money ? (
