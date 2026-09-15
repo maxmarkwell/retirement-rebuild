@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { getMarketQuotes } from "@/lib/market-data/twelve-data";
 
@@ -9,78 +10,72 @@ type SnapshotResult = {
   count: number;
 };
 
+type QuoteRefreshResult = {
+  snapshotDate: string;
+  heldTickers: string[];
+  freshTickers: string[];
+  refreshedTickers: string[];
+  missingTickers: string[];
+};
+
+const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6;
+const DENVER_TIME_ZONE = "America/Denver";
+
 // ---------------------------------------------------------
-// Core snapshot engine
+// Snapshot date helpers
 // ---------------------------------------------------------
 
-export async function captureDailySnapshotsForUser(
+function getDenverDate(date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: DENVER_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function getDenverDateFromTimestamp(
+  timestamp: string
+): string | null {
+  const date = new Date(timestamp);
+
+  if (!Number.isFinite(date.getTime())) {
+    return null;
+  }
+
+  return getDenverDate(date);
+}
+
+// ---------------------------------------------------------
+// Determine currently held tickers by portfolio
+// ---------------------------------------------------------
+
+async function getHeldTickersForUser(
   userId: string,
   supabase: SupabaseClient
-): Promise<SnapshotResult> {
-  // ---------------------------------------------------------
-  // Load this user's portfolios
-  // ---------------------------------------------------------
-
-  const { data: portfolios, error: portfoliosError } = await supabase
-    .from("portfolios")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-
-  if (portfoliosError) {
-    throw new Error(
-      `Unable to load portfolios: ${portfoliosError.message}`
-    );
-  }
-
-  if (!portfolios || portfolios.length === 0) {
-    throw new Error("No portfolios were found for the snapshot user.");
-  }
-
-  // ---------------------------------------------------------
-  // Load this user's contributions
-  // ---------------------------------------------------------
-
-  const { data: contributions, error: contributionsError } =
-    await supabase
-      .from("contributions")
-      .select("portfolio_id, amount")
-      .eq("user_id", userId);
-
-  if (contributionsError) {
-    throw new Error(
-      `Unable to load contributions: ${contributionsError.message}`
-    );
-  }
-
-  // ---------------------------------------------------------
-  // Load this user's transactions
-  // ---------------------------------------------------------
-
-  const { data: transactions, error: transactionsError } =
+): Promise<string[]> {
+  const { data: transactions, error } =
     await supabase
       .from("transactions")
       .select(
-        "portfolio_id, transaction_type, ticker, quantity, gross_amount, fees, transaction_date, created_at"
+        "portfolio_id, transaction_type, ticker, quantity"
       )
       .eq("user_id", userId)
       .order("transaction_date", { ascending: true })
       .order("created_at", { ascending: true });
 
-  if (transactionsError) {
+  if (error) {
     throw new Error(
-      `Unable to load transactions: ${transactionsError.message}`
+      `Unable to load transactions for market quotes: ${error.message}`
     );
   }
 
-  // ---------------------------------------------------------
-  // Determine currently held real tickers
-  // ---------------------------------------------------------
-
-  const shareBalances = new Map<string, number>();
+  const portfolioShareBalances =
+    new Map<string, Map<string, number>>();
 
   for (const transaction of transactions ?? []) {
     if (
+      !transaction.portfolio_id ||
       !transaction.ticker ||
       transaction.quantity == null
     ) {
@@ -94,80 +89,330 @@ export async function captureDailySnapshotsForUser(
       continue;
     }
 
+    const portfolioId = transaction.portfolio_id;
     const ticker = transaction.ticker
       .trim()
       .toUpperCase();
 
+    if (ticker === "TEST" || ticker === "TEST2") {
+      continue;
+    }
+
     const quantity = Number(transaction.quantity);
 
-    const current =
-      shareBalances.get(ticker) ?? 0;
+    let balances =
+      portfolioShareBalances.get(portfolioId);
 
-    if (transaction.transaction_type === "buy") {
-      shareBalances.set(
-        ticker,
-        current + quantity
+    if (!balances) {
+      balances = new Map<string, number>();
+
+      portfolioShareBalances.set(
+        portfolioId,
+        balances
       );
     }
 
-    if (transaction.transaction_type === "sell") {
-      shareBalances.set(
-        ticker,
-        current - quantity
-      );
+    const current =
+      balances.get(ticker) ?? 0;
+
+    balances.set(
+      ticker,
+      transaction.transaction_type === "buy"
+        ? current + quantity
+        : current - quantity
+    );
+  }
+
+  const heldTickerSet = new Set<string>();
+
+  for (const balances of portfolioShareBalances.values()) {
+    for (const [ticker, quantity] of balances.entries()) {
+      if (quantity > 0.00000001) {
+        heldTickerSet.add(ticker);
+      }
     }
   }
 
-  const heldTickers = Array.from(
-    shareBalances.entries()
-  )
-    .filter(
-      ([ticker, quantity]) =>
-        quantity > 0.00000001 &&
-        ticker !== "TEST" &&
-        ticker !== "TEST2"
-    )
-    .map(([ticker]) => ticker);
+  return Array.from(heldTickerSet).sort();
+}
+
+// ---------------------------------------------------------
+// Refresh persistent snapshot quotes
+// ---------------------------------------------------------
+
+export async function refreshSnapshotQuotesForUser(
+  userId: string,
+  supabase: SupabaseClient
+): Promise<QuoteRefreshResult> {
+  const snapshotDate = getDenverDate();
+
+  const heldTickers =
+    await getHeldTickersForUser(
+      userId,
+      supabase
+    );
+
+  if (heldTickers.length === 0) {
+    return {
+      snapshotDate,
+      heldTickers: [],
+      freshTickers: [],
+      refreshedTickers: [],
+      missingTickers: [],
+    };
+  }
+
+  const { data: cachedQuotes, error: cachedQuotesError } =
+    await supabase
+      .from("market_quote_cache")
+      .select(
+        "ticker, price, previous_close, quote_timestamp, fetched_at"
+      )
+      .in("ticker", heldTickers);
+
+  if (cachedQuotesError) {
+    throw new Error(
+      `Unable to load cached market quotes: ${cachedQuotesError.message}`
+    );
+  }
+
+  const freshTickerSet = new Set<string>();
+
+  for (const cachedQuote of cachedQuotes ?? []) {
+    const ticker = cachedQuote.ticker
+      .trim()
+      .toUpperCase();
+
+    const fetchedDate =
+      getDenverDateFromTimestamp(
+        cachedQuote.fetched_at
+      );
+
+    if (
+      fetchedDate === snapshotDate &&
+      Number(cachedQuote.price) > 0
+    ) {
+      freshTickerSet.add(ticker);
+    }
+  }
+
+  const tickersNeedingRefresh =
+    heldTickers.filter(
+      (ticker) => !freshTickerSet.has(ticker)
+    );
+
+  const tickersToFetch =
+    tickersNeedingRefresh.slice(
+      0,
+      SNAPSHOT_PROVIDER_FETCH_LIMIT
+    );
+
+  const refreshedTickers: string[] = [];
+
+  if (tickersToFetch.length > 0) {
+    const quotes =
+      await getMarketQuotes(tickersToFetch);
+
+    const fetchedAt =
+      new Date().toISOString();
+
+    const cacheRows =
+      Object.entries(quotes).map(
+        ([ticker, quote]) => ({
+          ticker,
+          price: quote.price,
+          previous_close: quote.previousClose,
+          quote_timestamp:
+            quote.timestamp != null
+              ? new Date(
+                  quote.timestamp * 1000
+                ).toISOString()
+              : null,
+          fetched_at: fetchedAt,
+          provider: "twelve_data",
+        })
+      );
+
+    if (cacheRows.length > 0) {
+      const { error: cacheWriteError } =
+        await supabase
+          .from("market_quote_cache")
+          .upsert(cacheRows, {
+            onConflict: "ticker",
+          });
+
+      if (cacheWriteError) {
+        throw new Error(
+          `Unable to persist market quotes: ${cacheWriteError.message}`
+        );
+      }
+
+      for (const row of cacheRows) {
+        freshTickerSet.add(row.ticker);
+        refreshedTickers.push(row.ticker);
+      }
+    }
+  }
+
+  const missingTickers =
+    heldTickers.filter(
+      (ticker) => !freshTickerSet.has(ticker)
+    );
+
+  return {
+    snapshotDate,
+    heldTickers,
+    freshTickers:
+      Array.from(freshTickerSet).sort(),
+    refreshedTickers:
+      refreshedTickers.sort(),
+    missingTickers,
+  };
+}
+
+// ---------------------------------------------------------
+// Core snapshot engine
+// ---------------------------------------------------------
+
+export async function captureDailySnapshotsForUser(
+  userId: string,
+  supabase: SupabaseClient
+): Promise<SnapshotResult> {
+  const snapshotDate = getDenverDate();
 
   // ---------------------------------------------------------
-  // Load market prices
+  // Load this user's portfolios
   // ---------------------------------------------------------
+
+  const { data: portfolios, error: portfoliosError } =
+    await supabase
+      .from("portfolios")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+  if (portfoliosError) {
+    throw new Error(
+      `Unable to load portfolios: ${portfoliosError.message}`
+    );
+  }
+
+  if (!portfolios || portfolios.length === 0) {
+    throw new Error(
+      "No portfolios were found for the snapshot user."
+    );
+  }
+
+  // ---------------------------------------------------------
+  // Load this user's contributions
+  // ---------------------------------------------------------
+
+  const {
+    data: contributions,
+    error: contributionsError,
+  } = await supabase
+    .from("contributions")
+    .select("portfolio_id, amount")
+    .eq("user_id", userId);
+
+  if (contributionsError) {
+    throw new Error(
+      `Unable to load contributions: ${contributionsError.message}`
+    );
+  }
+
+  // ---------------------------------------------------------
+  // Load this user's transactions
+  // ---------------------------------------------------------
+
+  const {
+    data: transactions,
+    error: transactionsError,
+  } = await supabase
+    .from("transactions")
+    .select(
+      "portfolio_id, transaction_type, ticker, quantity, gross_amount, fees, transaction_date, created_at"
+    )
+    .eq("user_id", userId)
+    .order("transaction_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (transactionsError) {
+    throw new Error(
+      `Unable to load transactions: ${transactionsError.message}`
+    );
+  }
+
+  // ---------------------------------------------------------
+  // Refresh/load today's market prices
+  // ---------------------------------------------------------
+
+  const quoteRefresh =
+    await refreshSnapshotQuotesForUser(
+      userId,
+      supabase
+    );
+
+  if (quoteRefresh.missingTickers.length > 0) {
+    throw new Error(
+      `Snapshot is waiting for market prices for: ${quoteRefresh.missingTickers.join(
+        ", "
+      )}. No snapshot was written.`
+    );
+  }
 
   const marketPrices: Record<string, number> = {};
 
-  if (heldTickers.length > 0) {
-    const quotes =
-      await getMarketQuotes(heldTickers);
-
-    const missingTickers =
-      heldTickers.filter(
-        (ticker) => !quotes[ticker]
+  if (quoteRefresh.heldTickers.length > 0) {
+    const {
+      data: cachedQuotes,
+      error: cachedQuotesError,
+    } = await supabase
+      .from("market_quote_cache")
+      .select("ticker, price, fetched_at")
+      .in(
+        "ticker",
+        quoteRefresh.heldTickers
       );
 
-    if (missingTickers.length > 0) {
+    if (cachedQuotesError) {
       throw new Error(
-        `Snapshot cancelled because market quotes were unavailable for: ${missingTickers.join(
-          ", "
-        )}.`
+        `Unable to load snapshot market prices: ${cachedQuotesError.message}`
       );
     }
 
-    for (const [ticker, quote] of Object.entries(quotes)) {
-      marketPrices[ticker] = quote.price;
+    for (const cachedQuote of cachedQuotes ?? []) {
+      const ticker = cachedQuote.ticker
+        .trim()
+        .toUpperCase();
+
+      const fetchedDate =
+        getDenverDateFromTimestamp(
+          cachedQuote.fetched_at
+        );
+
+      if (
+        fetchedDate === snapshotDate &&
+        Number(cachedQuote.price) > 0
+      ) {
+        marketPrices[ticker] =
+          Number(cachedQuote.price);
+      }
     }
   }
 
-  // ---------------------------------------------------------
-  // Use Denver date for daily snapshot identity
-  // ---------------------------------------------------------
+  const missingPrices =
+    quoteRefresh.heldTickers.filter(
+      (ticker) => marketPrices[ticker] == null
+    );
 
-  const snapshotDate =
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Denver",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
+  if (missingPrices.length > 0) {
+    throw new Error(
+      `Snapshot is missing validated market prices for: ${missingPrices.join(
+        ", "
+      )}. No snapshot was written.`
+    );
+  }
 
   // ---------------------------------------------------------
   // Build snapshot rows
@@ -186,16 +431,12 @@ export async function captureDailySnapshotsForUser(
       user_id: userId,
       portfolio_id: portfolio.id,
       snapshot_date: snapshotDate,
-
       cash_value: accounting.cash,
       holdings_value: accounting.marketValue,
       total_value: accounting.permanentCapital,
-
       cumulative_contributions:
         accounting.contributionsTotal,
-
       cumulative_withdrawals: 0,
-
       investment_growth:
         accounting.investmentGrowth,
     };
@@ -209,7 +450,8 @@ export async function captureDailySnapshotsForUser(
     await supabase
       .from("portfolio_snapshots")
       .upsert(rows, {
-        onConflict: "portfolio_id,snapshot_date",
+        onConflict:
+          "portfolio_id,snapshot_date",
       });
 
   if (snapshotError) {
@@ -239,8 +481,11 @@ export async function captureDailySnapshots(): Promise<SnapshotResult> {
     throw new Error("You must be signed in.");
   }
 
+  const adminSupabase =
+    createAdminClient();
+
   return captureDailySnapshotsForUser(
     user.id,
-    supabase
+    adminSupabase
   );
 }

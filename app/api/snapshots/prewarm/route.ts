@@ -2,8 +2,9 @@ import {
   NextRequest,
   NextResponse,
 } from "next/server";
+
 import { createAdminClient } from "@/lib/supabase/admin";
-import { captureDailySnapshotsForUser } from "@/lib/portfolio/snapshots";
+import { refreshSnapshotQuotesForUser } from "@/lib/portfolio/snapshots";
 
 export async function GET(
   request: NextRequest
@@ -60,7 +61,7 @@ export async function GET(
       createAdminClient();
 
     const result =
-      await captureDailySnapshotsForUser(
+      await refreshSnapshotQuotesForUser(
         snapshotUserId,
         supabase
       );
@@ -69,18 +70,25 @@ export async function GET(
       success: true,
       snapshotDate:
         result.snapshotDate,
-      count: result.count,
+      heldTickerCount:
+        result.heldTickers.length,
+      freshTickerCount:
+        result.freshTickers.length,
+      refreshedTickers:
+        result.refreshedTickers,
+      remainingTickerCount:
+        result.missingTickers.length,
     });
   } catch (error) {
     console.error(
-      "Daily snapshot failed:",
+      "Snapshot quote prewarm failed:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Unable to complete the daily portfolio snapshot.",
+          "Unable to refresh snapshot market prices.",
       },
       {
         status: 500,
