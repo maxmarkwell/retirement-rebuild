@@ -1,6 +1,7 @@
 import type {
   AcceleratedGrowthFundamentals,
   AgDiscoveryScore,
+  TrajectoryMetrics,
 } from "./types";
 
 type EarningsConfirmationInput = {
@@ -35,99 +36,92 @@ function clamp(value: number, min = 0, max = 100) {
   return Math.min(max, Math.max(min, value));
 }
 
-function linearScore(
-  value: number | null | undefined,
-  bad: number,
-  good: number
-) {
+function linearScore(value: number | null | undefined, bad: number, good: number) {
   if (value == null || !Number.isFinite(value)) return 50;
   if (good === bad) return 50;
   return clamp(((value - bad) / (good - bad)) * 100);
 }
 
-function average(values: number[]) {
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+function availableAverage(values: Array<number | null>) {
+  const usable = values.filter((value): value is number => value != null && Number.isFinite(value));
+  return usable.length === 0 ? 50 : usable.reduce((sum, value) => sum + value, 0) / usable.length;
 }
 
-function scoreFundamentalAcceleration(
-  data: AcceleratedGrowthFundamentals
-) {
-  const revenue = linearScore(data.revenueAcceleration, -10, 15);
-  const operatingMargin = linearScore(data.operatingMarginChange, -5, 5);
-  const fcfMargin = linearScore(data.freeCashFlowMarginChange, -8, 8);
+function trajectoryScore(metrics: TrajectoryMetrics, kind: "revenue" | "margin") {
+  if (metrics.pointCount < 3) return 35;
 
-  // Revenue acceleration is the primary AG V1 quantitative signal.
-  return clamp(
-    revenue * 0.5 + operatingMargin * 0.3 + fcfMargin * 0.2
-  );
+  const level = kind === "revenue"
+    ? linearScore(metrics.latest, -5, 30)
+    : 50;
+  const slope = linearScore(metrics.slope, -5, 5);
+  const recent = linearScore(metrics.recentChange, -5, 5);
+  const consistency = linearScore(metrics.consistency, -1, 1);
+
+  return kind === "revenue"
+    ? clamp(level * 0.35 + slope * 0.35 + consistency * 0.20 + recent * 0.10)
+    : clamp(slope * 0.50 + consistency * 0.30 + recent * 0.20);
+}
+
+function scoreFundamentalAcceleration(data: AcceleratedGrowthFundamentals) {
+  if (!data.dataQuality.eligibleForScoring) return 25;
+
+  const revenue = trajectoryScore(data.revenueTrajectory, "revenue");
+  const operatingMargin = trajectoryScore(data.operatingMarginTrajectory, "margin");
+  const fcfMargin = trajectoryScore(data.freeCashFlowMarginTrajectory, "margin");
+
+  return clamp(revenue * 0.60 + operatingMargin * 0.25 + fcfMargin * 0.15);
 }
 
 function scoreEarnings(input?: EarningsConfirmationInput | null) {
   if (!input) return 50;
-
-  return average([
-    linearScore(input.latestEpsSurprisePct, -10, 15),
-    linearScore(input.previousEpsSurprisePct, -10, 15),
-    linearScore(input.latestRevenueSurprisePct, -5, 8),
-    linearScore(input.previousRevenueSurprisePct, -5, 8),
+  return availableAverage([
+    input.latestEpsSurprisePct == null ? null : linearScore(input.latestEpsSurprisePct, -10, 15),
+    input.previousEpsSurprisePct == null ? null : linearScore(input.previousEpsSurprisePct, -10, 15),
+    input.latestRevenueSurprisePct == null ? null : linearScore(input.latestRevenueSurprisePct, -5, 8),
+    input.previousRevenueSurprisePct == null ? null : linearScore(input.previousRevenueSurprisePct, -5, 8),
   ]);
 }
 
 function scoreQuality(input?: BusinessQualityInput | null) {
   if (!input) return 50;
-
-  const roic = linearScore(input.roic, 0, 20);
-  const fcf = input.freeCashFlow == null
-    ? 50
-    : input.freeCashFlow > 0
-      ? 75
-      : 20;
-  const leverage = input.netDebtToEbitda == null
-    ? 50
-    : 100 - linearScore(input.netDebtToEbitda, 0, 5);
-  const liquidity = linearScore(input.currentRatio, 0.5, 2);
-
-  return average([roic, fcf, leverage, liquidity]);
+  return availableAverage([
+    input.roic == null ? null : linearScore(input.roic, 0, 20),
+    input.freeCashFlow == null ? null : input.freeCashFlow > 0 ? 75 : 20,
+    input.netDebtToEbitda == null ? null : 100 - linearScore(input.netDebtToEbitda, 0, 5),
+    input.currentRatio == null ? null : linearScore(input.currentRatio, 0.5, 2),
+  ]);
 }
 
 function scoreValuation(input?: ValuationRewardInput | null) {
   if (!input) return 50;
-
-  const fcfYield = linearScore(input.freeCashFlowYield, 0, 8);
-  const sales = input.priceToSales == null
-    ? 50
-    : 100 - linearScore(input.priceToSales, 2, 15);
-  const fcf = input.priceToFreeCashFlow == null
-    ? 50
-    : 100 - linearScore(input.priceToFreeCashFlow, 15, 60);
-
-  return average([fcfYield, sales, fcf]);
+  return availableAverage([
+    input.freeCashFlowYield == null ? null : linearScore(input.freeCashFlowYield, 0, 8),
+    input.priceToSales == null ? null : 100 - linearScore(input.priceToSales, 2, 15),
+    input.priceToFreeCashFlow == null ? null : 100 - linearScore(input.priceToFreeCashFlow, 15, 60),
+  ]);
 }
 
-export function scoreAcceleratedGrowthCandidate(
-  input: AgScoringInput
-): AgDiscoveryScore {
-  const fundamentalAcceleration = scoreFundamentalAcceleration(
-    input.acceleration
-  );
+export function scoreAcceleratedGrowthCandidate(input: AgScoringInput): AgDiscoveryScore {
+  const fundamentalAcceleration = scoreFundamentalAcceleration(input.acceleration);
   const earningsConfirmation = scoreEarnings(input.earnings);
   const businessQuality = scoreQuality(input.quality);
   const valuationReward = scoreValuation(input.valuation);
   const marketConfirmation = input.marketConfirmation ?? null;
 
-  // Until historical price capability is verified, redistribute the planned
-  // market-confirmation weight across the four zero-incremental-cost pillars.
-  // When market confirmation is present, use the intended five-pillar model.
-  const total = marketConfirmation == null
-    ? fundamentalAcceleration * 0.35 +
+  // AG is change-first. Valuation can support a thesis but cannot rescue weak acceleration.
+  let total = marketConfirmation == null
+    ? fundamentalAcceleration * 0.45 +
       earningsConfirmation * 0.25 +
       businessQuality * 0.20 +
-      valuationReward * 0.20
-    : fundamentalAcceleration * 0.30 +
+      valuationReward * 0.10
+    : fundamentalAcceleration * 0.40 +
       earningsConfirmation * 0.20 +
       marketConfirmation * 0.20 +
       businessQuality * 0.15 +
-      valuationReward * 0.15;
+      valuationReward * 0.05;
+
+  if (!input.acceleration.dataQuality.eligibleForScoring) total = Math.min(total, 45);
+  if (fundamentalAcceleration < 40) total = Math.min(total, 55);
 
   return {
     total: Math.round(clamp(total) * 10) / 10,
@@ -136,10 +130,7 @@ export function scoreAcceleratedGrowthCandidate(
       earningsConfirmation: Math.round(earningsConfirmation * 10) / 10,
       businessQuality: Math.round(businessQuality * 10) / 10,
       valuationReward: Math.round(valuationReward * 10) / 10,
-      marketConfirmation:
-        marketConfirmation == null
-          ? null
-          : Math.round(clamp(marketConfirmation) * 10) / 10,
+      marketConfirmation: marketConfirmation == null ? null : Math.round(clamp(marketConfirmation) * 10) / 10,
     },
     version: "ag-discovery-v1",
   };
