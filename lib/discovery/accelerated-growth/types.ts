@@ -6,6 +6,20 @@ export type AccelerationDirection =
   | "strongly_decelerating"
   | "insufficient_data";
 
+export type AgQuantitativeStatus =
+  | "ADVANCE"
+  | "REVIEW"
+  | "REJECT"
+  | "INSUFFICIENT_DATA";
+
+export type MarketCapBucket =
+  | "micro"
+  | "small"
+  | "mid"
+  | "large"
+  | "mega"
+  | "unknown";
+
 export type QuarterlyGrowthPoint = {
   date: string | null;
   fiscalYear: string | null;
@@ -56,6 +70,7 @@ export type AgScoreComponents = {
 
 export type AgDiscoveryScore = {
   total: number;
+  status: AgQuantitativeStatus;
   components: AgScoreComponents;
   version: "ag-discovery-v1";
 };
