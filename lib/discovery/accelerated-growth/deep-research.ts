@@ -1,45 +1,22 @@
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { AgDiscoveryCandidate } from "./discovery";
 import type { AgCatalystResearch } from "./catalyst-research";
+import { AgResearchOutputError, withAgResearchRetry } from "./research-reliability";
 
 const AG_DEEP_RESEARCH_MODEL = "gpt-5.6-terra";
 export const AG_DEEP_RESEARCH_PROMPT_VERSION = "ag-deep-research-v1";
 
 export type AgDeepResearch = {
-  symbol: string;
-  companyName: string | null;
-  researchStatus: "PROCEED" | "WATCH" | "STOP";
-  thesis: string;
-  catalystAssessment: string;
-  durabilityAssessment: string;
-  financialAssessment: string;
-  valuationAssessment: string;
-  evidenceFor: string[];
-  evidenceAgainst: string[];
-  unresolvedQuestions: string[];
-  thesisClock: string;
-  invalidation: string[];
-  confidence: number;
-  model: string;
-  promptVersion: string;
+  symbol: string; companyName: string | null; researchStatus: "PROCEED" | "WATCH" | "STOP";
+  thesis: string; catalystAssessment: string; durabilityAssessment: string; financialAssessment: string; valuationAssessment: string;
+  evidenceFor: string[]; evidenceAgainst: string[]; unresolvedQuestions: string[]; thesisClock: string; invalidation: string[];
+  confidence: number; model: string; promptVersion: string;
 };
 
 const schema = {
-  type: "object",
-  additionalProperties: false,
+  type: "object", additionalProperties: false,
   properties: {
-    researchStatus: { type: "string", enum: ["PROCEED", "WATCH", "STOP"] },
-    thesis: { type: "string" },
-    catalystAssessment: { type: "string" },
-    durabilityAssessment: { type: "string" },
-    financialAssessment: { type: "string" },
-    valuationAssessment: { type: "string" },
-    evidenceFor: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
-    evidenceAgainst: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
-    unresolvedQuestions: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
-    thesisClock: { type: "string" },
-    invalidation: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
-    confidence: { type: "number", minimum: 0, maximum: 100 },
+    researchStatus: { type: "string", enum: ["PROCEED", "WATCH", "STOP"] }, thesis: { type: "string" }, catalystAssessment: { type: "string" }, durabilityAssessment: { type: "string" }, financialAssessment: { type: "string" }, valuationAssessment: { type: "string" }, evidenceFor: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 }, evidenceAgainst: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 }, unresolvedQuestions: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 }, thesisClock: { type: "string" }, invalidation: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 }, confidence: { type: "number", minimum: 0, maximum: 100 },
   },
   required: ["researchStatus", "thesis", "catalystAssessment", "durabilityAssessment", "financialAssessment", "valuationAssessment", "evidenceFor", "evidenceAgainst", "unresolvedQuestions", "thesisClock", "invalidation", "confidence"],
 } as const;
@@ -67,20 +44,7 @@ Evaluate:
 6. Thesis clock and observable invalidation conditions.
 
 Quantitative Discovery evidence:
-${JSON.stringify({
-  symbol: candidate.symbol,
-  companyName: candidate.companyName,
-  marketCapBucket: candidate.marketCapBucket,
-  agScore: candidate.score.total,
-  fundamentalAcceleration: candidate.score.components.fundamentalAcceleration,
-  earningsConfirmation: candidate.score.components.earningsConfirmation,
-  businessQuality: candidate.score.components.businessQuality,
-  valuationReward: candidate.score.components.valuationReward,
-  latestRevenueGrowth: candidate.acceleration.revenueTrajectory.latest,
-  revenueGrowthSlope: candidate.acceleration.revenueTrajectory.slope,
-  operatingMarginSlope: candidate.acceleration.operatingMarginTrajectory.slope,
-  freeCashFlowMarginSlope: candidate.acceleration.freeCashFlowMarginTrajectory.slope,
-}, null, 2)}
+${JSON.stringify({ symbol: candidate.symbol, companyName: candidate.companyName, marketCapBucket: candidate.marketCapBucket, agScore: candidate.score.total, fundamentalAcceleration: candidate.score.components.fundamentalAcceleration, earningsConfirmation: candidate.score.components.earningsConfirmation, businessQuality: candidate.score.components.businessQuality, valuationReward: candidate.score.components.valuationReward, latestRevenueGrowth: candidate.acceleration.revenueTrajectory.latest, revenueGrowthSlope: candidate.acceleration.revenueTrajectory.slope, operatingMarginSlope: candidate.acceleration.operatingMarginTrajectory.slope, freeCashFlowMarginSlope: candidate.acceleration.freeCashFlowMarginTrajectory.slope }, null, 2)}
 
 Catalyst research:
 ${JSON.stringify(catalyst, null, 2)}`;
@@ -90,30 +54,18 @@ export async function researchAgDeepCandidate(candidate: AgDiscoveryCandidate, c
   if (candidate.score.status !== "ADVANCE") throw new Error(`${candidate.symbol} is not an ADVANCE candidate.`);
   if (catalyst.catalystStatus === "NOT_FOUND") throw new Error(`${candidate.symbol} has no supported catalyst.`);
 
-  const client = getOpenAIClient();
-  const response = await client.responses.create({
-    model: AG_DEEP_RESEARCH_MODEL,
-    input: prompt(candidate, catalyst),
-    tools: [{ type: "web_search" }],
-    text: { format: { type: "json_schema", name: "ag_deep_research", strict: true, schema } },
+  return withAgResearchRetry("DEEP_RESEARCH", candidate.symbol, async () => {
+    const client = getOpenAIClient();
+    const response = await client.responses.create({ model: AG_DEEP_RESEARCH_MODEL, input: prompt(candidate, catalyst), tools: [{ type: "web_search" }], text: { format: { type: "json_schema", name: "ag_deep_research", strict: true, schema } } });
+
+    if (response.status !== "completed" || !response.output_text) {
+      throw new AgResearchOutputError(`AG deep research did not complete for ${candidate.symbol}. Status: ${response.status}`);
+    }
+
+    let parsed: Omit<AgDeepResearch, "symbol" | "companyName" | "model" | "promptVersion">;
+    try { parsed = JSON.parse(response.output_text) as typeof parsed; }
+    catch { throw new AgResearchOutputError(`AG deep research returned invalid JSON for ${candidate.symbol}.`); }
+
+    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION };
   });
-
-  if (response.status !== "completed" || !response.output_text) {
-    throw new Error(`AG deep research did not complete for ${candidate.symbol}. Status: ${response.status}`);
-  }
-
-  let parsed: Omit<AgDeepResearch, "symbol" | "companyName" | "model" | "promptVersion">;
-  try {
-    parsed = JSON.parse(response.output_text) as typeof parsed;
-  } catch {
-    throw new Error(`AG deep research returned invalid JSON for ${candidate.symbol}.`);
-  }
-
-  return {
-    symbol: candidate.symbol,
-    companyName: candidate.companyName,
-    ...parsed,
-    model: AG_DEEP_RESEARCH_MODEL,
-    promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION,
-  };
 }
