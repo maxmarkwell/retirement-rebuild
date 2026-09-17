@@ -1,6 +1,7 @@
 import type {
   AcceleratedGrowthFundamentals,
   AgDiscoveryScore,
+  AgQuantitativeStatus,
   TrajectoryMetrics,
 } from "./types";
 
@@ -49,14 +50,10 @@ function availableAverage(values: Array<number | null>) {
 
 function trajectoryScore(metrics: TrajectoryMetrics, kind: "revenue" | "margin") {
   if (metrics.pointCount < 3) return 35;
-
-  const level = kind === "revenue"
-    ? linearScore(metrics.latest, -5, 30)
-    : 50;
+  const level = kind === "revenue" ? linearScore(metrics.latest, -5, 30) : 50;
   const slope = linearScore(metrics.slope, -5, 5);
   const recent = linearScore(metrics.recentChange, -5, 5);
   const consistency = linearScore(metrics.consistency, -1, 1);
-
   return kind === "revenue"
     ? clamp(level * 0.35 + slope * 0.35 + consistency * 0.20 + recent * 0.10)
     : clamp(slope * 0.50 + consistency * 0.30 + recent * 0.20);
@@ -64,11 +61,9 @@ function trajectoryScore(metrics: TrajectoryMetrics, kind: "revenue" | "margin")
 
 function scoreFundamentalAcceleration(data: AcceleratedGrowthFundamentals) {
   if (!data.dataQuality.eligibleForScoring) return 25;
-
   const revenue = trajectoryScore(data.revenueTrajectory, "revenue");
   const operatingMargin = trajectoryScore(data.operatingMarginTrajectory, "margin");
   const fcfMargin = trajectoryScore(data.freeCashFlowMarginTrajectory, "margin");
-
   return clamp(revenue * 0.60 + operatingMargin * 0.25 + fcfMargin * 0.15);
 }
 
@@ -101,6 +96,30 @@ function scoreValuation(input?: ValuationRewardInput | null) {
   ]);
 }
 
+function classifyStatus(
+  acceleration: AcceleratedGrowthFundamentals,
+  total: number,
+  fundamentalAcceleration: number
+): AgQuantitativeStatus {
+  if (!acceleration.dataQuality.eligibleForScoring) return "INSUFFICIENT_DATA";
+
+  const latestGrowth = acceleration.revenueTrajectory.latest ?? -Infinity;
+  const revenueSlope = acceleration.revenueTrajectory.slope ?? -Infinity;
+  const severeDeterioration =
+    acceleration.accelerationDirection === "strongly_decelerating" ||
+    (latestGrowth < 0 && revenueSlope < -1);
+
+  if (severeDeterioration || fundamentalAcceleration < 30) return "REJECT";
+
+  // ADVANCE means quantitative evidence is strong enough to justify the more
+  // expensive catalyst/research stage. It is not a BUY recommendation.
+  if (total >= 68 && fundamentalAcceleration >= 55 && latestGrowth >= 8) {
+    return "ADVANCE";
+  }
+
+  return "REVIEW";
+}
+
 export function scoreAcceleratedGrowthCandidate(input: AgScoringInput): AgDiscoveryScore {
   const fundamentalAcceleration = scoreFundamentalAcceleration(input.acceleration);
   const earningsConfirmation = scoreEarnings(input.earnings);
@@ -108,23 +127,15 @@ export function scoreAcceleratedGrowthCandidate(input: AgScoringInput): AgDiscov
   const valuationReward = scoreValuation(input.valuation);
   const marketConfirmation = input.marketConfirmation ?? null;
 
-  // AG is change-first. Valuation can support a thesis but cannot rescue weak acceleration.
-  let total = marketConfirmation == null
-    ? fundamentalAcceleration * 0.45 +
-      earningsConfirmation * 0.25 +
-      businessQuality * 0.20 +
-      valuationReward * 0.10
-    : fundamentalAcceleration * 0.40 +
-      earningsConfirmation * 0.20 +
-      marketConfirmation * 0.20 +
-      businessQuality * 0.15 +
-      valuationReward * 0.05;
+  const total = marketConfirmation == null
+    ? fundamentalAcceleration * 0.45 + earningsConfirmation * 0.25 + businessQuality * 0.20 + valuationReward * 0.10
+    : fundamentalAcceleration * 0.40 + earningsConfirmation * 0.20 + marketConfirmation * 0.20 + businessQuality * 0.15 + valuationReward * 0.05;
 
-  if (!input.acceleration.dataQuality.eligibleForScoring) total = Math.min(total, 45);
-  if (fundamentalAcceleration < 40) total = Math.min(total, 55);
+  const roundedTotal = Math.round(clamp(total) * 10) / 10;
 
   return {
-    total: Math.round(clamp(total) * 10) / 10,
+    total: roundedTotal,
+    status: classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration),
     components: {
       fundamentalAcceleration: Math.round(fundamentalAcceleration * 10) / 10,
       earningsConfirmation: Math.round(earningsConfirmation * 10) / 10,
