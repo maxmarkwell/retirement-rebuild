@@ -19,18 +19,30 @@ export type QuarterlyGrowthPoint = {
   freeCashFlowMargin: number | null;
 };
 
+export type TrajectoryMetrics = {
+  latest: number | null;
+  slope: number | null;
+  recentChange: number | null;
+  consistency: number | null;
+  pointCount: number;
+};
+
 export type AcceleratedGrowthFundamentals = {
   symbol: string;
   quarters: QuarterlyGrowthPoint[];
   revenueAcceleration: number | null;
   operatingMarginChange: number | null;
   freeCashFlowMarginChange: number | null;
+  revenueTrajectory: TrajectoryMetrics;
+  operatingMarginTrajectory: TrajectoryMetrics;
+  freeCashFlowMarginTrajectory: TrajectoryMetrics;
   accelerationDirection: AccelerationDirection;
   dataQuality: {
     quarterCount: number;
     comparableRevenueGrowthPoints: number;
     hasQuarterlyIncome: boolean;
     hasQuarterlyCashFlow: boolean;
+    eligibleForScoring: boolean;
   };
 };
 
