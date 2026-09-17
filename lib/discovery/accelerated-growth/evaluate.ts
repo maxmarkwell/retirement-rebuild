@@ -2,6 +2,16 @@ import { getCompanyEarningsContext } from "../../company-data/earnings";
 import { getCompanyFundamentals } from "../../company-data/fmp";
 import { getAcceleratedGrowthFundamentals } from "./fundamentals";
 import { scoreAcceleratedGrowthCandidate } from "./scoring";
+import type { MarketCapBucket } from "./types";
+
+function marketCapBucket(marketCap: number | null): MarketCapBucket {
+  if (marketCap == null || !Number.isFinite(marketCap) || marketCap <= 0) return "unknown";
+  if (marketCap < 300_000_000) return "micro";
+  if (marketCap < 2_000_000_000) return "small";
+  if (marketCap < 10_000_000_000) return "mid";
+  if (marketCap < 200_000_000_000) return "large";
+  return "mega";
+}
 
 export async function evaluateAcceleratedGrowthCandidate(symbol: string) {
   const normalizedSymbol = symbol.trim().toUpperCase();
@@ -17,10 +27,8 @@ export async function evaluateAcceleratedGrowthCandidate(symbol: string) {
     earnings: {
       latestEpsSurprisePct: earnings.latestReported?.epsSurprisePct ?? null,
       previousEpsSurprisePct: earnings.previousReported?.epsSurprisePct ?? null,
-      latestRevenueSurprisePct:
-        earnings.latestReported?.revenueSurprisePct ?? null,
-      previousRevenueSurprisePct:
-        earnings.previousReported?.revenueSurprisePct ?? null,
+      latestRevenueSurprisePct: earnings.latestReported?.revenueSurprisePct ?? null,
+      previousRevenueSurprisePct: earnings.previousReported?.revenueSurprisePct ?? null,
     },
     quality: {
       roic: fundamentals.returnOnInvestedCapital,
@@ -38,6 +46,9 @@ export async function evaluateAcceleratedGrowthCandidate(symbol: string) {
 
   return {
     symbol: normalizedSymbol,
+    companyName: fundamentals.companyName,
+    marketCap: fundamentals.marketCap,
+    marketCapBucket: marketCapBucket(fundamentals.marketCap),
     score,
     acceleration,
     earnings: {
