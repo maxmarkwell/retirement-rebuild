@@ -20,6 +20,8 @@ export async function GET() {
       reviewCount: result.reviewCount,
       rejectCount: result.rejectCount,
       insufficientDataCount: result.insufficientDataCount,
+      rateLimited: result.rateLimited,
+      stoppedEarly: result.stoppedEarly,
       bucketSelectionCounts: result.bucketSelectionCounts,
       errors: result.errors,
       candidates: result.candidates.map((candidate) => ({
