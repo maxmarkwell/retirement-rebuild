@@ -1,5 +1,6 @@
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { AgDiscoveryCandidate } from "./discovery";
+import { AgResearchOutputError, withAgResearchRetry } from "./research-reliability";
 
 const CATALYST_MODEL = "gpt-5.6-terra";
 export const AG_CATALYST_PROMPT_VERSION = "ag-catalyst-v1";
@@ -34,17 +35,7 @@ const catalystSchema = {
     sourceSummary: { type: "string" },
     confidence: { type: "number", minimum: 0, maximum: 100 },
   },
-  required: [
-    "catalystStatus",
-    "catalyst",
-    "whyNow",
-    "expectedEvidence",
-    "thesisClock",
-    "invalidation",
-    "keyRisks",
-    "sourceSummary",
-    "confidence",
-  ],
+  required: ["catalystStatus", "catalyst", "whyNow", "expectedEvidence", "thesisClock", "invalidation", "keyRisks", "sourceSummary", "confidence"],
 } as const;
 
 function buildPrompt(candidate: AgDiscoveryCandidate) {
@@ -72,63 +63,32 @@ Important rules:
 - Keep sourceSummary concise but name the primary evidence categories/sources consulted and relevant dates when available.
 
 Quantitative evidence from AG Discovery:
-${JSON.stringify({
-  symbol: candidate.symbol,
-  companyName: candidate.companyName,
-  sector: candidate.sector,
-  industry: candidate.industry,
-  marketCap: candidate.marketCap,
-  marketCapBucket: candidate.marketCapBucket,
-  agScore: candidate.score.total,
-  status: candidate.score.status,
-  fundamentalAcceleration: candidate.score.components.fundamentalAcceleration,
-  earningsConfirmation: candidate.score.components.earningsConfirmation,
-  businessQuality: candidate.score.components.businessQuality,
-  valuationReward: candidate.score.components.valuationReward,
-  latestRevenueGrowth: candidate.acceleration.revenueTrajectory.latest,
-  revenueGrowthSlope: candidate.acceleration.revenueTrajectory.slope,
-  revenueConsistency: candidate.acceleration.revenueTrajectory.consistency,
-  operatingMarginSlope: candidate.acceleration.operatingMarginTrajectory.slope,
-  freeCashFlowMarginSlope: candidate.acceleration.freeCashFlowMarginTrajectory.slope,
-}, null, 2)}`;
+${JSON.stringify({ symbol: candidate.symbol, companyName: candidate.companyName, sector: candidate.sector, industry: candidate.industry, marketCap: candidate.marketCap, marketCapBucket: candidate.marketCapBucket, agScore: candidate.score.total, status: candidate.score.status, fundamentalAcceleration: candidate.score.components.fundamentalAcceleration, earningsConfirmation: candidate.score.components.earningsConfirmation, businessQuality: candidate.score.components.businessQuality, valuationReward: candidate.score.components.valuationReward, latestRevenueGrowth: candidate.acceleration.revenueTrajectory.latest, revenueGrowthSlope: candidate.acceleration.revenueTrajectory.slope, revenueConsistency: candidate.acceleration.revenueTrajectory.consistency, operatingMarginSlope: candidate.acceleration.operatingMarginTrajectory.slope, freeCashFlowMarginSlope: candidate.acceleration.freeCashFlowMarginTrajectory.slope }, null, 2)}`;
 }
 
 export async function researchAgCatalyst(candidate: AgDiscoveryCandidate): Promise<AgCatalystResearch> {
-  if (candidate.score.status !== "ADVANCE") {
-    throw new Error(`AG catalyst research requires ADVANCE status. ${candidate.symbol} is ${candidate.score.status}.`);
-  }
+  if (candidate.score.status !== "ADVANCE") throw new Error(`AG catalyst research requires ADVANCE status. ${candidate.symbol} is ${candidate.score.status}.`);
 
-  const client = getOpenAIClient();
-  const response = await client.responses.create({
-    model: CATALYST_MODEL,
-    input: buildPrompt(candidate),
-    tools: [{ type: "web_search" }],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "ag_catalyst_research",
-        strict: true,
-        schema: catalystSchema,
-      },
-    },
+  return withAgResearchRetry("CATALYST", candidate.symbol, async () => {
+    const client = getOpenAIClient();
+    const response = await client.responses.create({
+      model: CATALYST_MODEL,
+      input: buildPrompt(candidate),
+      tools: [{ type: "web_search" }],
+      text: { format: { type: "json_schema", name: "ag_catalyst_research", strict: true, schema: catalystSchema } },
+    });
+
+    if (response.status !== "completed" || !response.output_text) {
+      throw new AgResearchOutputError(`AG catalyst research did not complete for ${candidate.symbol}. Status: ${response.status}`);
+    }
+
+    let parsed: Omit<AgCatalystResearch, "symbol" | "companyName" | "model" | "promptVersion">;
+    try {
+      parsed = JSON.parse(response.output_text) as typeof parsed;
+    } catch {
+      throw new AgResearchOutputError(`AG catalyst research returned invalid JSON for ${candidate.symbol}.`);
+    }
+
+    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, model: CATALYST_MODEL, promptVersion: AG_CATALYST_PROMPT_VERSION };
   });
-
-  if (response.status !== "completed" || !response.output_text) {
-    throw new Error(`AG catalyst research did not complete for ${candidate.symbol}. Status: ${response.status}`);
-  }
-
-  let parsed: Omit<AgCatalystResearch, "symbol" | "companyName" | "model" | "promptVersion">;
-  try {
-    parsed = JSON.parse(response.output_text) as typeof parsed;
-  } catch {
-    throw new Error(`AG catalyst research returned invalid JSON for ${candidate.symbol}.`);
-  }
-
-  return {
-    symbol: candidate.symbol,
-    companyName: candidate.companyName,
-    ...parsed,
-    model: CATALYST_MODEL,
-    promptVersion: AG_CATALYST_PROMPT_VERSION,
-  };
 }
