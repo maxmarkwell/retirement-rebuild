@@ -6,8 +6,6 @@ import { sizeAgBuy } from "./risk-sizing";
 export type ExecuteAgPaperBuyInput = {
   decisionId: string;
   price: number;
-  currentAgMarketValue: number;
-  currentPositionMarketValue: number;
   currentThemeMarketValue: number;
   sleeveDrawdownPct: number;
   liquidityEligible: boolean;
@@ -42,7 +40,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (new Date(decision.created_at).getTime() < new Date(era.inception_at).getTime()) throw new Error("Pre-inception decisions cannot execute inside the AG era.");
 
   const { data: transactions, error: txError } = await supabase
-    .from("transactions").select("transaction_type, gross_amount, fees, created_at")
+    .from("transactions").select("transaction_type, ticker, quantity, price_per_share, gross_amount, fees, created_at")
     .eq("portfolio_id", portfolio.id).gte("created_at", era.inception_at);
   if (txError) throw new Error(`Unable to load AG transactions: ${txError.message}`);
 
@@ -69,11 +67,29 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     ]
   );
 
+  const holdings = new Map<string, { quantity: number; cost: number }>();
+  for (const tx of transactions ?? []) {
+    if (!tx.ticker || tx.quantity == null) continue;
+    const ticker = tx.ticker.toUpperCase();
+    const quantity = Number(tx.quantity);
+    const gross = Number(tx.gross_amount ?? 0);
+    const current = holdings.get(ticker) ?? { quantity: 0, cost: 0 };
+    if (tx.transaction_type === "buy") {
+      holdings.set(ticker, { quantity: current.quantity + quantity, cost: current.cost + gross + Number(tx.fees ?? 0) });
+    } else if (tx.transaction_type === "sell" && current.quantity > 0) {
+      const sold = Math.min(quantity, current.quantity);
+      const averageCost = current.cost / current.quantity;
+      holdings.set(ticker, { quantity: current.quantity - sold, cost: Math.max(0, current.cost - sold * averageCost) });
+    }
+  }
+  const currentAgMarketValue = Array.from(holdings.values()).reduce((sum, holding) => sum + holding.cost, 0);
+  const currentPositionMarketValue = holdings.get(decision.ticker.toUpperCase())?.cost ?? 0;
+
   const guardrails = evaluateAgPortfolioGuardrails({
     referenceTotalCapital: accounting.referenceTotalCapital,
-    currentAgMarketValue: input.currentAgMarketValue,
+    currentAgMarketValue,
     currentThemeMarketValue: input.currentThemeMarketValue,
-    currentPositionMarketValue: input.currentPositionMarketValue,
+    currentPositionMarketValue,
     availableCash: accounting.eraCash,
     sleeveDrawdownPct: input.sleeveDrawdownPct,
     thesisValid: input.thesisValid,
@@ -82,12 +98,12 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   });
   if (!guardrails.buyAllowed) throw new Error(`AG BUY blocked: ${guardrails.reasons.join(" ")}`);
 
-  const isExistingPosition = input.currentPositionMarketValue > 0;
+  const isExistingPosition = currentPositionMarketValue > 0;
   const sizing = sizeAgBuy({
     referenceTotalCapital: accounting.referenceTotalCapital,
     availableCash: accounting.eraCash,
-    currentAgMarketValue: input.currentAgMarketValue,
-    currentPositionMarketValue: input.currentPositionMarketValue,
+    currentAgMarketValue,
+    currentPositionMarketValue,
     currentThemeMarketValue: input.currentThemeMarketValue,
     price: input.price,
     committeeDecision: "BUY",
