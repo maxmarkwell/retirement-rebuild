@@ -6,6 +6,7 @@ export type PortfolioRecord = {
 export type ContributionRecord = {
   portfolio_id: string;
   amount: number | string;
+  created_at?: string | null;
 };
 
 export type TransactionRecord = {
@@ -15,9 +16,15 @@ export type TransactionRecord = {
   quantity: number | string | null;
   gross_amount: number | string | null;
   fees: number | string | null;
+  created_at?: string | null;
 };
 
 export type MarketPriceMap = Record<string, number>;
+
+export type PortfolioAccountingEra = {
+  inception_at: string;
+  reference_total_capital: number | string;
+};
 
 type CostBasisHolding = {
   ticker: string;
@@ -49,12 +56,21 @@ export function calculatePortfolioAccounting(
   portfolio: PortfolioRecord,
   contributions: ContributionRecord[],
   transactions: TransactionRecord[],
-  marketPrices: MarketPriceMap = {}
+  marketPrices: MarketPriceMap = {},
+  era?: PortfolioAccountingEra
 ): PortfolioAccounting {
+  const eraInception = era ? new Date(era.inception_at).getTime() : null;
+  const isInEra = (createdAt?: string | null) => {
+    if (eraInception == null) return true;
+    if (!createdAt) return false;
+    const timestamp = new Date(createdAt).getTime();
+    return Number.isFinite(timestamp) && timestamp >= eraInception;
+  };
   const contributionsTotal = contributions
     .filter(
       (contribution) =>
-        contribution.portfolio_id === portfolio.id
+        contribution.portfolio_id === portfolio.id &&
+        isInEra(contribution.created_at)
     )
     .reduce(
       (total, contribution) =>
@@ -69,7 +85,8 @@ export function calculatePortfolioAccounting(
 
   const portfolioTransactions = transactions.filter(
     (transaction) =>
-      transaction.portfolio_id === portfolio.id
+      transaction.portfolio_id === portfolio.id &&
+      isInEra(transaction.created_at)
   );
 
   portfolioTransactions.forEach((transaction) => {
@@ -234,7 +251,9 @@ export function calculatePortfolioAccounting(
   );
 
   const startingCapital =
-    Number(portfolio.starting_capital);
+    era != null
+      ? Number(era.reference_total_capital)
+      : Number(portfolio.starting_capital);
 
   const cash =
     startingCapital +
