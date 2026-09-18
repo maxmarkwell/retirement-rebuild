@@ -53,14 +53,20 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
 
   const accounting = calculateAgEraAccounting(
     era,
-    (transactions ?? []).map((t) => ({
-      type: t.transaction_type,
-      total_amount: t.transaction_type === "buy"
-        ? Number(t.gross_amount ?? 0) + Number(t.fees ?? 0)
-        : Number(t.gross_amount ?? 0) - Number(t.fees ?? 0),
-      created_at: t.created_at,
-    })),
-    (contributions ?? []).map((c) => ({ amount: c.amount, created_at: c.created_at }))
+    [
+      ...(transactions ?? []).map((t) => ({
+        type: t.transaction_type,
+        total_amount: t.transaction_type === "buy"
+          ? Number(t.gross_amount ?? 0) + Number(t.fees ?? 0)
+          : Number(t.gross_amount ?? 0) - Number(t.fees ?? 0),
+        created_at: t.created_at,
+      })),
+      ...(contributions ?? []).map((c) => ({
+        type: "contribution",
+        total_amount: Number(c.amount),
+        created_at: c.created_at,
+      })),
+    ]
   );
 
   const guardrails = evaluateAgPortfolioGuardrails({
