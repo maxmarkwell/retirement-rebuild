@@ -106,7 +106,7 @@ export async function persistAgCommitteeDecisions(
       .select("id, decision_type")
       .eq("portfolio_id", portfolioId)
       .eq("ticker", decision.symbol)
-      .eq("source", "ag_committee")
+      .eq("source", "ai_committee")
       .eq("status", "active")
       .gte("created_at", era.inception_at)
       .maybeSingle();
