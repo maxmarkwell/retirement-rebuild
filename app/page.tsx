@@ -35,12 +35,35 @@ export default async function Home() {
   }
 
   // ---------------------------------------------------------
+  // Load open Accelerated Growth strategy eras
+  // ---------------------------------------------------------
+
+  const { data: strategyEras, error: strategyErasError } = await supabase
+    .from("portfolio_strategy_eras")
+    .select(
+      "portfolio_id, strategy_key, inception_at, reference_total_capital, execution_mode, ended_at"
+    )
+    .eq("strategy_key", "accelerated_growth")
+    .eq("execution_mode", "paper")
+    .is("ended_at", null);
+
+  if (strategyErasError) {
+    throw new Error(
+      `Unable to load Accelerated Growth strategy eras: ${strategyErasError.message}`
+    );
+  }
+
+  const agEraByPortfolioId = new Map(
+    (strategyEras ?? []).map((era) => [era.portfolio_id, era])
+  );
+
+  // ---------------------------------------------------------
   // Load contributions
   // ---------------------------------------------------------
 
   const { data: contributions, error: contributionsError } = await supabase
     .from("contributions")
-    .select("portfolio_id, amount");
+    .select("portfolio_id, amount, created_at");
 
   if (contributionsError) {
     throw new Error(
@@ -177,11 +200,22 @@ try {
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {portfolios?.map((portfolio) => {
+            const agEra =
+              portfolio.type === "paper_active"
+                ? agEraByPortfolioId.get(portfolio.id)
+                : undefined;
+
             const accounting = calculatePortfolioAccounting(
               portfolio,
               contributions ?? [],
               transactions ?? [],
-              marketPrices
+              marketPrices,
+              agEra
+                ? {
+                    inception_at: agEra.inception_at,
+                    reference_total_capital: agEra.reference_total_capital,
+                  }
+                : undefined
             );
 
             const activeHoldings = accounting.holdings;
@@ -196,7 +230,9 @@ try {
                 </p>
 
                 <h2 className="mt-1 text-lg font-semibold text-gray-900">
-                  {portfolio.name}
+                  {agEra?.strategy_key === "accelerated_growth"
+                    ? "Accelerated Growth"
+                    : portfolio.name}
                 </h2>
 
                 <p className="mt-6 text-3xl font-bold text-gray-900">
@@ -214,13 +250,13 @@ try {
                 <div className="mt-6 space-y-2 border-t border-gray-100 pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
-                      Starting Capital
+                      {agEra ? "Reference Capital" : "Starting Capital"}
                     </span>
 
                     <span className="font-medium text-gray-900">
                       $
                       {Number(
-                        portfolio.starting_capital
+                        agEra?.reference_total_capital ?? portfolio.starting_capital
                       ).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
