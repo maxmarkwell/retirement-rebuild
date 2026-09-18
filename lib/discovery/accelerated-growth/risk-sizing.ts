@@ -19,13 +19,7 @@ export type AgSizingResult = {
   action: "START" | "ADD" | "NO_ACTION";
   targetNotional: number;
   quantity: number;
-  constraints: {
-    sleeveCap: number;
-    positionCap: number;
-    starterCap: number;
-    themeCap: number;
-    minimumBuyNotional: number;
-  };
+  constraints: { sleeveCap: number; positionCap: number; starterCap: number; themeCap: number; minimumBuyNotional: number };
   bindingConstraint: string | null;
   reasons: string[];
   version: string;
@@ -33,6 +27,7 @@ export type AgSizingResult = {
 
 const roundMoneyDown = (value: number) => Math.floor(Math.max(0, value) * 100) / 100;
 const roundSharesDown = (value: number) => Math.floor(Math.max(0, value) * 1000) / 1000;
+const roundSharesUp = (value: number) => Math.ceil(Math.max(0, value) * 1000) / 1000;
 
 export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
   const sleeveCap = roundMoneyDown(input.referenceTotalCapital * 0.20);
@@ -40,7 +35,6 @@ export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
   const starterCap = roundMoneyDown(positionCap * 0.50);
   const themeCap = roundMoneyDown(input.referenceTotalCapital * 0.10);
   const minimumBuyNotional = 5;
-
   const constraints = { sleeveCap, positionCap, starterCap, themeCap, minimumBuyNotional };
   const reasons: string[] = [];
 
@@ -56,7 +50,6 @@ export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
   const remainingTheme = roundMoneyDown(themeCap - input.currentThemeMarketValue);
   const cashLimit = roundMoneyDown(input.availableCash);
   const entryLimit = input.isExistingPosition ? remainingPosition : starterCap;
-
   const limits = [
     ["AG sleeve cap", remainingSleeve],
     ["single-position cap", remainingPosition],
@@ -70,35 +63,35 @@ export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
   const bindingConstraint = limits.find(([, value]) => Math.max(0, value) === rawTarget)?.[0] ?? null;
 
   if (targetNotional < minimumBuyNotional) reasons.push(`Executable notional is below the $${minimumBuyNotional.toFixed(2)} minimum.`);
+  if (reasons.length > 0) return { eligible: false, action: "NO_ACTION", targetNotional: 0, quantity: 0, constraints, bindingConstraint, reasons, version: AG_RISK_CONSTITUTION_VERSION };
 
-  if (reasons.length > 0) {
-    return { eligible: false, action: "NO_ACTION", targetNotional: 0, quantity: 0, constraints, bindingConstraint, reasons, version: AG_RISK_CONSTITUTION_VERSION };
+  // Brokerage precision is three decimals. Prefer the smallest quantity that
+  // satisfies the $5 minimum, but never allow rounding to breach any cap.
+  const floorQuantity = roundSharesDown(targetNotional / input.price);
+  const floorNotional = floorQuantity * input.price;
+  let quantity = floorQuantity;
+
+  if (floorNotional + 1e-9 < minimumBuyNotional) {
+    const minimumQuantity = roundSharesUp(minimumBuyNotional / input.price);
+    const minimumNotional = minimumQuantity * input.price;
+    if (minimumQuantity <= 0 || minimumNotional > targetNotional + 1e-9) {
+      return {
+        eligible: false, action: "NO_ACTION", targetNotional: 0, quantity: 0, constraints, bindingConstraint,
+        reasons: ["Three-decimal share precision cannot satisfy the minimum BUY notional without exceeding a deterministic risk cap."],
+        version: AG_RISK_CONSTITUTION_VERSION,
+      };
+    }
+    quantity = minimumQuantity;
   }
 
-  const quantity = roundSharesDown(targetNotional / input.price);
   const executableNotional = roundMoneyDown(quantity * input.price);
-
   if (quantity <= 0 || executableNotional < minimumBuyNotional) {
     return {
-      eligible: false,
-      action: "NO_ACTION",
-      targetNotional: 0,
-      quantity: 0,
-      constraints,
-      bindingConstraint,
-      reasons: ["Three-decimal share rounding would produce an order below the minimum BUY notional."],
+      eligible: false, action: "NO_ACTION", targetNotional: 0, quantity: 0, constraints, bindingConstraint,
+      reasons: ["Three-decimal share precision cannot produce an executable BUY within the deterministic risk caps."],
       version: AG_RISK_CONSTITUTION_VERSION,
     };
   }
 
-  return {
-    eligible: true,
-    action: input.isExistingPosition ? "ADD" : "START",
-    targetNotional: executableNotional,
-    quantity,
-    constraints,
-    bindingConstraint,
-    reasons: [],
-    version: AG_RISK_CONSTITUTION_VERSION,
-  };
+  return { eligible: true, action: input.isExistingPosition ? "ADD" : "START", targetNotional: executableNotional, quantity, constraints, bindingConstraint, reasons: [], version: AG_RISK_CONSTITUTION_VERSION };
 }
