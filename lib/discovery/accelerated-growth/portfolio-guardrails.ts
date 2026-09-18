@@ -32,9 +32,9 @@ export function evaluateAgPortfolioGuardrails(input: AgPortfolioGuardrailInput):
   const sleeveCap = money(input.referenceTotalCapital * 0.20);
   const positionCap = money(input.referenceTotalCapital * 0.05);
   const themeCap = money(input.referenceTotalCapital * 0.10);
-  // v1 circuit breaker pauses new risk at a 15% AG-sleeve drawdown.
+  // v1 circuit breaker pauses new risk at a 20% AG-sleeve drawdown.
   // It does not force a sale; it requires reassessment before additional capital.
-  const drawdownReviewThresholdPct = 15;
+  const drawdownReviewThresholdPct = 20;
   const circuitBreakerActive = input.sleeveDrawdownPct >= drawdownReviewThresholdPct;
   const reasons: string[] = [];
 
