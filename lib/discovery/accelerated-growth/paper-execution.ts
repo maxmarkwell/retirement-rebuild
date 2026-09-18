@@ -23,7 +23,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     .select("id, portfolio_id, transaction_id, decision_type, ticker, source, status, created_at")
     .eq("id", input.decisionId).eq("user_id", user.id).single();
   if (decisionError || !decision) throw new Error("Unable to load AG decision.");
-  if (decision.source !== "ag_committee" || decision.decision_type !== "buy") throw new Error("Only AG Committee BUY decisions can use the AG paper executor.");
+  if (decision.source !== "ai_committee" || decision.decision_type !== "buy") throw new Error("Only AG Committee BUY decisions can use the AG paper executor.");
   if (decision.status !== "active" || decision.transaction_id) throw new Error("This AG BUY decision is not active or is already executed.");
 
   const { data: portfolio, error: portfolioError } = await supabase
