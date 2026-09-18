@@ -3,7 +3,7 @@
 --
 -- Preserve the legacy paper_active portfolio and its historical transactions/snapshots,
 -- while giving future strategy implementations an explicit inception boundary and
--- virtual capital baseline. The portfolio's original starting_capital is intentionally
+-- reference-capital baseline. The portfolio's original starting_capital is intentionally
 -- left unchanged so historical AI Active accounting is not rewritten.
 
 create table if not exists public.portfolio_strategy_eras (
@@ -14,7 +14,7 @@ create table if not exists public.portfolio_strategy_eras (
   strategy_version text not null,
   display_name text not null,
   inception_at timestamptz not null,
-  virtual_starting_capital numeric not null check (virtual_starting_capital >= 0),
+  reference_total_capital numeric not null check (reference_total_capital >= 0),
   execution_mode text not null default 'paper' check (execution_mode in ('paper', 'real')),
   ended_at timestamptz null,
   created_at timestamptz not null default now(),
@@ -65,9 +65,11 @@ create policy "Users can update their own portfolio strategy eras"
   );
 
 -- Convert each existing paper_active portfolio into the AG simulation environment
--- prospectively. Historical AI Active records remain untouched. $200 intentionally
--- mirrors the Phase 2 real-money starting scale so AG sizing/risk behavior is tested
--- under the same small-account constraints.
+-- prospectively. Historical AI Active records remain untouched. The strategy-era
+-- inception timestamp is the accounting boundary: transactions at or after inception
+-- belong to AG; earlier transactions remain legacy AI Active history. $200 is reference
+-- total capital for deterministic AG risk calculations; the v1 sleeve ceiling is 20% ($40).
+-- The legacy portfolios.starting_capital value remains unchanged.
 insert into public.portfolio_strategy_eras (
   user_id,
   portfolio_id,
@@ -75,7 +77,7 @@ insert into public.portfolio_strategy_eras (
   strategy_version,
   display_name,
   inception_at,
-  virtual_starting_capital,
+  reference_total_capital,
   execution_mode
 )
 select
