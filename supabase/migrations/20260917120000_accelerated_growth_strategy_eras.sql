@@ -97,3 +97,49 @@ where p.type = 'paper_active'
     where pse.portfolio_id = p.id
       and pse.ended_at is null
   );
+
+-- Keep AG era creation correct for future users. The default-portfolio trigger creates
+-- paper_active first; this AFTER INSERT trigger then creates the prospective AG era.
+create or replace function public.create_accelerated_growth_era_for_portfolio()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.type = 'paper_active' then
+    insert into public.portfolio_strategy_eras (
+      user_id,
+      portfolio_id,
+      strategy_key,
+      strategy_version,
+      display_name,
+      inception_at,
+      reference_total_capital,
+      execution_mode
+    )
+    values (
+      new.user_id,
+      new.id,
+      'accelerated_growth',
+      'ag-v1',
+      'Accelerated Growth',
+      now(),
+      200,
+      'paper'
+    )
+    on conflict do nothing;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists create_accelerated_growth_era_after_portfolio_insert
+  on public.portfolios;
+
+create trigger create_accelerated_growth_era_after_portfolio_insert
+after insert on public.portfolios
+for each row
+execute function public.create_accelerated_growth_era_for_portfolio();
+
