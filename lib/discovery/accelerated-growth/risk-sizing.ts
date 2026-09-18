@@ -32,7 +32,9 @@ const roundSharesUp = (value: number) => Math.ceil(Math.max(0, value) * 1000) / 
 export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
   const sleeveCap = roundMoneyDown(input.referenceTotalCapital * 0.20);
   const positionCap = roundMoneyDown(input.referenceTotalCapital * 0.05);
-  const starterCap = roundMoneyDown(positionCap * 0.50);\n  // The $5 starter is a target, not a hard ceiling. Brokerage precision may\n  // require a small overshoot, but never beyond the hard position/sleeve/theme/cash caps.
+  const starterCap = roundMoneyDown(positionCap * 0.50);
+  // The $5 starter is a target, not a hard ceiling. Brokerage precision may
+  // require a small overshoot, but never beyond the hard position/sleeve/theme/cash caps.
   const themeCap = roundMoneyDown(input.referenceTotalCapital * 0.10);
   const minimumBuyNotional = 5;
   const constraints = { sleeveCap, positionCap, starterCap, themeCap, minimumBuyNotional };
@@ -74,7 +76,10 @@ export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
   if (floorNotional + 1e-9 < minimumBuyNotional) {
     const minimumQuantity = roundSharesUp(minimumBuyNotional / input.price);
     const minimumNotional = minimumQuantity * input.price;
-    // For a fresh starter only, allow the smallest precision-driven overshoot\n    // above the $5 starter target. Never overshoot a hard portfolio risk cap.\n    const permittedLimit = input.isExistingPosition ? targetNotional : hardRiskLimit;\n    if (minimumQuantity <= 0 || minimumNotional > permittedLimit + 1e-9) {
+    // For a fresh starter only, allow the smallest precision-driven overshoot
+    // above the $5 starter target. Never overshoot a hard portfolio risk cap.
+    const permittedLimit = input.isExistingPosition ? targetNotional : hardRiskLimit;
+    if (minimumQuantity <= 0 || minimumNotional > permittedLimit + 1e-9) {
       return {
         eligible: false, action: "NO_ACTION", targetNotional: 0, quantity: 0, constraints, bindingConstraint,
         reasons: ["Three-decimal share precision cannot satisfy the minimum BUY notional without exceeding a deterministic risk cap."],
