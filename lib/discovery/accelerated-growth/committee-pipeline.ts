@@ -137,7 +137,7 @@ export async function persistAgCommitteeDecisions(
         primary_risks: decision.strongestCounterEvidence.join("\n"),
         reassessment_conditions: decision.requiredMonitoring.join("\n"),
         exit_conditions: decision.invalidation.join("\n"),
-        source: "ag_committee",
+        source: "ai_committee",
         status: "active",
       })
       .select("id")
