@@ -62,6 +62,7 @@ export function sizeAgBuy(input: AgSizingInput): AgSizingResult {
 
   const rawTarget = Math.min(...limits.map(([, value]) => Math.max(0, value)));
   const targetNotional = roundMoneyDown(rawTarget);
+  const hardRiskLimit = Math.min(remainingSleeve, remainingPosition, remainingTheme, cashLimit);
   const bindingConstraint = limits.find(([, value]) => Math.max(0, value) === rawTarget)?.[0] ?? null;
 
   if (targetNotional < minimumBuyNotional) reasons.push(`Executable notional is below the $${minimumBuyNotional.toFixed(2)} minimum.`);
