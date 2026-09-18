@@ -1,5 +1,12 @@
 import { runAgDeepResearchPipeline } from "./deep-research-pipeline";
 import { runAgCommittee, type AgCommitteeDecision } from "./committee";
+import { createClient } from "@/lib/supabase/server";
+
+export type PersistedAgCommitteeDecision = {
+  decisionId: string;
+  symbol: string;
+  decision: AgCommitteeDecision["decision"];
+};
 
 export type AgCommitteePipelineResult = {
   upstream: {
@@ -59,4 +66,84 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
     decisions,
     errors,
   };
+}
+
+
+export async function persistAgCommitteeDecisions(
+  portfolioId: string,
+  decisions: AgCommitteeDecision[]
+): Promise<PersistedAgCommitteeDecision[]> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: portfolio, error: portfolioError } = await supabase
+    .from("portfolios")
+    .select("id, type")
+    .eq("id", portfolioId)
+    .eq("user_id", user.id)
+    .single();
+  if (portfolioError || !portfolio || portfolio.type !== "paper_active") {
+    throw new Error("AG decisions may only be persisted to the paper_active portfolio.");
+  }
+
+  const { data: era, error: eraError } = await supabase
+    .from("portfolio_strategy_eras")
+    .select("id, strategy_key, strategy_version, execution_mode, inception_at")
+    .eq("portfolio_id", portfolioId)
+    .eq("user_id", user.id)
+    .eq("strategy_key", "accelerated_growth")
+    .eq("execution_mode", "paper")
+    .is("ended_at", null)
+    .single();
+  if (eraError || !era) throw new Error("An open paper Accelerated Growth strategy era is required.");
+
+  const persisted: PersistedAgCommitteeDecision[] = [];
+  for (const decision of decisions) {
+    const decisionType = decision.decision.toLowerCase();
+    const { data: existing, error: existingError } = await supabase
+      .from("investment_decisions")
+      .select("id, decision_type")
+      .eq("portfolio_id", portfolioId)
+      .eq("ticker", decision.symbol)
+      .eq("source", "ag_committee")
+      .eq("status", "active")
+      .gte("created_at", era.inception_at)
+      .maybeSingle();
+    if (existingError) throw new Error(`Unable to check existing AG decision for ${decision.symbol}: ${existingError.message}`);
+    if (existing) {
+      persisted.push({ decisionId: existing.id, symbol: decision.symbol, decision: existing.decision_type.toUpperCase() as AgCommitteeDecision["decision"] });
+      continue;
+    }
+
+    const { data: row, error } = await supabase
+      .from("investment_decisions")
+      .insert({
+        user_id: user.id,
+        portfolio_id: portfolioId,
+        transaction_id: null,
+        decision_type: decisionType,
+        ticker: decision.symbol,
+        decision_date: new Date().toISOString(),
+        decision_price: null,
+        recommended_quantity: null,
+        recommended_allocation: null,
+        confidence_score: decision.confidence,
+        risk_level: null,
+        expected_holding_period: decision.thesisClock,
+        thesis: decision.ownershipThesis,
+        bull_case: decision.strongestEvidence.join("\n"),
+        bear_case: decision.strongestCounterEvidence.join("\n"),
+        primary_risks: decision.strongestCounterEvidence.join("\n"),
+        reassessment_conditions: decision.requiredMonitoring.join("\n"),
+        exit_conditions: decision.invalidation.join("\n"),
+        source: "ag_committee",
+        status: "active",
+      })
+      .select("id")
+      .single();
+    if (error || !row) throw new Error(`Unable to persist AG decision for ${decision.symbol}: ${error?.message ?? "Unknown error"}`);
+    persisted.push({ decisionId: row.id, symbol: decision.symbol, decision: decision.decision });
+  }
+  return persisted;
 }
