@@ -18,7 +18,7 @@ export async function GET() {
   if (process.env.NODE_ENV === "production") return new NextResponse("Not found", { status: 404 });
 
   const scenarios = positionScenarios.map((scenario) => {
-    const dollarLoss = Math.abs(scenario.losses.reduce((sum, loss) => sum + loss, 0));
+    const dollarLoss = Math.abs(scenario.losses.reduce<number>((sum, loss) => sum + loss, 0));
     const drawdownPct = Number(((dollarLoss / sleeveCapital) * 100).toFixed(2));
     return {
       name: scenario.name,
