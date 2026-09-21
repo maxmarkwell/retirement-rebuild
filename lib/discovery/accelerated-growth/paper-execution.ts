@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateAgEraAccounting } from "./era-accounting";
 import { evaluateAgPortfolioGuardrails } from "./portfolio-guardrails";
 import { sizeAgBuy } from "./risk-sizing";
+import { valueAgSleeve } from "./valuation";
 
 export type ExecuteAgPaperBuyInput = {
   decisionId: string;
@@ -30,7 +31,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
 
   const { data: era, error: eraError } = await supabase
     .from("portfolio_strategy_eras")
-    .select("id, portfolio_id, strategy_key, strategy_version, inception_at, reference_total_capital, execution_mode, ended_at")
+    .select("id, portfolio_id, strategy_key, strategy_version, inception_at, reference_total_capital, high_water_mark, execution_mode, ended_at")
     .eq("portfolio_id", portfolio.id).eq("user_id", user.id)
     .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null).single();
   if (eraError || !era) throw new Error("An open paper Accelerated Growth era is required.");
@@ -79,20 +80,36 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
       holdings.set(ticker, { quantity: current.quantity - sold, cost: Math.max(0, current.cost - sold * averageCost) });
     }
   }
-  const currentAgMarketValue = Array.from(holdings.values()).reduce((sum, holding) => sum + holding.cost, 0);
-  const currentPositionMarketValue = holdings.get(decision.ticker.toUpperCase())?.cost ?? 0;
+  const valuation = await valueAgSleeve({
+    cash: accounting.eraCash,
+    holdings: Array.from(holdings.entries()).map(([ticker, holding]) => ({
+      ticker,
+      quantity: holding.quantity,
+    })),
+    persistedHighWaterMark: Number(era.high_water_mark ?? era.reference_total_capital),
+  });
 
-  // V1 fail-closed risk state:
-  // - Until persisted theme attribution exists, treat the entire AG sleeve as
-  //   one theme. This is conservative and cannot understate theme exposure.
-  // - Until authoritative HWM/drawdown state exists, execution is permitted
-  //   only when the sleeve has no deployed exposure. Existing-position ADDs
-  //   therefore fail closed rather than assuming a safe drawdown.
-  // - Committee BUY persistence is the authoritative thesis/liquidity gate for
-  //   a new starter. ADDs require a future persisted reassessment workflow.
+  // Exposure caps use live marked value, not cost basis.
+  const currentAgMarketValue = valuation.holdingsMarketValue;
+  const currentPositionHolding = holdings.get(decision.ticker.toUpperCase());
+  const currentPositionPrice = valuation.prices[decision.ticker.toUpperCase()] ?? 0;
+  const currentPositionMarketValue = currentPositionHolding
+    ? Math.round(currentPositionHolding.quantity * currentPositionPrice * 100) / 100
+    : 0;
+
+  // Until persisted theme attribution exists, conservatively treat the whole
+  // AG sleeve as one theme. Thesis/liquidity are established by Committee BUY
+  // for a starter; ADDs still fail closed pending persisted reassessment.
   const currentThemeMarketValue = currentAgMarketValue;
-  const hasExistingAgExposure = currentAgMarketValue > 0;
-  const sleeveDrawdownPct = hasExistingAgExposure ? 100 : 0;
+  const sleeveDrawdownPct = valuation.drawdownPct;
+  if (valuation.highWaterMark > Number(era.high_water_mark ?? 0)) {
+    const { error: hwmError } = await supabase.rpc("advance_ag_high_water_mark", {
+      p_era_id: era.id,
+      p_current_equity: valuation.currentEquity,
+    });
+    if (hwmError) throw new Error(`Unable to advance AG high-water mark: ${hwmError.message}`);
+  }
+
   const thesisValid = true;
   const liquidityEligible = true;
   const reassessmentComplete = false;
@@ -141,5 +158,5 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (!atomicResult?.out_transaction_id) throw new Error("Atomic AG paper BUY returned no transaction linkage.");
   const transaction = { id: atomicResult.out_transaction_id };
 
-  return { decisionId: decision.id, transactionId: transaction.id, ticker: decision.ticker, quantity: sizing.quantity, price: input.price, grossAmount, accountingBefore: accounting, guardrails, sizing };
+  return { decisionId: decision.id, transactionId: transaction.id, ticker: decision.ticker, quantity: sizing.quantity, price: input.price, grossAmount, accountingBefore: accounting, valuation, guardrails, sizing };
 }
