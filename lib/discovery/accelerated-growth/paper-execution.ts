@@ -15,7 +15,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (!user) throw new Error("You must be signed in.");
 
   const { data: decision, error: decisionError } = await supabase.from("investment_decisions")
-    .select("id, portfolio_id, transaction_id, decision_type, ticker, source, status, created_at")
+    .select("id, portfolio_id, transaction_id, decision_type, ticker, source, status, created_at, ag_thesis_valid, ag_liquidity_eligible, ag_evidence_version")
     .eq("id", input.decisionId).eq("user_id", user.id).single();
   if (decisionError || !decision) throw new Error("Unable to load AG decision.");
   if (decision.source !== "ai_committee" || decision.decision_type !== "buy") throw new Error("Only AG Committee BUY decisions can use the AG paper executor.");
@@ -79,6 +79,10 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     if (hwmError) throw new Error(`Unable to advance AG high-water mark: ${hwmError.message}`);
   }
 
+  if (decision.ag_evidence_version !== "ag-execution-evidence-v1" || decision.ag_thesis_valid !== true || decision.ag_liquidity_eligible !== true) {
+    throw new Error("AG BUY lacks persisted thesis/liquidity execution evidence.");
+  }
+
   const executionQuote = await getMarketQuote(decision.ticker.toUpperCase());
   const executionPrice = Number(executionQuote.price);
   if (!Number.isFinite(executionPrice) || executionPrice <= 0) throw new Error("Unable to resolve a valid server-side AG execution price.");
@@ -86,7 +90,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const guardrails = evaluateAgPortfolioGuardrails({
     referenceTotalCapital: accounting.referenceTotalCapital, currentAgMarketValue, currentThemeMarketValue,
     currentPositionMarketValue, availableCash: accounting.eraCash, sleeveDrawdownPct,
-    thesisValid: true, liquidityEligible: true, reassessmentComplete: false,
+    thesisValid: decision.ag_thesis_valid, liquidityEligible: decision.ag_liquidity_eligible, reassessmentComplete: false,
   });
   if (!guardrails.buyAllowed) throw new Error(`AG BUY blocked: ${guardrails.reasons.join(" ")}`);
 
@@ -94,7 +98,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const sizing = sizeAgBuy({
     referenceTotalCapital: accounting.referenceTotalCapital, availableCash: accounting.eraCash,
     currentAgMarketValue, currentPositionMarketValue, currentThemeMarketValue, price: executionPrice,
-    committeeDecision: "BUY", liquidityEligible: true, thesisValid: true, isExistingPosition,
+    committeeDecision: "BUY", liquidityEligible: decision.ag_liquidity_eligible, thesisValid: decision.ag_thesis_valid, isExistingPosition,
     allowAdd: isExistingPosition ? guardrails.addAllowed : undefined,
   });
   if (!sizing.eligible) throw new Error(`AG BUY sizing blocked: ${sizing.reasons.join(" ")}`);
