@@ -3,17 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-type Attack = {
-  name: string;
-  quantity: number;
-  price: number;
-  gross: number;
-};
+type Attack = { name: string; quantity: number; price: number; gross: number };
 
 const attacks: Attack[] = [
   { name: "quantity_precision", quantity: 0.1234, price: 50, gross: 6.17 },
   { name: "forged_gross", quantity: 0.1, price: 50, gross: 9.99 },
   { name: "below_minimum", quantity: 0.08, price: 50, gross: 4.00 },
+  // Valid precision and internally consistent gross, but deliberately larger
+  // than the deterministic fresh-starter size. This must now fail before any write.
+  { name: "deterministic_starter_bypass", quantity: 0.18, price: 50, gross: 9.00 },
   { name: "position_cap", quantity: 0.22, price: 50, gross: 11.00 },
   { name: "sleeve_cap", quantity: 1.0, price: 50, gross: 50.00 },
 ];
@@ -22,7 +20,6 @@ export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "AG RPC adversarial test is disabled in production." }, { status: 404 });
   }
-
   try {
     const body = await request.json();
     const decisionId = String(body?.decisionId ?? "");
@@ -33,8 +30,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
     const { data: before, error: beforeError } = await supabase
-      .from("investment_decisions")
-      .select("id,portfolio_id,ticker,source,decision_type,status,transaction_id")
+      .from("investment_decisions").select("id,portfolio_id,ticker,source,decision_type,status,transaction_id")
       .eq("id", decisionId).eq("user_id", user.id).single();
     if (beforeError || !before) throw new Error("Fixture decision not found.");
     if (before.ticker !== "AGFIX" || before.source !== "ai_committee" || before.decision_type !== "buy") {
@@ -47,23 +43,15 @@ export async function POST(request: NextRequest) {
     const results: Array<{ name: string; blocked: boolean; error: string | null }> = [];
     for (const attack of attacks) {
       const { error } = await supabase.rpc("execute_ag_paper_buy_atomic", {
-        p_decision_id: decisionId,
-        p_quantity: attack.quantity,
-        p_price: attack.price,
-        p_gross_amount: attack.gross,
-        p_notes: `AG RPC adversarial test: ${attack.name}`,
+        p_decision_id: decisionId, p_quantity: attack.quantity, p_price: attack.price,
+        p_gross_amount: attack.gross, p_notes: `AG RPC adversarial test: ${attack.name}`,
       });
       results.push({ name: attack.name, blocked: Boolean(error), error: error?.message ?? null });
-      if (!error) {
-        // Stop immediately. A successful attack would have consumed the
-        // decision; continuing would obscure the first boundary failure.
-        break;
-      }
+      if (!error) break;
     }
 
     const { data: after, error: afterError } = await supabase
-      .from("investment_decisions")
-      .select("id,status,transaction_id")
+      .from("investment_decisions").select("id,status,transaction_id")
       .eq("id", decisionId).eq("user_id", user.id).single();
     if (afterError || !after) throw new Error("Unable to verify fixture decision after attacks.");
 
@@ -76,14 +64,8 @@ export async function POST(request: NextRequest) {
     const ledgerClean = after.status === "active" && !after.transaction_id && (fixtureTransactions ?? []).length === 0;
 
     return NextResponse.json({
-      adversarialTest: true,
-      decisionId,
-      allBlocked,
-      ledgerClean,
-      passed: allBlocked && ledgerClean,
-      results,
-      after,
-      fixtureTransactionCount: (fixtureTransactions ?? []).length,
+      adversarialTest: true, decisionId, allBlocked, ledgerClean, passed: allBlocked && ledgerClean,
+      results, after, fixtureTransactionCount: (fixtureTransactions ?? []).length,
       fixtureTransactions: fixtureTransactions ?? [],
     });
   } catch (error) {
