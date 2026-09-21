@@ -114,22 +114,20 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   });
   if (!sizing.eligible) throw new Error(`AG BUY sizing blocked: ${sizing.reasons.join(" ")}`);
 
-  const grossAmount = sizing.quantity * input.price;
-  const now = new Date().toISOString();
-  const { data: transaction, error: insertError } = await supabase
-    .from("transactions")
-    .insert({
-      user_id: user.id, portfolio_id: portfolio.id, transaction_type: "buy",
-      ticker: decision.ticker, quantity: sizing.quantity, price_per_share: input.price,
-      gross_amount: grossAmount, fees: 0, transaction_date: now,
-      notes: `Accelerated Growth paper execution; decision ${decision.id}; ${sizing.version}; ${guardrails.version}`,
-    }).select("id").single();
-  if (insertError || !transaction) throw new Error(`Unable to record AG paper BUY: ${insertError?.message ?? "Unknown error"}`);
+  const grossAmount = Math.round(sizing.quantity * input.price * 100) / 100;
+  const notes = `Accelerated Growth paper execution; decision ${decision.id}; ${sizing.version}; ${guardrails.version}`;
+  const { data: atomicRows, error: atomicError } = await supabase.rpc("execute_ag_paper_buy_atomic", {
+    p_decision_id: decision.id,
+    p_quantity: sizing.quantity,
+    p_price: input.price,
+    p_gross_amount: grossAmount,
+    p_notes: notes,
+  });
+  if (atomicError) throw new Error(`Unable to atomically record AG paper BUY: ${atomicError.message}`);
 
-  const { error: linkError } = await supabase.from("investment_decisions")
-    .update({ transaction_id: transaction.id, status: "executed" })
-    .eq("id", decision.id).eq("user_id", user.id).is("transaction_id", null).eq("status", "active");
-  if (linkError) throw new Error(`AG transaction was recorded but decision linkage failed: ${linkError.message}`);
+  const atomicResult = Array.isArray(atomicRows) ? atomicRows[0] : atomicRows;
+  if (!atomicResult?.transaction_id) throw new Error("Atomic AG paper BUY returned no transaction linkage.");
+  const transaction = { id: atomicResult.transaction_id };
 
   return { decisionId: decision.id, transactionId: transaction.id, ticker: decision.ticker, quantity: sizing.quantity, price: input.price, grossAmount, accountingBefore: accounting, guardrails, sizing };
 }
