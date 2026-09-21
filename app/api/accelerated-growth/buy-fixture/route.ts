@@ -24,8 +24,8 @@ export async function POST() {
   const ticker = "AGFIX";
   const { data: existing } = await supabase.from("investment_decisions")
     .select("id, decision_type, status, transaction_id").eq("portfolio_id", portfolio.id).eq("user_id", user.id)
-    .eq("ticker", ticker).eq("source", "ai_committee").eq("status", "active")
-    .gte("created_at", era.inception_at).maybeSingle();
+    .eq("ticker", ticker).eq("source", "ai_committee")
+    .gte("created_at", era.inception_at).order("created_at", { ascending: true }).limit(1).maybeSingle();
 
   if (existing) {
     return NextResponse.json({ created: false, fixture: true, decisionId: existing.id, ticker, decision: existing.decision_type, status: existing.status, transactionId: existing.transaction_id });
