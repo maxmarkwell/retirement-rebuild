@@ -3,12 +3,12 @@ import { calculateAgEraAccounting } from "./era-accounting";
 import { evaluateAgPortfolioGuardrails } from "./portfolio-guardrails";
 import { sizeAgBuy } from "./risk-sizing";
 import { valueAgSleeve } from "./valuation";
+import { getMarketQuote } from "@/lib/market-data/twelve-data";
 
 export type ExecuteAgPaperBuyInput = {
   decisionId: string;
-  price: number;
-  // Risk-critical execution state is derived server-side. Callers may only
-  // identify the decision and execution price.
+  // The caller identifies only the Committee decision. Price, risk state,
+  // sizing, and execution notional are derived server-side.
 };
 
 export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
@@ -115,6 +115,14 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const liquidityEligible = true;
   const reassessmentComplete = false;
 
+  // Never trust a browser/client supplied execution price. Resolve the
+  // candidate's current market quote on the server immediately before sizing.
+  const executionQuote = await getMarketQuote(decision.ticker.toUpperCase());
+  const executionPrice = Number(executionQuote.price);
+  if (!Number.isFinite(executionPrice) || executionPrice <= 0) {
+    throw new Error("Unable to resolve a valid server-side AG execution price.");
+  }
+
   const guardrails = evaluateAgPortfolioGuardrails({
     referenceTotalCapital: accounting.referenceTotalCapital,
     currentAgMarketValue,
@@ -135,7 +143,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     currentAgMarketValue,
     currentPositionMarketValue,
     currentThemeMarketValue,
-    price: input.price,
+    price: executionPrice,
     committeeDecision: "BUY",
     liquidityEligible,
     thesisValid,
@@ -144,12 +152,12 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   });
   if (!sizing.eligible) throw new Error(`AG BUY sizing blocked: ${sizing.reasons.join(" ")}`);
 
-  const grossAmount = Math.round(sizing.quantity * input.price * 100) / 100;
+  const grossAmount = Math.round(sizing.quantity * executionPrice * 100) / 100;
   const notes = `Accelerated Growth paper execution; decision ${decision.id}; ${sizing.version}; ${guardrails.version}`;
   const { data: atomicRows, error: atomicError } = await supabase.rpc("execute_ag_paper_buy_atomic", {
     p_decision_id: decision.id,
     p_quantity: sizing.quantity,
-    p_price: input.price,
+    p_price: executionPrice,
     p_gross_amount: grossAmount,
     p_notes: notes,
   });
@@ -159,5 +167,5 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (!atomicResult?.out_transaction_id) throw new Error("Atomic AG paper BUY returned no transaction linkage.");
   const transaction = { id: atomicResult.out_transaction_id };
 
-  return { decisionId: decision.id, transactionId: transaction.id, ticker: decision.ticker, quantity: sizing.quantity, price: input.price, grossAmount, accountingBefore: accounting, valuation, guardrails, sizing };
+  return { decisionId: decision.id, transactionId: transaction.id, ticker: decision.ticker, quantity: sizing.quantity, price: executionPrice, grossAmount, accountingBefore: accounting, valuation, guardrails, sizing };
 }
