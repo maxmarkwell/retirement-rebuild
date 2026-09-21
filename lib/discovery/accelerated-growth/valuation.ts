@@ -18,7 +18,8 @@ export type AgAuthoritativeValuation = {
 };
 
 export async function valueAgSleeve(params: {
-  cash: number;
+  sleeveCap: number;
+  netDeployed: number;
   holdings: AgOpenHolding[];
   persistedHighWaterMark: number;
 }): Promise<AgAuthoritativeValuation> {
@@ -46,7 +47,7 @@ export async function valueAgSleeve(params: {
 
   holdingsMarketValue = Math.round(holdingsMarketValue * 100) / 100;
   const drawdown = calculateAgDrawdownState(
-    { cash: params.cash, holdingsMarketValue },
+    { sleeveCap: params.sleeveCap, netDeployed: params.netDeployed, holdingsMarketValue },
     params.persistedHighWaterMark,
   );
 
