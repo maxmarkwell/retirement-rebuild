@@ -60,7 +60,8 @@ export async function GET() {
     }
 
     const valuation = await valueAgSleeve({
-      cash: accounting.eraCash,
+      sleeveCap: accounting.sleeveCap,
+      netDeployed: accounting.eraNetDeployed,
       holdings: Array.from(holdings.entries()).map(([ticker, quantity]) => ({ ticker, quantity })),
       persistedHighWaterMark: Number(era.high_water_mark ?? era.reference_total_capital),
     });
