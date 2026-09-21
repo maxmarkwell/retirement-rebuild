@@ -1,7 +1,8 @@
-export const AG_DRAWDOWN_VERSION = "ag-drawdown-v1";
+export const AG_DRAWDOWN_VERSION = "ag-drawdown-v2";
 
 export type AgSleeveValuation = {
-  cash: number;
+  sleeveCap: number;
+  netDeployed: number;
   holdingsMarketValue: number;
 };
 
@@ -19,17 +20,17 @@ const pct = (value: number) => Math.round(value * 10000) / 10000;
 /**
  * Pure AG sleeve drawdown math.
  *
- * Equity is cash + marked holdings. HWM must come from persisted AG-era state;
- * callers must never manufacture it from the current valuation. Contributions
- * are handled by accounting before valuation and therefore do not masquerade
- * as investment performance here.
+ * Drawdown is measured against the dedicated AG risk sleeve, not the full
+ * reference portfolio. Undeployed sleeve cash is sleeveCap - netDeployed.
+ * Realized gains/losses naturally flow through netDeployed after sells.
  */
 export function calculateAgDrawdownState(
   valuation: AgSleeveValuation,
   persistedHighWaterMark: number,
 ): AgDrawdownState {
+  const sleeveCash = valuation.sleeveCap - valuation.netDeployed;
   const currentEquity = money(
-    Math.max(0, valuation.cash) + Math.max(0, valuation.holdingsMarketValue),
+    Math.max(0, sleeveCash) + Math.max(0, valuation.holdingsMarketValue),
   );
   const highWaterMark = money(Math.max(persistedHighWaterMark, currentEquity));
   const drawdownPct = highWaterMark > 0
