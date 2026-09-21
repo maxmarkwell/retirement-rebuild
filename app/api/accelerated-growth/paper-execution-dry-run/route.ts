@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const { data: decision } = await supabase.from("investment_decisions")
     .select("id, portfolio_id, transaction_id, decision_type, ticker, source, status, created_at")
     .eq("id", decisionId).eq("user_id", user.id).single();
-  if (!decision || decision.source !== "ag_committee" || decision.decision_type !== "buy" || decision.status !== "active" || decision.transaction_id) {
+  if (!decision || decision.source !== "ai_committee" || decision.decision_type !== "buy" || decision.status !== "active" || decision.transaction_id) {
     return NextResponse.json({ error: "An active unexecuted AG Committee BUY decision is required." }, { status: 400 });
   }
 
