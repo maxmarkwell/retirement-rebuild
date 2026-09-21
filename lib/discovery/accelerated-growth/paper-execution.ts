@@ -74,7 +74,8 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const sleeveDrawdownPct = valuation.drawdownPct;
 
   if (valuation.highWaterMark > Number(era.high_water_mark ?? 0)) {
-    const { error: hwmError } = await supabase.rpc("advance_ag_high_water_mark", { p_era_id: era.id, p_current_equity: valuation.currentEquity });
+    const hwmAdmin = createAdminClient();
+    const { error: hwmError } = await hwmAdmin.rpc("advance_ag_high_water_mark", { p_era_id: era.id, p_current_equity: valuation.currentEquity });
     if (hwmError) throw new Error(`Unable to advance AG high-water mark: ${hwmError.message}`);
   }
 
