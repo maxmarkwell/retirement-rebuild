@@ -7,6 +7,7 @@ export default function AgCommitteePersistTestPage() {
   const [result, setResult] = useState<unknown>(null);
   const [running, setRunning] = useState(false);
   const [fixtureRunning, setFixtureRunning] = useState(false);
+  const [dryRunRunning, setDryRunRunning] = useState(false);
 
   async function run() {
     setRunning(true);
@@ -42,6 +43,26 @@ export default function AgCommitteePersistTestPage() {
     }
   }
 
+  async function runBuyDryRun() {
+    setDryRunRunning(true);
+    setStatus("Running zero-write AG BUY sizing diagnostic…");
+    setResult(null);
+    try {
+      const fixtureResponse = await fetch("/api/accelerated-growth/buy-fixture", { method: "POST" });
+      const fixture = await fixtureResponse.json();
+      if (!fixtureResponse.ok || !fixture.decisionId) throw new Error(fixture.error ?? "Unable to resolve BUY fixture.");
+      const response = await fetch(`/api/accelerated-growth/paper-execution-dry-run?decisionId=${encodeURIComponent(fixture.decisionId)}&price=100`);
+      const json = await response.json();
+      setResult(json);
+      setStatus(response.ok ? "Dry run complete. No transaction was written." : "Dry run blocked. Review the response below.");
+    } catch (error) {
+      setStatus("Dry-run request failed.");
+      setResult({ error: error instanceof Error ? error.message : "Unknown error" });
+    } finally {
+      setDryRunRunning(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-5xl p-8 space-y-6">
       <div>
@@ -63,6 +84,14 @@ export default function AgCommitteePersistTestPage() {
         className="rounded border border-black px-4 py-2 disabled:opacity-50"
       >
         {fixtureRunning ? "Creating…" : "Create Deterministic AG BUY Fixture"}
+      </button>
+      <button
+        type="button"
+        disabled={dryRunRunning || fixtureRunning || running}
+        onClick={runBuyDryRun}
+        className="rounded border border-black px-4 py-2 disabled:opacity-50"
+      >
+        {dryRunRunning ? "Running…" : "Run Zero-Write AG BUY Dry Run"}
       </button>
       <p className="text-sm font-medium text-amber-700">
         This test may write investment_decisions. It does not call the AG paper executor and does not write transactions.
