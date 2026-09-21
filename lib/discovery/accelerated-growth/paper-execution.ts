@@ -6,11 +6,8 @@ import { sizeAgBuy } from "./risk-sizing";
 export type ExecuteAgPaperBuyInput = {
   decisionId: string;
   price: number;
-  currentThemeMarketValue: number;
-  sleeveDrawdownPct: number;
-  liquidityEligible: boolean;
-  thesisValid: boolean;
-  reassessmentComplete?: boolean;
+  // Risk-critical execution state is derived server-side. Callers may only
+  // identify the decision and execution price.
 };
 
 export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
@@ -85,16 +82,31 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const currentAgMarketValue = Array.from(holdings.values()).reduce((sum, holding) => sum + holding.cost, 0);
   const currentPositionMarketValue = holdings.get(decision.ticker.toUpperCase())?.cost ?? 0;
 
+  // V1 fail-closed risk state:
+  // - Until persisted theme attribution exists, treat the entire AG sleeve as
+  //   one theme. This is conservative and cannot understate theme exposure.
+  // - Until authoritative HWM/drawdown state exists, execution is permitted
+  //   only when the sleeve has no deployed exposure. Existing-position ADDs
+  //   therefore fail closed rather than assuming a safe drawdown.
+  // - Committee BUY persistence is the authoritative thesis/liquidity gate for
+  //   a new starter. ADDs require a future persisted reassessment workflow.
+  const currentThemeMarketValue = currentAgMarketValue;
+  const hasExistingAgExposure = currentAgMarketValue > 0;
+  const sleeveDrawdownPct = hasExistingAgExposure ? 100 : 0;
+  const thesisValid = true;
+  const liquidityEligible = true;
+  const reassessmentComplete = false;
+
   const guardrails = evaluateAgPortfolioGuardrails({
     referenceTotalCapital: accounting.referenceTotalCapital,
     currentAgMarketValue,
-    currentThemeMarketValue: input.currentThemeMarketValue,
+    currentThemeMarketValue,
     currentPositionMarketValue,
     availableCash: accounting.eraCash,
-    sleeveDrawdownPct: input.sleeveDrawdownPct,
-    thesisValid: input.thesisValid,
-    liquidityEligible: input.liquidityEligible,
-    reassessmentComplete: input.reassessmentComplete,
+    sleeveDrawdownPct,
+    thesisValid,
+    liquidityEligible,
+    reassessmentComplete,
   });
   if (!guardrails.buyAllowed) throw new Error(`AG BUY blocked: ${guardrails.reasons.join(" ")}`);
 
@@ -104,11 +116,11 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     availableCash: accounting.eraCash,
     currentAgMarketValue,
     currentPositionMarketValue,
-    currentThemeMarketValue: input.currentThemeMarketValue,
+    currentThemeMarketValue,
     price: input.price,
     committeeDecision: "BUY",
-    liquidityEligible: input.liquidityEligible,
-    thesisValid: input.thesisValid,
+    liquidityEligible,
+    thesisValid,
     isExistingPosition,
     allowAdd: isExistingPosition ? guardrails.addAllowed : undefined,
   });
