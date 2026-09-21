@@ -81,7 +81,8 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     }
   }
   const valuation = await valueAgSleeve({
-    cash: accounting.eraCash,
+    sleeveCap: accounting.sleeveCap,
+    netDeployed: accounting.eraNetDeployed,
     holdings: Array.from(holdings.entries()).map(([ticker, holding]) => ({
       ticker,
       quantity: holding.quantity,
