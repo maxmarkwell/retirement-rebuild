@@ -138,8 +138,8 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (atomicError) throw new Error(`Unable to atomically record AG paper BUY: ${atomicError.message}`);
 
   const atomicResult = Array.isArray(atomicRows) ? atomicRows[0] : atomicRows;
-  if (!atomicResult?.transaction_id) throw new Error("Atomic AG paper BUY returned no transaction linkage.");
-  const transaction = { id: atomicResult.transaction_id };
+  if (!atomicResult?.out_transaction_id) throw new Error("Atomic AG paper BUY returned no transaction linkage.");
+  const transaction = { id: atomicResult.out_transaction_id };
 
   return { decisionId: decision.id, transactionId: transaction.id, ticker: decision.ticker, quantity: sizing.quantity, price: input.price, grossAmount, accountingBefore: accounting, guardrails, sizing };
 }
