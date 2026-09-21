@@ -10,13 +10,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    if (!body?.decisionId || !Number.isFinite(Number(body?.price)) || Number(body.price) <= 0) {
-      return NextResponse.json({ error: "decisionId and positive price are required." }, { status: 400 });
+    if (!body?.decisionId) {
+      return NextResponse.json({ error: "decisionId is required." }, { status: 400 });
     }
 
     const result = await executeAgPaperBuy({
       decisionId: String(body.decisionId),
-      price: Number(body.price),
     });
 
     return NextResponse.json({ executed: true, testOnly: true, ...result });
