@@ -34,7 +34,8 @@ export async function GET() {
     const valuation = await valueAgSleeve({
       // Offset synthetic marked value is intentionally NOT attempted. This
       // endpoint validates provider-backed marking, not portfolio P/L math.
-      cash: 0,
+      sleeveCap: persistedHighWaterMark,
+      netDeployed: persistedHighWaterMark,
       holdings: [{ ticker: "NVDA", quantity: syntheticQuantity }],
       persistedHighWaterMark,
     });
