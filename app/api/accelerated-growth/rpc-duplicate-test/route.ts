@@ -34,18 +34,18 @@ export async function POST() {
       .single();
     if (eraError || !era) throw new Error("Open Accelerated Growth paper era not found.");
 
+    const originalFixtureDecisionId = "a4e49f40-49e4-4feb-ac4b-ad85e1d380d4";
     const { data: decision, error: decisionError } = await supabase
       .from("investment_decisions")
       .select("id,ticker,status,transaction_id")
+      .eq("id", originalFixtureDecisionId)
       .eq("user_id", user.id)
       .eq("portfolio_id", portfolio.id)
       .eq("ticker", "AGFIX")
       .eq("source", "ai_committee")
       .gte("created_at", era.inception_at)
-      .order("created_at", { ascending: false })
-      .limit(1)
       .single();
-    if (decisionError || !decision) throw new Error("AGFIX fixture decision not found.");
+    if (decisionError || !decision) throw new Error("Original AGFIX fixture decision not found.");
 
     const { data, error } = await supabase.rpc("execute_ag_paper_buy_atomic", {
       p_decision_id: decision.id,
