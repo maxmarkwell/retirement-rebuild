@@ -8,6 +8,7 @@ export default function AgCommitteePersistTestPage() {
   const [running, setRunning] = useState(false);
   const [fixtureRunning, setFixtureRunning] = useState(false);
   const [dryRunRunning, setDryRunRunning] = useState(false);
+  const [executeRunning, setExecuteRunning] = useState(false);
 
   async function run() {
     setRunning(true);
@@ -63,6 +64,31 @@ export default function AgCommitteePersistTestPage() {
     }
   }
 
+  async function executeFixtureBuy() {
+    if (!window.confirm("Execute the AGFIX simulated BUY at the deterministic $100 test price? This WILL write one paper transaction and mark the fixture decision executed.")) return;
+    setExecuteRunning(true);
+    setStatus("Executing atomic AGFIX paper BUY…");
+    setResult(null);
+    try {
+      const fixtureResponse = await fetch("/api/accelerated-growth/buy-fixture", { method: "POST" });
+      const fixture = await fixtureResponse.json();
+      if (!fixtureResponse.ok || !fixture.decisionId) throw new Error(fixture.error ?? "Unable to resolve BUY fixture.");
+      const response = await fetch("/api/accelerated-growth/paper-execution-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decisionId: fixture.decisionId, price: 100 }),
+      });
+      const json = await response.json();
+      setResult(json);
+      setStatus(response.ok ? "Atomic paper BUY executed. Re-clicking must be blocked." : "Execution blocked.");
+    } catch (error) {
+      setStatus("Execution request failed.");
+      setResult({ error: error instanceof Error ? error.message : "Unknown error" });
+    } finally {
+      setExecuteRunning(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-5xl p-8 space-y-6">
       <div>
@@ -92,6 +118,14 @@ export default function AgCommitteePersistTestPage() {
         className="rounded border border-black px-4 py-2 disabled:opacity-50"
       >
         {dryRunRunning ? "Running…" : "Run Zero-Write AG BUY Dry Run"}
+      </button>
+      <button
+        type="button"
+        disabled={executeRunning || dryRunRunning || fixtureRunning || running}
+        onClick={executeFixtureBuy}
+        className="rounded border border-black px-4 py-2 disabled:opacity-50"
+      >
+        {executeRunning ? "Executing…" : "Execute Atomic AGFIX Paper BUY"}
       </button>
       <p className="text-sm font-medium text-amber-700">
         This test may write investment_decisions. It does not call the AG paper executor and does not write transactions.
