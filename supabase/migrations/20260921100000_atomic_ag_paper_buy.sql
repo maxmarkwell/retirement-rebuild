@@ -11,8 +11,8 @@ create or replace function public.execute_ag_paper_buy_atomic(
   p_notes text default null
 )
 returns table (
-  decision_id uuid,
-  transaction_id uuid
+  out_decision_id uuid,
+  out_transaction_id uuid
 )
 language plpgsql
 security invoker
