@@ -108,9 +108,11 @@ export async function persistAgCommitteeDecisions(
   if (eraError || !era) throw new Error("An open paper Accelerated Growth strategy era is required.");
 
   const persisted: PersistedAgCommitteeDecision[] = [];
+  const hasBuyDecision = decisions.some((decision) => decision.decision === "BUY");
+  const evidenceUniverse = hasBuyDecision ? await getDynamicDiscoveryUniverse() : [];
+
   for (const decision of decisions) {
     const decisionType = toAgPersistedDecisionType(decision.decision);
-    const evidenceUniverse = decision.decision === "BUY" ? await getDynamicDiscoveryUniverse() : [];
     const evidenceStock = evidenceUniverse.find((stock) => stock.ticker === decision.symbol.toUpperCase());
     const executionEvidence = decision.decision === "BUY" ? deriveAgExecutionEvidence(evidenceStock) : null;
     const { data: existing, error: existingError } = await supabase
