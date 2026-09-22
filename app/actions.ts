@@ -342,6 +342,36 @@ export async function addSellTransaction(
   ).toISOString();
 
   // ---------------------------------------------------------
+  // Protect managed execution paths
+  // ---------------------------------------------------------
+
+  const { data: sellPortfolio, error: sellPortfolioError } = await supabase
+    .from("portfolios")
+    .select("id, is_real_money, type")
+    .eq("id", portfolioId)
+    .single();
+
+  if (sellPortfolioError || !sellPortfolio) {
+    throw new Error("Unable to load the selected portfolio.");
+  }
+
+  if (sellPortfolio.is_real_money) {
+    return {
+      success: false,
+      message:
+        "Real-money sales must use the decision-linked Real Portfolio execution path.",
+    };
+  }
+
+  if (sellPortfolio.type === "paper_active") {
+    return {
+      success: false,
+      message:
+        "Accelerated Growth sales must use the decision-linked AG execution path.",
+    };
+  }
+
+  // ---------------------------------------------------------
   // Calculate shares currently owned
   // ---------------------------------------------------------
 
