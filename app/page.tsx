@@ -242,7 +242,7 @@ try {
                 className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
               >
                 <p className="text-sm text-gray-500">
-                  {portfolio.type}
+                  {agState ? "paper strategy" : portfolio.type.replaceAll("_", " ")}
                 </p>
 
                 <h2 className="mt-1 text-lg font-semibold text-gray-900">
@@ -455,10 +455,6 @@ try {
 
                   {agState && (
                     <div className="mt-4 border-t border-gray-100 pt-4">
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Strategy State
-                      </p>
-
                       {agState.holdings.length === 0 ? (
                         <p className="text-sm text-gray-500">No AG positions currently held.</p>
                       ) : (
