@@ -13,7 +13,7 @@ export async function getAgOperationalState() {
   if (portfolioError || !portfolio) throw new Error("paper_active portfolio not found.");
 
   const { data: era, error: eraError } = await supabase.from("portfolio_strategy_eras")
-    .select("id, inception_at, reference_total_capital, high_water_mark")
+    .select("id, portfolio_id, strategy_key, strategy_version, inception_at, reference_total_capital, high_water_mark, execution_mode, ended_at")
     .eq("portfolio_id", portfolio.id).eq("user_id", user.id)
     .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null).single();
   if (eraError || !era) throw new Error("Open paper AG era not found.");
