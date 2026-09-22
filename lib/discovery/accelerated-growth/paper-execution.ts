@@ -79,7 +79,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     if (hwmError) throw new Error(`Unable to advance AG high-water mark: ${hwmError.message}`);
   }
 
-  if (decision.ag_evidence_version !== "ag-execution-evidence-v1" || decision.ag_thesis_valid !== true || decision.ag_liquidity_eligible !== true) {
+  if (decision.ag_evidence_version !== "ag-execution-evidence-v1+ag-liquidity-v1" || decision.ag_thesis_valid !== true || decision.ag_liquidity_eligible !== true) {
     throw new Error("AG BUY lacks persisted thesis/liquidity execution evidence.");
   }
 
