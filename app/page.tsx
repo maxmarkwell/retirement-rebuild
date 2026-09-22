@@ -263,53 +263,16 @@ try {
                   {agState ? "AG Sleeve Equity" : "Permanent Capital"}
                 </p>
 
-                {agEra && agState && (
-                  <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Risk Sleeve</span>
-                      <span className="font-semibold text-gray-900">${agState.accounting.sleeveCap.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Available Sleeve Cash</span>
-                      <span className="font-semibold text-gray-900">${agState.accounting.sleeveCash.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Current Equity</span>
-                      <span className="font-semibold text-gray-900">${agState.valuation.currentEquity.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">High-Water Mark</span>
-                      <span className="font-semibold text-gray-900">${agState.valuation.highWaterMark.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Drawdown</span>
-                      <span className={agState.valuation.drawdownPct > 0 ? "font-semibold text-red-700" : "font-semibold text-gray-900"}>
-                        {(agState.valuation.drawdownPct * 100).toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Circuit Breaker</span>
-                      <span className={agState.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>
-                        {agState.valuation.circuitBreakerActive ? "PAUSED" : "READY"}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Active Committee Decisions</span>
-                      <span className="font-semibold text-gray-900">{agState.activeDecisions.length}</span>
-                    </div>
-                  </div>
-                )}
-
                 <div className="mt-6 space-y-2 border-t border-gray-100 pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
-                      {agEra ? "Reference Capital" : "Starting Capital"}
+                      {agState ? "Reference Capital" : agEra ? "Reference Capital" : "Starting Capital"}
                     </span>
 
                     <span className="font-medium text-gray-900">
                       $
                       {Number(
-                        agEra?.reference_total_capital ?? portfolio.starting_capital
+                        agState?.accounting.referenceTotalCapital ?? agEra?.reference_total_capital ?? portfolio.starting_capital
                       ).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -453,6 +416,40 @@ try {
                   </div>
                   )}
 
+                  {agState && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Risk Sleeve</span>
+                        <span className="font-medium text-gray-900">${agState.accounting.sleeveCap.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Available Cash</span>
+                        <span className="font-medium text-gray-900">${agState.accounting.sleeveCash.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Holdings at Cost</span>
+                        <span className="font-medium text-gray-900">${agState.accounting.eraNetDeployed.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Market Value</span>
+                        <span className="font-medium text-gray-900">${agState.valuation.holdingsMarketValue.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Unrealized Gain/Loss</span>
+                        <span className="font-medium text-gray-900">${(agState.valuation.holdingsMarketValue - agState.accounting.eraNetDeployed).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Investment Growth</span>
+                        <span className="font-medium text-gray-900">${(agState.valuation.currentEquity - agState.accounting.sleeveCap).toFixed(2)}</span>
+                      </div>
+                      <div className="mt-4 border-t border-gray-100 pt-4">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Risk Controls</p>
+                        <div className="flex justify-between text-sm"><span className="text-gray-500">High-Water Mark</span><span className="font-medium text-gray-900">${agState.valuation.highWaterMark.toFixed(2)}</span></div>
+                        <div className="mt-2 flex justify-between text-sm"><span className="text-gray-500">Drawdown</span><span className="font-medium text-gray-900">{(agState.valuation.drawdownPct * 100).toFixed(2)}%</span></div>
+                        <div className="mt-2 flex justify-between text-sm"><span className="text-gray-500">Circuit Breaker</span><span className={agState.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>{agState.valuation.circuitBreakerActive ? "PAUSED" : "READY"}</span></div>
+                      </div>
+                    </>
+                  )}
                   {agState && (
                     <div className="mt-4 border-t border-gray-100 pt-4">
                       {agState.holdings.length === 0 ? (
