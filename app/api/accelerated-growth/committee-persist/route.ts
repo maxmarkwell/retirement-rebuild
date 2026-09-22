@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runAgCommitteePipeline, persistAgCommitteeDecisions } from "@/lib/discovery/accelerated-growth/committee-pipeline";
+import { runAgCommitteePipeline, persistAgCommitteeDecisions, persistAgResearchWatchlist } from "@/lib/discovery/accelerated-growth/committee-pipeline";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -37,10 +37,12 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
+    await persistAgResearchWatchlist(portfolio.id, pipeline.upstream.deepResearchOutcomes);
     const persisted = await persistAgCommitteeDecisions(portfolio.id, pipeline.decisions);
 
     return NextResponse.json({
       persisted: true,
+      researchWatchlistPersisted: true,
       transactionsWritten: false,
       portfolioId: portfolio.id,
       committeeDecisionCount: pipeline.decisions.length,
