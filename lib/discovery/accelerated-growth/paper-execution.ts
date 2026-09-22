@@ -15,7 +15,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (!user) throw new Error("You must be signed in.");
 
   const { data: decision, error: decisionError } = await supabase.from("investment_decisions")
-    .select("id, portfolio_id, transaction_id, decision_type, ticker, source, status, created_at, ag_thesis_valid, ag_liquidity_eligible, ag_evidence_version")
+    .select("id, portfolio_id, transaction_id, decision_type, ticker, source, status, created_at, ag_thesis_valid, ag_liquidity_eligible, ag_evidence_version, ag_theme_key")
     .eq("id", input.decisionId).eq("user_id", user.id).single();
   if (decisionError || !decision) throw new Error("Unable to load AG decision.");
   if (decision.source !== "ai_committee" || decision.decision_type !== "buy") throw new Error("Only AG Committee BUY decisions can use the AG paper executor.");
@@ -33,7 +33,7 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   if (new Date(decision.created_at).getTime() < new Date(era.inception_at).getTime()) throw new Error("Pre-inception decisions cannot execute inside the AG era.");
 
   const { data: transactions, error: txError } = await supabase.from("transactions")
-    .select("transaction_type, ticker, quantity, price_per_share, gross_amount, fees, created_at")
+    .select("transaction_type, ticker, quantity, price_per_share, gross_amount, fees, created_at, ag_theme_key")
     .eq("portfolio_id", portfolio.id).gte("created_at", era.inception_at);
   if (txError) throw new Error(`Unable to load AG transactions: ${txError.message}`);
   const { data: contributions, error: contributionError } = await supabase.from("contributions")
@@ -70,7 +70,18 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const currentPositionHolding = holdings.get(decision.ticker.toUpperCase());
   const currentPositionPrice = valuation.prices[decision.ticker.toUpperCase()] ?? 0;
   const currentPositionMarketValue = currentPositionHolding ? Math.round(currentPositionHolding.quantity * currentPositionPrice * 100) / 100 : 0;
-  const currentThemeMarketValue = currentAgMarketValue;
+  if (!decision.ag_theme_key || !/^ag-theme-v1:sector:[a-z0-9-]+$/.test(decision.ag_theme_key)) {
+    throw new Error("AG BUY lacks deterministic theme attribution.");
+  }
+  let currentThemeMarketValue = 0;
+  for (const [ticker, holding] of holdings.entries()) {
+    if (holding.quantity <= 0) continue;
+    const themeKey = (transactions ?? []).find((tx) => tx.ticker?.toUpperCase() === ticker && tx.ag_theme_key)?.ag_theme_key ?? null;
+    if (themeKey !== decision.ag_theme_key) continue;
+    const price = valuation.prices[ticker] ?? 0;
+    currentThemeMarketValue += holding.quantity * price;
+  }
+  currentThemeMarketValue = Math.round(currentThemeMarketValue * 100) / 100;
   const sleeveDrawdownPct = valuation.drawdownPct;
 
   if (valuation.highWaterMark > Number(era.high_water_mark ?? 0)) {
