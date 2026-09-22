@@ -69,7 +69,10 @@ export async function getAgOperationalState() {
     portfolioId: portfolio.id,
     eraId: era.id,
     inceptionAt: era.inception_at,
-    accounting,
+    accounting: {
+      ...accounting,
+      sleeveCash: Math.round((accounting.sleeveCap - accounting.eraNetDeployed) * 100) / 100,
+    },
     valuation,
     holdings: openHoldings.map(([ticker, h]) => ({
       ticker, quantity: h.quantity, cost: Math.round(h.cost * 100) / 100,
