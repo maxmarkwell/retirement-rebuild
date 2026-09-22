@@ -3,6 +3,7 @@ import { runAgCommittee, type AgCommitteeDecision } from "./committee";
 import { createClient } from "@/lib/supabase/server";
 import { deriveAgExecutionEvidence } from "./execution-evidence";
 import { getDynamicDiscoveryUniverse } from "../dynamic-universe";
+import { fromAgPersistedDecisionType, getAgDecisionLifecycleAction, toAgPersistedDecisionType } from "./decision-lifecycle";
 
 export type PersistedAgCommitteeDecision = {
   decisionId: string;
@@ -108,7 +109,7 @@ export async function persistAgCommitteeDecisions(
 
   const persisted: PersistedAgCommitteeDecision[] = [];
   for (const decision of decisions) {
-    const decisionType = decision.decision === "REJECT" ? "avoid" : decision.decision.toLowerCase();
+    const decisionType = toAgPersistedDecisionType(decision.decision);
     const evidenceUniverse = decision.decision === "BUY" ? await getDynamicDiscoveryUniverse() : [];
     const evidenceStock = evidenceUniverse.find((stock) => stock.ticker === decision.symbol.toUpperCase());
     const executionEvidence = decision.decision === "BUY" ? deriveAgExecutionEvidence(evidenceStock) : null;
@@ -122,18 +123,16 @@ export async function persistAgCommitteeDecisions(
       .gte("created_at", era.inception_at)
       .maybeSingle();
     if (existingError) throw new Error(`Unable to check existing AG decision for ${decision.symbol}: ${existingError.message}`);
-    if (existing) {
-      const existingCommitteeDecision: AgCommitteeDecision["decision"] =
-        existing.decision_type === "avoid"
-          ? "REJECT"
-          : existing.decision_type.toUpperCase() as AgCommitteeDecision["decision"];
-
-      // An identical active Committee outcome is idempotent. A changed outcome
-      // must be inserted so the DB trigger can supersede the stale active row.
-      if (existingCommitteeDecision === decision.decision) {
-        persisted.push({ decisionId: existing.id, symbol: decision.symbol, decision: existingCommitteeDecision });
-        continue;
-      }
+    if (existing && getAgDecisionLifecycleAction({
+      existingActiveDecisionType: existing.decision_type,
+      nextDecision: decision.decision,
+    }) === "REUSE") {
+      persisted.push({
+        decisionId: existing.id,
+        symbol: decision.symbol,
+        decision: fromAgPersistedDecisionType(existing.decision_type),
+      });
+      continue;
     }
 
     const { data: row, error } = await supabase
