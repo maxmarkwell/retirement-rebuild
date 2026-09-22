@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       persistedCount: persisted.length,
       persistedDecisions: persisted,
       decisions: pipeline.decisions,
+      upstream: pipeline.upstream,
     });
   } catch (error) {
     return NextResponse.json(
