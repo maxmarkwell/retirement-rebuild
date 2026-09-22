@@ -231,6 +231,10 @@ try {
             );
 
             const activeHoldings = accounting.holdings;
+            const agState =
+              agOperationalState?.portfolioId === portfolio.id
+                ? agOperationalState
+                : null;
 
             return (
               <div
@@ -259,39 +263,39 @@ try {
                   Permanent Capital
                 </p>
 
-                {agEra && agOperationalState?.portfolioId === portfolio.id && (
+                {agEra && agState && (
                   <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">AG Sleeve Capital</span>
-                      <span className="font-semibold text-gray-900">${agOperationalState.accounting.sleeveCap.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-900">${agState.accounting.sleeveCap.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span className="text-gray-500">Available Sleeve Cash</span>
-                      <span className="font-semibold text-gray-900">${agOperationalState.accounting.sleeveCash.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-900">${agState.accounting.sleeveCash.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span className="text-gray-500">Sleeve Equity</span>
-                      <span className="font-semibold text-gray-900">${agOperationalState.valuation.currentEquity.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-900">${agState.valuation.currentEquity.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span className="text-gray-500">High-Water Mark</span>
-                      <span className="font-semibold text-gray-900">${agOperationalState.valuation.highWaterMark.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-900">${agState.valuation.highWaterMark.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span className="text-gray-500">Sleeve Drawdown</span>
-                      <span className={agOperationalState.valuation.drawdownPct > 0 ? "font-semibold text-red-700" : "font-semibold text-gray-900"}>
-                        {(agOperationalState.valuation.drawdownPct * 100).toFixed(2)}%
+                      <span className={agState.valuation.drawdownPct > 0 ? "font-semibold text-red-700" : "font-semibold text-gray-900"}>
+                        {(agState.valuation.drawdownPct * 100).toFixed(2)}%
                       </span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span className="text-gray-500">Circuit Breaker</span>
-                      <span className={agOperationalState.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>
-                        {agOperationalState.valuation.circuitBreakerActive ? "PAUSED" : "READY"}
+                      <span className={agState.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>
+                        {agState.valuation.circuitBreakerActive ? "PAUSED" : "READY"}
                       </span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span className="text-gray-500">Active Committee Decisions</span>
-                      <span className="font-semibold text-gray-900">{agOperationalState.activeDecisions.length}</span>
+                      <span className="font-semibold text-gray-900">{agState.activeDecisions.length}</span>
                     </div>
                   </div>
                 )}
