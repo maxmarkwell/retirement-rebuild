@@ -1,6 +1,7 @@
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { AgDiscoveryCandidate } from "./discovery";
 import { AgResearchOutputError, withAgResearchRetry } from "./research-reliability";
+import { normalizeAgConfidence } from "./confidence";
 
 const CATALYST_MODEL = "gpt-5.6-terra";
 export const AG_CATALYST_PROMPT_VERSION = "ag-catalyst-v1";
@@ -89,6 +90,6 @@ export async function researchAgCatalyst(candidate: AgDiscoveryCandidate): Promi
       throw new AgResearchOutputError(`AG catalyst research returned invalid JSON for ${candidate.symbol}.`);
     }
 
-    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, model: CATALYST_MODEL, promptVersion: AG_CATALYST_PROMPT_VERSION };
+    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, confidence: normalizeAgConfidence(parsed.confidence), model: CATALYST_MODEL, promptVersion: AG_CATALYST_PROMPT_VERSION };
   });
 }
