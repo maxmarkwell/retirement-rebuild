@@ -1,6 +1,7 @@
 import { runAcceleratedGrowthDiscovery } from "./discovery";
 import { researchAgCatalyst } from "./catalyst-research";
-import { researchAgDeepCandidate, type AgDeepResearch } from "./deep-research";
+import { researchAgDeepCandidate, type AgDeepResearch, type AgPriorResearchWatch } from "./deep-research";
+import { createClient } from "@/lib/supabase/server";
 
 export type AgDeepResearchPipelineResult = {
   discovery: {
@@ -48,6 +49,37 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     .sort((a, b) => b.score.total - a.score.total)
     .slice(0, maxCandidates);
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const symbols = advance.map((candidate) => candidate.symbol.toUpperCase());
+  const priorWatchByTicker = new Map<string, AgPriorResearchWatch>();
+
+  if (user && symbols.length > 0) {
+    const { data: portfolio } = await supabase.from("portfolios")
+      .select("id").eq("user_id", user.id).eq("type", "paper_active").maybeSingle();
+    if (portfolio) {
+      const { data: era } = await supabase.from("portfolio_strategy_eras")
+        .select("id").eq("portfolio_id", portfolio.id).eq("user_id", user.id)
+        .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null).maybeSingle();
+      if (era) {
+        const { data: watches, error: watchError } = await supabase.from("ag_research_watchlist")
+          .select("ticker, confidence, thesis, unresolved_questions, thesis_clock, first_seen_at, last_seen_at")
+          .eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).is("resolved_at", null).in("ticker", symbols);
+        if (watchError) throw new Error(`Unable to load prior AG research watches: ${watchError.message}`);
+        for (const watch of watches ?? []) {
+          priorWatchByTicker.set(watch.ticker.toUpperCase(), {
+            confidence: Number(watch.confidence),
+            thesis: watch.thesis,
+            unresolvedQuestions: watch.unresolved_questions ?? [],
+            thesisClock: watch.thesis_clock,
+            firstSeenAt: watch.first_seen_at,
+            lastSeenAt: watch.last_seen_at,
+          });
+        }
+      }
+    }
+  }
+
   const results: AgDeepResearch[] = [];
   const errors: AgDeepResearchPipelineResult["errors"] = [];
   let catalystSupportedCount = 0;
@@ -60,7 +92,7 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
       catalystSupportedCount += 1;
 
       try {
-        results.push(await researchAgDeepCandidate(candidate, catalyst));
+        results.push(await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null));
       } catch (error) {
         errors.push({
           symbol: candidate.symbol,
