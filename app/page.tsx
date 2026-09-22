@@ -253,14 +253,14 @@ try {
 
                 <p className="mt-6 text-3xl font-bold text-gray-900">
                   $
-                  {accounting.permanentCapital.toLocaleString("en-US", {
+                  {(agState ? agState.valuation.currentEquity : accounting.permanentCapital).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
                 </p>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Permanent Capital
+                  {agState ? "AG Sleeve Equity" : "Permanent Capital"}
                 </p>
 
                 {agEra && agState && (
@@ -336,12 +336,12 @@ try {
 
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
-                      Cash
+                      {agState ? "Available Sleeve Cash" : "Cash"}
                     </span>
 
                     <span className="font-medium text-gray-900">
                       $
-                      {accounting.cash.toLocaleString("en-US", {
+                      {(agState ? agState.accounting.sleeveCash : accounting.cash).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -457,7 +457,7 @@ try {
                     </span>
                   </div>
 
-                  {activeHoldings.length > 0 && (
+                  {!agState && activeHoldings.length > 0 && (
                     <div className="mt-4 border-t border-gray-100 pt-4">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                         Holdings
