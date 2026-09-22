@@ -108,13 +108,13 @@ export async function persistAgCommitteeDecisions(
 
   const persisted: PersistedAgCommitteeDecision[] = [];
   for (const decision of decisions) {
-    const decisionType = decision.decision.toLowerCase();
+    const decisionType = decision.decision === "REJECT" ? "avoid" : decision.decision.toLowerCase();
     const evidenceUniverse = decision.decision === "BUY" ? await getDynamicDiscoveryUniverse() : [];
     const evidenceStock = evidenceUniverse.find((stock) => stock.ticker === decision.symbol.toUpperCase());
     const executionEvidence = decision.decision === "BUY" ? deriveAgExecutionEvidence(evidenceStock) : null;
     const { data: existing, error: existingError } = await supabase
       .from("investment_decisions")
-      .select("id, decision_type")
+      .select("id, decision_type, transaction_id")
       .eq("portfolio_id", portfolioId)
       .eq("ticker", decision.symbol)
       .eq("source", "ai_committee")
@@ -123,8 +123,17 @@ export async function persistAgCommitteeDecisions(
       .maybeSingle();
     if (existingError) throw new Error(`Unable to check existing AG decision for ${decision.symbol}: ${existingError.message}`);
     if (existing) {
-      persisted.push({ decisionId: existing.id, symbol: decision.symbol, decision: existing.decision_type.toUpperCase() as AgCommitteeDecision["decision"] });
-      continue;
+      const existingCommitteeDecision: AgCommitteeDecision["decision"] =
+        existing.decision_type === "avoid"
+          ? "REJECT"
+          : existing.decision_type.toUpperCase() as AgCommitteeDecision["decision"];
+
+      // An identical active Committee outcome is idempotent. A changed outcome
+      // must be inserted so the DB trigger can supersede the stale active row.
+      if (existingCommitteeDecision === decision.decision) {
+        persisted.push({ decisionId: existing.id, symbol: decision.symbol, decision: existingCommitteeDecision });
+        continue;
+      }
     }
 
     const { data: row, error } = await supabase
