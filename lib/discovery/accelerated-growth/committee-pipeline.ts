@@ -80,6 +80,77 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
 }
 
 
+export async function persistAgResearchWatchlist(
+  portfolioId: string,
+  outcomes: AgCommitteePipelineResult["upstream"]["deepResearchOutcomes"]
+): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: era, error: eraError } = await supabase
+    .from("portfolio_strategy_eras")
+    .select("id, inception_at")
+    .eq("portfolio_id", portfolioId)
+    .eq("user_id", user.id)
+    .eq("strategy_key", "accelerated_growth")
+    .eq("execution_mode", "paper")
+    .is("ended_at", null)
+    .single();
+  if (eraError || !era) throw new Error("An open paper Accelerated Growth strategy era is required.");
+
+  const seen = new Set(outcomes.map((outcome) => outcome.symbol.toUpperCase()));
+
+  for (const outcome of outcomes) {
+    const ticker = outcome.symbol.toUpperCase();
+    const { data: existing, error: existingError } = await supabase
+      .from("ag_research_watchlist")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("portfolio_id", portfolioId)
+      .eq("strategy_era_id", era.id)
+      .eq("ticker", ticker)
+      .is("resolved_at", null)
+      .maybeSingle();
+    if (existingError) throw new Error(`Unable to load AG research watch for ${ticker}: ${existingError.message}`);
+
+    if (outcome.researchStatus === "WATCH") {
+      const values = {
+        research_status: "WATCH",
+        confidence: outcome.confidence,
+        thesis: outcome.thesis,
+        unresolved_questions: outcome.unresolvedQuestions,
+        thesis_clock: outcome.thesisClock,
+        invalidation: outcome.invalidation,
+        model: outcome.model,
+        prompt_version: outcome.promptVersion,
+        last_seen_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const query = existing
+        ? supabase.from("ag_research_watchlist").update(values).eq("id", existing.id)
+        : supabase.from("ag_research_watchlist").insert({
+            ...values,
+            user_id: user.id,
+            portfolio_id: portfolioId,
+            strategy_era_id: era.id,
+            ticker,
+            company_name: outcome.companyName,
+          });
+      const { error } = await query;
+      if (error) throw new Error(`Unable to persist AG research watch for ${ticker}: ${error.message}`);
+    } else if (existing) {
+      const { error } = await supabase.from("ag_research_watchlist").update({
+        resolved_at: new Date().toISOString(),
+        resolution: outcome.researchStatus,
+        last_seen_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", existing.id);
+      if (error) throw new Error(`Unable to resolve AG research watch for ${ticker}: ${error.message}`);
+    }
+  }
+}
+
 export async function persistAgCommitteeDecisions(
   portfolioId: string,
   decisions: AgCommitteeDecision[]
