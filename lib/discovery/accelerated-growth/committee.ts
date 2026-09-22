@@ -1,6 +1,7 @@
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { AgDeepResearch } from "./deep-research";
 import { AgResearchOutputError, withAgResearchRetry } from "./research-reliability";
+import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
 export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v1";
@@ -94,6 +95,7 @@ export async function runAgCommittee(research: AgDeepResearch): Promise<AgCommit
       symbol: research.symbol,
       companyName: research.companyName,
       ...parsed,
+      confidence: normalizeAgConfidence(parsed.confidence),
       model: AG_COMMITTEE_MODEL,
       promptVersion: AG_COMMITTEE_PROMPT_VERSION,
     };
