@@ -439,6 +439,10 @@ try {
                         <span className="font-medium text-gray-900">${(agState.valuation.holdingsMarketValue - agState.accounting.eraNetDeployed).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Realized Gain/Loss</span>
+                        <span className="font-medium text-gray-900">${agState.accounting.eraSells > 0 ? "—" : "0.00"}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Investment Growth</span>
                         <span className="font-medium text-gray-900">${(agState.valuation.currentEquity - agState.accounting.sleeveCap).toFixed(2)}</span>
                       </div>
