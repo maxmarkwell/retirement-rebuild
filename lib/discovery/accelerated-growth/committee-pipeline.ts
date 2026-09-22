@@ -18,7 +18,7 @@ export type AgCommitteePipelineResult = {
     deepResearchCompletedCount: number;
     deepResearchFailedCount: number;
     proceedCount: number;
-    deepResearchOutcomes: Array<{ symbol: string; researchStatus: "PROCEED" | "WATCH" | "STOP"; confidence: number }>;
+    deepResearchOutcomes: Array<{ symbol: string; researchStatus: "PROCEED" | "WATCH" | "STOP"; confidence: number; thesisSummary: string; keyUncertainties: string[] }>;
   };
   requestedCount: number;
   completedCount: number;
@@ -41,6 +41,8 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
       symbol: result.symbol,
       researchStatus: result.researchStatus,
       confidence: result.confidence,
+      thesisSummary: result.thesisSummary,
+      keyUncertainties: result.keyUncertainties,
     })),
   };
 
