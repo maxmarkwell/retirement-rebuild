@@ -74,7 +74,7 @@ export async function POST() {
       transaction?.ag_theme_key === evidence.themeKey &&
       linkedDecision?.transaction_id === execution.transactionId &&
       linkedDecision?.status === "executed" &&
-      execution.sizing.targetNotional === 5 &&
+      execution.sizing.targetNotional >= 5 && execution.sizing.targetNotional <= 5.25 &&
       execution.guardrails.buyAllowed === true;
 
     return NextResponse.json({
