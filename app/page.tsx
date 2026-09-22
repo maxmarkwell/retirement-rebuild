@@ -478,6 +478,33 @@ try {
 
                       <div className="mt-4">
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Research Watchlist
+                        </p>
+                        {agState.researchWatchlist.length === 0 ? (
+                          <p className="text-sm text-gray-500">No active Deep Research watches.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {agState.researchWatchlist.slice(0, 5).map((watch) => (
+                              <div key={watch.id} className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-semibold text-gray-900">{watch.ticker}</span>
+                                  <span className="text-gray-700">WATCH · {(Number(watch.confidence) * 100).toFixed(0)}%</span>
+                                </div>
+                                {watch.company_name && <p className="mt-1 text-xs text-gray-500">{watch.company_name}</p>}
+                                <p className="mt-2 text-xs text-gray-700">{watch.thesis}</p>
+                                {watch.unresolved_questions.length > 0 && (
+                                  <p className="mt-2 text-xs text-gray-500">
+                                    Open question: {watch.unresolved_questions[0]}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                           Active Committee
                         </p>
                         {agState.activeDecisions.length === 0 ? (
