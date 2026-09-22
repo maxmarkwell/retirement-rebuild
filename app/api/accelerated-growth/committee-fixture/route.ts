@@ -49,7 +49,8 @@ const fixture: AgDeepResearch = {
   ],
   confidence: 76,
   model: "fixture",
-  promptVersion: "ag-deep-research-fixture-v1"
+  promptVersion: "ag-deep-research-fixture-v1",
+  priorWatchReassessed: false
 };
 
 export async function GET() {
