@@ -12,6 +12,7 @@ export type AgDeepResearch = {
   thesis: string; catalystAssessment: string; durabilityAssessment: string; financialAssessment: string; valuationAssessment: string;
   evidenceFor: string[]; evidenceAgainst: string[]; unresolvedQuestions: string[]; thesisClock: string; invalidation: string[];
   confidence: number; model: string; promptVersion: string;
+  priorWatchReassessed: boolean;
 };
 
 const schema = {
@@ -77,10 +78,10 @@ export async function researchAgDeepCandidate(candidate: AgDiscoveryCandidate, c
       throw new AgResearchOutputError(`AG deep research did not complete for ${candidate.symbol}. Status: ${response.status}`);
     }
 
-    let parsed: Omit<AgDeepResearch, "symbol" | "companyName" | "model" | "promptVersion">;
+    let parsed: Omit<AgDeepResearch, "symbol" | "companyName" | "model" | "promptVersion" | "priorWatchReassessed">;
     try { parsed = JSON.parse(response.output_text) as typeof parsed; }
     catch { throw new AgResearchOutputError(`AG deep research returned invalid JSON for ${candidate.symbol}.`); }
 
-    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, confidence: normalizeAgConfidence(parsed.confidence), model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION };
+    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, confidence: normalizeAgConfidence(parsed.confidence), model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION, priorWatchReassessed: Boolean(priorWatch) };
   });
 }
