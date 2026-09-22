@@ -22,7 +22,16 @@ const schema = {
   required: ["researchStatus", "thesis", "catalystAssessment", "durabilityAssessment", "financialAssessment", "valuationAssessment", "evidenceFor", "evidenceAgainst", "unresolvedQuestions", "thesisClock", "invalidation", "confidence"],
 } as const;
 
-function prompt(candidate: AgDiscoveryCandidate, catalyst: AgCatalystResearch) {
+export type AgPriorResearchWatch = {
+  confidence: number;
+  thesis: string;
+  unresolvedQuestions: string[];
+  thesisClock: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+};
+
+function prompt(candidate: AgDiscoveryCandidate, catalyst: AgCatalystResearch, priorWatch?: AgPriorResearchWatch | null) {
   return `You are the deep-research challenge stage for an Accelerated Growth equity strategy.
 
 The company already passed a quantitative acceleration screen and catalyst research. Do NOT rubber-stamp either result. Your job is to challenge whether the change is durable and economically important enough to deserve Investment Committee review.
@@ -48,16 +57,21 @@ Quantitative Discovery evidence:
 ${JSON.stringify({ symbol: candidate.symbol, companyName: candidate.companyName, marketCapBucket: candidate.marketCapBucket, agScore: candidate.score.total, fundamentalAcceleration: candidate.score.components.fundamentalAcceleration, earningsConfirmation: candidate.score.components.earningsConfirmation, businessQuality: candidate.score.components.businessQuality, valuationReward: candidate.score.components.valuationReward, latestRevenueGrowth: candidate.acceleration.revenueTrajectory.latest, revenueGrowthSlope: candidate.acceleration.revenueTrajectory.slope, operatingMarginSlope: candidate.acceleration.operatingMarginTrajectory.slope, freeCashFlowMarginSlope: candidate.acceleration.freeCashFlowMarginTrajectory.slope }, null, 2)}
 
 Catalyst research:
-${JSON.stringify(catalyst, null, 2)}`;
+${JSON.stringify(catalyst, null, 2)}
+
+${priorWatch ? `Prior unresolved Deep Research WATCH:
+${JSON.stringify(priorWatch, null, 2)}
+
+This prior WATCH is context, not evidence. Re-test its thesis and unresolved questions against current evidence. Do not preserve WATCH merely for consistency. PROCEED, WATCH, or STOP based on today's evidence.` : "No prior unresolved Deep Research WATCH exists for this candidate."}`;
 }
 
-export async function researchAgDeepCandidate(candidate: AgDiscoveryCandidate, catalyst: AgCatalystResearch): Promise<AgDeepResearch> {
+export async function researchAgDeepCandidate(candidate: AgDiscoveryCandidate, catalyst: AgCatalystResearch, priorWatch?: AgPriorResearchWatch | null): Promise<AgDeepResearch> {
   if (candidate.score.status !== "ADVANCE") throw new Error(`${candidate.symbol} is not an ADVANCE candidate.`);
   if (catalyst.catalystStatus === "NOT_FOUND") throw new Error(`${candidate.symbol} has no supported catalyst.`);
 
   return withAgResearchRetry("DEEP_RESEARCH", candidate.symbol, async () => {
     const client = getOpenAIClient();
-    const response = await client.responses.create({ model: AG_DEEP_RESEARCH_MODEL, input: prompt(candidate, catalyst), tools: [{ type: "web_search" }], text: { format: { type: "json_schema", name: "ag_deep_research", strict: true, schema } } });
+    const response = await client.responses.create({ model: AG_DEEP_RESEARCH_MODEL, input: prompt(candidate, catalyst, priorWatch), tools: [{ type: "web_search" }], text: { format: { type: "json_schema", name: "ag_deep_research", strict: true, schema } } });
 
     if (response.status !== "completed" || !response.output_text) {
       throw new AgResearchOutputError(`AG deep research did not complete for ${candidate.symbol}. Status: ${response.status}`);
