@@ -647,7 +647,7 @@ try {
 
         <BuyForm
   portfolios={(portfolios ?? []).filter(
-    (portfolio) => !portfolio.is_real_money
+    (portfolio) => !portfolio.is_real_money && portfolio.type !== "paper_active"
   )}
 />
 
