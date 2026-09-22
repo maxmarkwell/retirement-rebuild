@@ -266,7 +266,7 @@ try {
                 {agEra && agState && (
                   <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">AG Sleeve Capital</span>
+                      <span className="text-gray-500">Risk Sleeve</span>
                       <span className="font-semibold text-gray-900">${agState.accounting.sleeveCap.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
@@ -274,7 +274,7 @@ try {
                       <span className="font-semibold text-gray-900">${agState.accounting.sleeveCash.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Sleeve Equity</span>
+                      <span className="text-gray-500">Current Equity</span>
                       <span className="font-semibold text-gray-900">${agState.valuation.currentEquity.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
@@ -282,7 +282,7 @@ try {
                       <span className="font-semibold text-gray-900">${agState.valuation.highWaterMark.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-gray-500">Sleeve Drawdown</span>
+                      <span className="text-gray-500">Drawdown</span>
                       <span className={agState.valuation.drawdownPct > 0 ? "font-semibold text-red-700" : "font-semibold text-gray-900"}>
                         {(agState.valuation.drawdownPct * 100).toFixed(2)}%
                       </span>
