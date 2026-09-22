@@ -457,6 +457,66 @@ try {
                     </span>
                   </div>
 
+                  {agState && (
+                    <div className="mt-4 border-t border-gray-100 pt-4">
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Strategy State
+                      </p>
+
+                      {agState.holdings.length === 0 ? (
+                        <p className="text-sm text-gray-500">No AG positions currently held.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {agState.holdings.map((holding) => (
+                            <div key={holding.ticker} className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                              <div className="flex justify-between text-sm">
+                                <span className="font-semibold text-gray-900">{holding.ticker}</span>
+                                <span className="font-medium text-gray-900">${holding.marketValue.toFixed(2)}</span>
+                              </div>
+                              <div className="mt-1 flex justify-between text-xs text-gray-500">
+                                <span>{holding.quantity.toLocaleString("en-US", { maximumFractionDigits: 8 })} shares</span>
+                                <span>@ ${holding.price.toFixed(2)}</span>
+                              </div>
+                              <p className="mt-1 break-all text-xs text-gray-500">{holding.themeKey}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-4">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Active Committee
+                        </p>
+                        {agState.activeDecisions.length === 0 ? (
+                          <p className="text-sm text-gray-500">No active Committee decisions.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {agState.activeDecisions.map((decision) => (
+                              <div key={decision.id} className="flex justify-between text-sm">
+                                <span className="font-semibold text-gray-900">{decision.ticker}</span>
+                                <span className="uppercase text-gray-700">{decision.decision_type === "avoid" ? "REJECT" : decision.decision_type}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {agState.recentDecisions.length > 0 && (
+                        <div className="mt-4">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Recent Committee History
+                          </p>
+                          {agState.recentDecisions.slice(0, 3).map((decision) => (
+                            <div key={decision.id} className="flex justify-between text-xs text-gray-500">
+                              <span>{decision.ticker}</span>
+                              <span>{decision.decision_type === "avoid" ? "REJECT" : decision.decision_type.toUpperCase()} · {decision.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {!agState && activeHoldings.length > 0 && (
                     <div className="mt-4 border-t border-gray-100 pt-4">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
