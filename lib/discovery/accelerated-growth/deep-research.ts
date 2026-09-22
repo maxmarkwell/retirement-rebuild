@@ -2,6 +2,7 @@ import { getOpenAIClient } from "@/lib/ai/client";
 import type { AgDiscoveryCandidate } from "./discovery";
 import type { AgCatalystResearch } from "./catalyst-research";
 import { AgResearchOutputError, withAgResearchRetry } from "./research-reliability";
+import { normalizeAgConfidence } from "./confidence";
 
 const AG_DEEP_RESEARCH_MODEL = "gpt-5.6-terra";
 export const AG_DEEP_RESEARCH_PROMPT_VERSION = "ag-deep-research-v1";
@@ -66,6 +67,6 @@ export async function researchAgDeepCandidate(candidate: AgDiscoveryCandidate, c
     try { parsed = JSON.parse(response.output_text) as typeof parsed; }
     catch { throw new AgResearchOutputError(`AG deep research returned invalid JSON for ${candidate.symbol}.`); }
 
-    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION };
+    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, confidence: normalizeAgConfidence(parsed.confidence), model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION };
   });
 }
