@@ -138,7 +138,7 @@ export async function persistAgCommitteeDecisions(
         reassessment_conditions: decision.requiredMonitoring.join("\n"),
         exit_conditions: decision.invalidation.join("\n"),
         ag_thesis_valid: decision.decision === "BUY" && decision.ownershipThesis.trim().length > 0 && decision.invalidation.length > 0,
-        ag_liquidity_eligible: decision.decision === "BUY",
+        ag_liquidity_eligible: null,
         ag_evidence_version: "ag-execution-evidence-v1",
         source: "ai_committee",
         status: "active",
