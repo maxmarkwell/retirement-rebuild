@@ -317,37 +317,24 @@ try {
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">
-                      Contributions
-                    </span>
+                  {!agState && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Contributions</span>
+                        <span className="font-medium text-gray-900">
+                          ${accounting.contributionsTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Cash</span>
+                        <span className="font-medium text-gray-900">
+                          ${accounting.cash.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </>
+                  )}
 
-                    <span className="font-medium text-gray-900">
-                      $
-                      {accounting.contributionsTotal.toLocaleString(
-                        "en-US",
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">
-                      {agState ? "Available Sleeve Cash" : "Cash"}
-                    </span>
-
-                    <span className="font-medium text-gray-900">
-                      $
-                      {(agState ? agState.accounting.sleeveCash : accounting.cash).toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-
+                  {!agState && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
                       Holdings at Cost
@@ -364,7 +351,9 @@ try {
                       )}
                     </span>
                   </div>
+                  )}
 
+                  {!agState && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
                       Market Value
@@ -381,7 +370,9 @@ try {
                       )}
                     </span>
                   </div>
+                  )}
 
+                  {!agState && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
                       Unrealized Gain/Loss
@@ -406,7 +397,9 @@ try {
                       )}
                     </span>
                   </div>
+                  )}
 
+                  {!agState && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
                       Realized Gain/Loss
@@ -431,7 +424,9 @@ try {
                       )}
                     </span>
                   </div>
+                  )}
 
+                  {!agState && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">
                       Investment Growth
@@ -456,6 +451,7 @@ try {
                       )}
                     </span>
                   </div>
+                  )}
 
                   {agState && (
                     <div className="mt-4 border-t border-gray-100 pt-4">
