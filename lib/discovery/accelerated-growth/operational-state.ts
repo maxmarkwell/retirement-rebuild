@@ -18,16 +18,21 @@ export async function getAgOperationalState() {
     .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null).single();
   if (eraError || !era) throw new Error("Open paper AG era not found.");
 
-  const [{ data: transactions, error: txError }, { data: contributions, error: contributionError }, { data: decisions, error: decisionError }] = await Promise.all([
+  const [{ data: transactions, error: txError }, { data: contributions, error: contributionError }, { data: decisions, error: decisionError }, { data: researchWatchlist, error: watchlistError }] = await Promise.all([
     supabase.from("transactions").select("id, transaction_type, ticker, quantity, gross_amount, fees, created_at, ag_theme_key")
       .eq("portfolio_id", portfolio.id).gte("created_at", era.inception_at).order("created_at", { ascending: true }),
     supabase.from("contributions").select("amount, created_at").eq("portfolio_id", portfolio.id).gte("created_at", era.inception_at),
     supabase.from("investment_decisions").select("id, ticker, decision_type, status, confidence_score, thesis, created_at, transaction_id, ag_theme_key")
       .eq("portfolio_id", portfolio.id).eq("source", "ai_committee").gte("created_at", era.inception_at).order("created_at", { ascending: false }).limit(25),
+    supabase.from("ag_research_watchlist")
+      .select("id, ticker, company_name, confidence, thesis, unresolved_questions, thesis_clock, first_seen_at, last_seen_at")
+      .eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).is("resolved_at", null)
+      .order("last_seen_at", { ascending: false }),
   ]);
   if (txError) throw new Error(`Unable to load AG transactions: ${txError.message}`);
   if (contributionError) throw new Error(`Unable to load AG contributions: ${contributionError.message}`);
   if (decisionError) throw new Error(`Unable to load AG decisions: ${decisionError.message}`);
+  if (watchlistError) throw new Error(`Unable to load AG research watchlist: ${watchlistError.message}`);
 
   const accounting = calculateAgEraAccounting(era, [
     ...(transactions ?? []).map((t) => ({
@@ -80,6 +85,7 @@ export async function getAgOperationalState() {
       themeKey: h.themeKey,
     })),
     activeDecisions: (decisions ?? []).filter((d) => d.status === "active"),
+    researchWatchlist: researchWatchlist ?? [],
     recentDecisions: decisions ?? [],
   };
 }
