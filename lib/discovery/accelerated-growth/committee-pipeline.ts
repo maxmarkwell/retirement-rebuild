@@ -115,8 +115,6 @@ export async function persistAgResearchWatchlist(
     .single();
   if (eraError || !era) throw new Error("An open paper Accelerated Growth strategy era is required.");
 
-  const seen = new Set(outcomes.map((outcome) => outcome.symbol.toUpperCase()));
-
   for (const outcome of outcomes) {
     const ticker = outcome.symbol.toUpperCase();
     const { data: existing, error: existingError } = await supabase
