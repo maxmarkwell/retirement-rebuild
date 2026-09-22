@@ -7,6 +7,7 @@ import SellForm from "@/components/sell-form";
 import ContributionForm from "@/components/contribution-form";
 import { getMarketQuotes } from "@/lib/market-data/twelve-data";
 import SnapshotButton from "@/components/snapshot-button";
+import { getAgOperationalState } from "@/lib/discovery/accelerated-growth/operational-state";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -176,6 +177,17 @@ try {
   );
 }
   // ---------------------------------------------------------
+  // Load authoritative Accelerated Growth operational state
+  // ---------------------------------------------------------
+
+  let agOperationalState: Awaited<ReturnType<typeof getAgOperationalState>> | null = null;
+  try {
+    agOperationalState = await getAgOperationalState();
+  } catch (error) {
+    console.error("Unable to load Accelerated Growth operational state:", error);
+  }
+
+  // ---------------------------------------------------------
   // Dashboard
   // ---------------------------------------------------------
 
@@ -246,6 +258,43 @@ try {
                 <p className="mt-1 text-sm text-gray-500">
                   Permanent Capital
                 </p>
+
+                {agEra && agOperationalState?.portfolioId === portfolio.id && (
+                  <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">AG Sleeve Capital</span>
+                      <span className="font-semibold text-gray-900">${agOperationalState.accounting.sleeveCap.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span className="text-gray-500">Available Sleeve Cash</span>
+                      <span className="font-semibold text-gray-900">${agOperationalState.accounting.sleeveCash.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span className="text-gray-500">Sleeve Equity</span>
+                      <span className="font-semibold text-gray-900">${agOperationalState.valuation.currentEquity.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span className="text-gray-500">High-Water Mark</span>
+                      <span className="font-semibold text-gray-900">${agOperationalState.valuation.highWaterMark.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span className="text-gray-500">Sleeve Drawdown</span>
+                      <span className={agOperationalState.valuation.drawdownPct > 0 ? "font-semibold text-red-700" : "font-semibold text-gray-900"}>
+                        {(agOperationalState.valuation.drawdownPct * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span className="text-gray-500">Circuit Breaker</span>
+                      <span className={agOperationalState.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>
+                        {agOperationalState.valuation.circuitBreakerActive ? "PAUSED" : "READY"}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span className="text-gray-500">Active Committee Decisions</span>
+                      <span className="font-semibold text-gray-900">{agOperationalState.activeDecisions.length}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-6 space-y-2 border-t border-gray-100 pt-4">
                   <div className="flex justify-between text-sm">
