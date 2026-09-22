@@ -6,6 +6,7 @@ import { evaluateAgPortfolioGuardrails } from "./portfolio-guardrails";
 import { sizeAgBuy } from "./risk-sizing";
 import { valueAgSleeve } from "./valuation";
 import { getMarketQuote } from "@/lib/market-data/twelve-data";
+import { calculateAgThemeMarketValue } from "./theme-exposure";
 
 export type ExecuteAgPaperBuyInput = { decisionId: string };
 
@@ -70,18 +71,12 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const currentPositionHolding = holdings.get(decision.ticker.toUpperCase());
   const currentPositionPrice = valuation.prices[decision.ticker.toUpperCase()] ?? 0;
   const currentPositionMarketValue = currentPositionHolding ? Math.round(currentPositionHolding.quantity * currentPositionPrice * 100) / 100 : 0;
-  if (!decision.ag_theme_key || !/^ag-theme-v1:sector:[a-z0-9-]+$/.test(decision.ag_theme_key)) {
-    throw new Error("AG BUY lacks deterministic theme attribution.");
-  }
-  let currentThemeMarketValue = 0;
-  for (const [ticker, holding] of holdings.entries()) {
-    if (holding.quantity <= 0) continue;
-    const themeKey = (transactions ?? []).find((tx) => tx.ticker?.toUpperCase() === ticker && tx.ag_theme_key)?.ag_theme_key ?? null;
-    if (themeKey !== decision.ag_theme_key) continue;
-    const price = valuation.prices[ticker] ?? 0;
-    currentThemeMarketValue += holding.quantity * price;
-  }
-  currentThemeMarketValue = Math.round(currentThemeMarketValue * 100) / 100;
+  const currentThemeMarketValue = calculateAgThemeMarketValue({
+    targetThemeKey: decision.ag_theme_key ?? "",
+    holdings: Array.from(holdings.entries()).map(([ticker, holding]) => ({ ticker, quantity: holding.quantity })),
+    prices: valuation.prices,
+    transactions: (transactions ?? []).map((tx) => ({ ticker: tx.ticker, ag_theme_key: tx.ag_theme_key })),
+  });
   const sleeveDrawdownPct = valuation.drawdownPct;
 
   if (valuation.highWaterMark > Number(era.high_water_mark ?? 0)) {
