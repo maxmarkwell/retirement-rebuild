@@ -71,7 +71,7 @@ export async function runAgCommittee(research: AgDeepResearch): Promise<AgCommit
     throw new Error(`AG Committee requires PROCEED status. ${research.symbol} is ${research.researchStatus}.`);
   }
 
-  return withAgResearchRetry("DEEP_RESEARCH", research.symbol, async () => {
+  return withAgResearchRetry("COMMITTEE", research.symbol, async () => {
     const client = getOpenAIClient();
     const response = await client.responses.create({
       model: AG_COMMITTEE_MODEL,
