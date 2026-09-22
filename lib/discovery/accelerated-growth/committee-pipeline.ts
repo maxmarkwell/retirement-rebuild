@@ -29,6 +29,7 @@ export type AgCommitteePipelineResult = {
       invalidation: string[];
       model: string;
       promptVersion: string;
+      priorWatchReassessed: boolean;
     }>;
   };
   requestedCount: number;
@@ -59,6 +60,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
       invalidation: result.invalidation,
       model: result.model,
       promptVersion: result.promptVersion,
+      priorWatchReassessed: result.priorWatchReassessed,
     })),
   };
 
