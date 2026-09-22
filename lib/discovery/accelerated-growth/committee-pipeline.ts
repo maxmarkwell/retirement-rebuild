@@ -1,6 +1,7 @@
 import { runAgDeepResearchPipeline } from "./deep-research-pipeline";
 import { runAgCommittee, type AgCommitteeDecision } from "./committee";
 import { createClient } from "@/lib/supabase/server";
+import { evaluateAgLiquidity, AG_LIQUIDITY_VERSION } from "./liquidity";
 
 export type PersistedAgCommitteeDecision = {
   decisionId: string;
@@ -101,6 +102,7 @@ export async function persistAgCommitteeDecisions(
   const persisted: PersistedAgCommitteeDecision[] = [];
   for (const decision of decisions) {
     const decisionType = decision.decision.toLowerCase();
+    const liquidity = decision.decision === "BUY" ? await evaluateAgLiquidity(decision.symbol) : null;
     const { data: existing, error: existingError } = await supabase
       .from("investment_decisions")
       .select("id, decision_type")
@@ -138,8 +140,8 @@ export async function persistAgCommitteeDecisions(
         reassessment_conditions: decision.requiredMonitoring.join("\n"),
         exit_conditions: decision.invalidation.join("\n"),
         ag_thesis_valid: decision.decision === "BUY" && decision.ownershipThesis.trim().length > 0 && decision.invalidation.length > 0,
-        ag_liquidity_eligible: null,
-        ag_evidence_version: "ag-execution-evidence-v1",
+        ag_liquidity_eligible: liquidity?.eligible ?? null,
+        ag_evidence_version: decision.decision === "BUY" ? `ag-execution-evidence-v1+${AG_LIQUIDITY_VERSION}` : "ag-execution-evidence-v1",
         source: "ai_committee",
         status: "active",
       })
