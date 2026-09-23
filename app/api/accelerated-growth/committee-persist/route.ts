@@ -14,7 +14,9 @@ export async function POST(request: NextRequest) {
     const maxCandidates = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 5)) : 5;
     const retryFailed = request.nextUrl.searchParams.get("retryFailed") === "true";
 
-    const cycle = await runAgResearchDailyCycle({ maxCandidates, retryFailed });
+    // This diagnostic route is intentionally persistence-only. It cannot turn on
+    // the transaction gate from query params or browser input.
+    const cycle = await runAgResearchDailyCycle({ maxCandidates, retryFailed, executeTransactions: false });
 
     if (!cycle.executed) {
       return NextResponse.json({
@@ -22,6 +24,7 @@ export async function POST(request: NextRequest) {
         reusedDailyCycle: true,
         retryAvailable: cycle.status === "failed",
         transactionsWritten: false,
+        executionEnabled: false,
         cycleId: cycle.cycleId,
         cycleDate: cycle.cycleDate,
         cycleStatus: cycle.status,
@@ -35,12 +38,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "AG Committee persistence diagnostic failed.";
-    const pipelineFailure = message === "Committee pipeline did not complete cleanly; no decisions were persisted.";
+    const pipelineFailure = message === "Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted."
+      || message === "Holding reassessment did not complete cleanly; no daily-cycle decisions were persisted.";
     return NextResponse.json(
       {
         persisted: false,
         retryAvailable: pipelineFailure,
         transactionsWritten: false,
+        executionEnabled: false,
         reason: pipelineFailure ? message : undefined,
         error: pipelineFailure ? undefined : message,
       },
