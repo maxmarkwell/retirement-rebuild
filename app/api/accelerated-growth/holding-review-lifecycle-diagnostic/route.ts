@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAgHoldingDecisionLifecycleAction } from "@/lib/discovery/accelerated-growth/holding-review-pipeline";
-import { executeAgDailyCycleSells } from "@/lib/discovery/accelerated-growth/daily-cycle-execution";
+import { executeAgDailyCycleTransactions } from "@/lib/discovery/accelerated-growth/daily-cycle-execution";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +21,18 @@ export async function GET() {
     return { ...test, actual, passed: actual === test.expected };
   });
 
-  const executionGate = await executeAgDailyCycleSells({
+  const executionGate = await executeAgDailyCycleTransactions({
     enabled: false,
-    decisions: [{ decisionId: "diagnostic-never-execute", symbol: "ZZAGSELL", decision: "SELL", reused: false }],
+    buyDecisions: [{ id: "diagnostic-buy-never-execute", ticker: "ZZAGBUY", decision_type: "buy", status: "active" }],
+    holdingDecisions: [{ decisionId: "diagnostic-sell-never-execute", symbol: "ZZAGSELL", decision: "SELL", reused: false }],
   });
 
   const checks = {
     lifecycleCasesPassed: cases.every((test) => test.passed),
+    disabledGateRecognizedBuy: executionGate.buyDecisionCount === 1,
     disabledGateRecognizedSell: executionGate.sellDecisionCount === 1,
-    disabledGateExecutedNothing: executionGate.executedSellCount === 0 && executionGate.sells.length === 0,
+    disabledGateExecutedNoBuys: executionGate.executedBuyCount === 0 && executionGate.buys.length === 0,
+    disabledGateExecutedNoSells: executionGate.executedSellCount === 0 && executionGate.sells.length === 0,
     disabledGateRemainedDisabled: executionGate.enabled === false,
   };
 
