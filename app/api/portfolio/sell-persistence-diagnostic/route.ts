@@ -9,7 +9,6 @@ export async function POST() {
     return NextResponse.json({ error: "SELL persistence diagnostic is disabled in production." }, { status: 404 });
   }
 
-  const createdTransactionIds: string[] = [];
   let fixturePortfolioId: string | null = null;
 
   try {
@@ -26,7 +25,9 @@ export async function POST() {
       starting_capital: 1000,
     }).select("id").single();
     if (portfolioError || !portfolio) throw new Error(`Unable to create isolated fixture portfolio: ${portfolioError?.message ?? "unknown error"}`);
-    fixturePortfolioId = portfolio.id;
+
+    const portfolioId = String(portfolio.id);
+    fixturePortfolioId = portfolioId;
 
     const baseTime = Date.now() - 60_000;
     const fixtureBuys = [
@@ -36,9 +37,9 @@ export async function POST() {
 
     for (const buy of fixtureBuys) {
       const gross = buy.quantity * buy.price;
-      const { data, error } = await supabase.from("transactions").insert({
+      const { error } = await supabase.from("transactions").insert({
         user_id: user.id,
-        portfolio_id: fixturePortfolioId,
+        portfolio_id: portfolioId,
         transaction_type: "buy",
         ticker: "ZZTEST",
         quantity: buy.quantity,
@@ -47,13 +48,12 @@ export async function POST() {
         fees: buy.fees,
         transaction_date: buy.at,
         notes: "Isolated FIFO SELL persistence diagnostic fixture.",
-      }).select("id").single();
-      if (error || !data) throw new Error(`Unable to create fixture BUY: ${error?.message ?? "unknown error"}`);
-      createdTransactionIds.push(data.id);
+      });
+      if (error) throw new Error(`Unable to create fixture BUY: ${error.message}`);
     }
 
     const sale = await recordSellTransaction({
-      portfolioId: fixturePortfolioId,
+      portfolioId,
       ticker: "ZZTEST",
       quantity: 3,
       pricePerShare: 30,
@@ -61,7 +61,6 @@ export async function POST() {
       transactionDate: new Date(baseTime + 20_000).toISOString(),
       notes: "Isolated FIFO SELL persistence diagnostic sale.",
     });
-    createdTransactionIds.push(sale.transactionId);
 
     const { data: persistedSell, error: sellError } = await supabase.from("transactions")
       .select("id, transaction_type, ticker, quantity, price_per_share, gross_amount, fees, cost_basis, realized_gain_loss, lot_method")
@@ -85,9 +84,9 @@ export async function POST() {
     };
     const passed = Object.values(checks).every(Boolean);
 
-    const cleanupTransactions = await supabase.from("transactions").delete().eq("portfolio_id", fixturePortfolioId);
+    const cleanupTransactions = await supabase.from("transactions").delete().eq("portfolio_id", portfolioId);
     if (cleanupTransactions.error) throw new Error(`Diagnostic completed but transaction cleanup failed: ${cleanupTransactions.error.message}`);
-    const cleanupPortfolio = await supabase.from("portfolios").delete().eq("id", fixturePortfolioId);
+    const cleanupPortfolio = await supabase.from("portfolios").delete().eq("id", portfolioId);
     if (cleanupPortfolio.error) throw new Error(`Diagnostic completed but portfolio cleanup failed: ${cleanupPortfolio.error.message}`);
     fixturePortfolioId = null;
 
