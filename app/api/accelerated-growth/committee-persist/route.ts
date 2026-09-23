@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
 
     const requested = Number(request.nextUrl.searchParams.get("max") ?? "5");
     const maxCandidates = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 5)) : 5;
+    const retryFailed = request.nextUrl.searchParams.get("retryFailed") === "true";
     const cycleDate = denverCycleDate();
 
     const { data: existing, error: existingError } = await supabase
@@ -63,10 +64,11 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (existingError) throw new Error(`Unable to check today's AG cycle: ${existingError.message}`);
 
-    if (existing) {
+    if (existing && !(retryFailed && existing.status === "failed")) {
       return NextResponse.json({
         persisted: existing.status === "completed",
         reusedDailyCycle: true,
+        retryAvailable: existing.status === "failed",
         transactionsWritten: false,
         portfolioId: portfolio.id,
         cycle: existing,
@@ -74,44 +76,85 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const { data: cycle, error: cycleError } = await supabase
-      .from("ag_daily_cycles")
-      .insert({
-        user_id: user.id,
-        portfolio_id: portfolio.id,
-        strategy_era_id: era.id,
-        cycle_date: cycleDate,
-        status: "running",
-        max_candidates: maxCandidates,
-        started_at: now,
-        updated_at: now,
-      })
-      .select("id")
-      .single();
 
-    if (cycleError || !cycle) {
-      // The unique constraint is the final concurrency guard. If another request
-      // won the race, return that authoritative cycle instead of rerunning research.
-      const { data: racedCycle } = await supabase
+    if (existing && retryFailed && existing.status === "failed") {
+      const { data: retried, error: retryError } = await supabase
         .from("ag_daily_cycles")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("portfolio_id", portfolio.id)
-        .eq("strategy_era_id", era.id)
-        .eq("cycle_date", cycleDate)
+        .update({
+          status: "running",
+          max_candidates: maxCandidates,
+          started_at: now,
+          completed_at: null,
+          failure_message: null,
+          universe_count: null,
+          preselected_count: null,
+          evaluated_count: null,
+          discovery_advance_count: null,
+          catalyst_supported_count: null,
+          deep_research_completed_count: null,
+          deep_research_failed_count: null,
+          proceed_count: null,
+          committee_decision_count: null,
+          persisted_decision_count: null,
+          updated_at: now,
+        })
+        .eq("id", existing.id)
+        .eq("status", "failed")
+        .select("id")
         .maybeSingle();
-      if (racedCycle) {
+
+      if (retryError) throw new Error(`Unable to retry today's failed AG cycle: ${retryError.message}`);
+      if (!retried) {
+        const { data: current } = await supabase.from("ag_daily_cycles").select("*").eq("id", existing.id).single();
         return NextResponse.json({
-          persisted: racedCycle.status === "completed",
+          persisted: current?.status === "completed",
           reusedDailyCycle: true,
+          retryAvailable: current?.status === "failed",
           transactionsWritten: false,
           portfolioId: portfolio.id,
-          cycle: racedCycle,
+          cycle: current,
         });
       }
-      throw new Error(`Unable to start today's AG cycle: ${cycleError?.message ?? "unknown error"}`);
+      cycleId = retried.id;
+    } else {
+      const { data: cycle, error: cycleError } = await supabase
+        .from("ag_daily_cycles")
+        .insert({
+          user_id: user.id,
+          portfolio_id: portfolio.id,
+          strategy_era_id: era.id,
+          cycle_date: cycleDate,
+          status: "running",
+          max_candidates: maxCandidates,
+          started_at: now,
+          updated_at: now,
+        })
+        .select("id")
+        .single();
+
+      if (cycleError || !cycle) {
+        const { data: racedCycle } = await supabase
+          .from("ag_daily_cycles")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("portfolio_id", portfolio.id)
+          .eq("strategy_era_id", era.id)
+          .eq("cycle_date", cycleDate)
+          .maybeSingle();
+        if (racedCycle) {
+          return NextResponse.json({
+            persisted: racedCycle.status === "completed",
+            reusedDailyCycle: true,
+            retryAvailable: racedCycle.status === "failed",
+            transactionsWritten: false,
+            portfolioId: portfolio.id,
+            cycle: racedCycle,
+          });
+        }
+        throw new Error(`Unable to start today's AG cycle: ${cycleError?.message ?? "unknown error"}`);
+      }
+      cycleId = cycle.id;
     }
-    cycleId = cycle.id;
 
     const pipeline = await runAgCommitteePipeline({ maxCandidates });
 
@@ -137,6 +180,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         persisted: false,
         reusedDailyCycle: false,
+        retryAvailable: true,
         reason: failureMessage,
         pipeline,
       }, { status: 409 });
@@ -167,6 +211,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       persisted: true,
       reusedDailyCycle: false,
+      retriedFailedCycle: Boolean(existing && retryFailed),
       researchWatchlistPersisted: true,
       transactionsWritten: false,
       portfolioId: portfolio.id,
