@@ -11,9 +11,9 @@ export async function GET() {
   const disabled = await executeAgDailyCycleTransactions({
     enabled: false,
     buyDecisions: [
-      { id: "diagnostic-active-buy", ticker: "ZZBUY", decision_type: "buy", status: "active" },
-      { id: "diagnostic-watch", ticker: "ZZWATCH", decision_type: "watch", status: "active" },
-      { id: "diagnostic-inactive-buy", ticker: "ZZOLD", decision_type: "buy", status: "superseded" },
+      { decisionId: "diagnostic-buy", symbol: "ZZBUY", decision: "BUY" },
+      { decisionId: "diagnostic-watch", symbol: "ZZWATCH", decision: "WATCH" },
+      { decisionId: "diagnostic-reject", symbol: "ZZNO", decision: "REJECT" },
     ],
     holdingDecisions: [
       { decisionId: "diagnostic-sell", symbol: "ZZSELL", decision: "SELL", reused: false },
@@ -22,7 +22,7 @@ export async function GET() {
   });
 
   const checks = {
-    onlyActiveBuyRecognized: disabled.buyDecisionCount === 1,
+    onlyBuyRecognized: disabled.buyDecisionCount === 1,
     onlySellRecognized: disabled.sellDecisionCount === 1,
     noBuyExecuted: disabled.executedBuyCount === 0 && disabled.buys.length === 0,
     noSellExecuted: disabled.executedSellCount === 0 && disabled.sells.length === 0,
