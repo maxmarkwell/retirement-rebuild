@@ -1,14 +1,8 @@
 import "server-only";
 import { executeAgPaperBuy } from "./paper-execution";
 import { executeAgPaperSell } from "./paper-sell-execution";
+import type { PersistedAgCommitteeDecision } from "./committee-pipeline";
 import type { PersistedAgHoldingReviewDecision } from "./holding-review-pipeline";
-
-export type AgPersistedNewCandidateDecision = {
-  id: string;
-  ticker: string;
-  decision_type: string;
-  status: string;
-};
 
 export type AgDailyCycleExecutionResult = {
   enabled: boolean;
@@ -22,12 +16,10 @@ export type AgDailyCycleExecutionResult = {
 
 export async function executeAgDailyCycleTransactions(input: {
   enabled: boolean;
-  buyDecisions: AgPersistedNewCandidateDecision[];
+  buyDecisions: PersistedAgCommitteeDecision[];
   holdingDecisions: PersistedAgHoldingReviewDecision[];
 }): Promise<AgDailyCycleExecutionResult> {
-  const buyDecisions = input.buyDecisions.filter(
-    (decision) => decision.decision_type === "buy" && decision.status === "active"
-  );
+  const buyDecisions = input.buyDecisions.filter((decision) => decision.decision === "BUY");
   const sellDecisions = input.holdingDecisions.filter((decision) => decision.decision === "SELL");
 
   if (!input.enabled) {
@@ -42,9 +34,8 @@ export async function executeAgDailyCycleTransactions(input: {
     };
   }
 
-  // SELL first. This prevents a same-cycle BUY from consuming cash/sleeve capacity
-  // that an already-owned position has been adjudicated to exit, and makes the
-  // subsequent BUY executor re-read the post-SELL accounting/valuation state.
+  // SELL first. The BUY executor then re-reads accounting, valuation, cash,
+  // position/theme exposure and guardrails from the post-SELL state.
   const sells: AgDailyCycleExecutionResult["sells"] = [];
   for (const decision of sellDecisions) {
     sells.push(await executeAgPaperSell({ decisionId: decision.decisionId }));
@@ -52,7 +43,7 @@ export async function executeAgDailyCycleTransactions(input: {
 
   const buys: AgDailyCycleExecutionResult["buys"] = [];
   for (const decision of buyDecisions) {
-    buys.push(await executeAgPaperBuy({ decisionId: decision.id }));
+    buys.push(await executeAgPaperBuy({ decisionId: decision.decisionId }));
   }
 
   return {
@@ -66,8 +57,6 @@ export async function executeAgDailyCycleTransactions(input: {
   };
 }
 
-// Narrow helper retained for zero-execution diagnostics and callers that only
-// need to prove the SELL gate without constructing new-candidate decisions.
 export async function executeAgDailyCycleSells(input: {
   enabled: boolean;
   decisions: PersistedAgHoldingReviewDecision[];
