@@ -45,26 +45,14 @@ export async function POST() {
       return NextResponse.json({ error: "An open paper Accelerated Growth strategy era is required." }, { status: 400 });
     }
 
-    // Use a deliberately impossible historical date so this diagnostic never
-    // consumes today's genuine research-cycle slot.
+    // Impossible historical date keeps this diagnostic isolated from today's genuine cycle.
     const diagnosticDate = "1900-01-01";
-    const before = await supabase.from("ag_daily_cycles")
-      .select("id, status, cycle_date")
+    const reset = await supabase.from("ag_daily_cycles").delete()
       .eq("user_id", user.id)
       .eq("portfolio_id", portfolio.id)
       .eq("strategy_era_id", era.id)
       .eq("cycle_date", diagnosticDate);
-    if (before.error) throw new Error(`Unable to inspect AG diagnostic cycle: ${before.error.message}`);
-
-    if ((before.data ?? []).length > 0) {
-      const { error: cleanupError } = await supabase.from("ag_daily_cycles")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("portfolio_id", portfolio.id)
-        .eq("strategy_era_id", era.id)
-        .eq("cycle_date", diagnosticDate);
-      if (cleanupError) throw new Error(`Unable to reset AG diagnostic cycle: ${cleanupError.message}`);
-    }
+    if (reset.error) throw new Error(`Unable to reset AG diagnostic cycle: ${reset.error.message}`);
 
     const now = new Date().toISOString();
     const first = await supabase.from("ag_daily_cycles").insert({
@@ -90,6 +78,48 @@ export async function POST() {
       updated_at: now,
     });
 
+    const failedAt = new Date().toISOString();
+    const failed = await supabase.from("ag_daily_cycles").update({
+      status: "failed",
+      completed_at: failedAt,
+      failure_message: "Synthetic transient failure for zero-research diagnostic.",
+      universe_count: 10,
+      preselected_count: 2,
+      evaluated_count: 1,
+      updated_at: failedAt,
+    }).eq("id", first.data.id).eq("status", "running").select("id, status, failure_message").single();
+    if (failed.error || !failed.data) throw new Error(`Unable to fail AG diagnostic cycle: ${failed.error?.message ?? "unknown error"}`);
+
+    // Ordinary reuse semantics: a failed row remains authoritative and is not replaced.
+    const ordinaryReuse = await supabase.from("ag_daily_cycles")
+      .select("id, status, failure_message")
+      .eq("id", first.data.id)
+      .single();
+    if (ordinaryReuse.error || !ordinaryReuse.data) throw new Error(`Unable to inspect failed AG diagnostic cycle: ${ordinaryReuse.error?.message ?? "unknown error"}`);
+
+    // Explicit retry reuses the same row, clears stale failure/funnel state, and returns it to running.
+    const retryAt = new Date().toISOString();
+    const retry = await supabase.from("ag_daily_cycles").update({
+      status: "running",
+      max_candidates: 1,
+      started_at: retryAt,
+      completed_at: null,
+      failure_message: null,
+      universe_count: null,
+      preselected_count: null,
+      evaluated_count: null,
+      discovery_advance_count: null,
+      catalyst_supported_count: null,
+      deep_research_completed_count: null,
+      deep_research_failed_count: null,
+      proceed_count: null,
+      committee_decision_count: null,
+      persisted_decision_count: null,
+      updated_at: retryAt,
+    }).eq("id", first.data.id).eq("status", "failed")
+      .select("id, status, failure_message, universe_count, completed_at").single();
+    if (retry.error || !retry.data) throw new Error(`Unable to retry AG diagnostic cycle: ${retry.error?.message ?? "unknown error"}`);
+
     const completedAt = new Date().toISOString();
     const completion = await supabase.from("ag_daily_cycles").update({
       status: "completed",
@@ -105,8 +135,9 @@ export async function POST() {
       committee_decision_count: 0,
       persisted_decision_count: 0,
       updated_at: completedAt,
-    }).eq("id", first.data.id).select("id, status, cycle_date, completed_at").single();
-    if (completion.error || !completion.data) throw new Error(`Unable to complete AG diagnostic cycle: ${completion.error?.message ?? "unknown error"}`);
+    }).eq("id", first.data.id).eq("status", "running")
+      .select("id, status, cycle_date, completed_at").single();
+    if (completion.error || !completion.data) throw new Error(`Unable to complete retried AG diagnostic cycle: ${completion.error?.message ?? "unknown error"}`);
 
     const authoritative = await supabase.from("ag_daily_cycles")
       .select("id, status, cycle_date")
@@ -117,14 +148,15 @@ export async function POST() {
     if (authoritative.error) throw new Error(`Unable to verify AG diagnostic cycle: ${authoritative.error.message}`);
 
     const duplicateBlocked = Boolean(duplicate.error);
-    const oneAuthoritativeRow = (authoritative.data ?? []).length === 1;
+    const failedPersisted = ordinaryReuse.data.status === "failed" && Boolean(ordinaryReuse.data.failure_message);
+    const retryReusedSameRow = retry.data.id === first.data.id;
+    const retryResetState = retry.data.status === "running" && retry.data.failure_message === null && retry.data.universe_count === null && retry.data.completed_at === null;
+    const oneAuthoritativeRow = (authoritative.data ?? []).length === 1 && authoritative.data?.[0]?.id === first.data.id;
     const completed = completion.data.status === "completed";
-    const passed = duplicateBlocked && oneAuthoritativeRow && completed;
+    const passed = duplicateBlocked && failedPersisted && retryReusedSameRow && retryResetState && oneAuthoritativeRow && completed;
 
-    const { error: cleanupError } = await supabase.from("ag_daily_cycles")
-      .delete()
-      .eq("id", first.data.id);
-    if (cleanupError) throw new Error(`AG daily-cycle diagnostic passed but cleanup failed: ${cleanupError.message}`);
+    const cleanup = await supabase.from("ag_daily_cycles").delete().eq("id", first.data.id);
+    if (cleanup.error) throw new Error(`AG daily-cycle diagnostic passed but cleanup failed: ${cleanup.error.message}`);
 
     return NextResponse.json({
       dailyCycleDiagnostic: true,
@@ -132,6 +164,9 @@ export async function POST() {
       todayCycleDate: denverCycleDate(),
       diagnosticDate,
       duplicateBlocked,
+      failedPersisted,
+      retryReusedSameRow,
+      retryResetState,
       oneAuthoritativeRow,
       completed,
       cleanedUp: true,
