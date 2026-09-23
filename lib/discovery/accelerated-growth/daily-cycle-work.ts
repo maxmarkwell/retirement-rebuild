@@ -6,15 +6,15 @@ import {
 } from "./committee-pipeline";
 import { runAgDailyCycle } from "./daily-cycle";
 import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./holding-review-pipeline";
-import { executeAgDailyCycleSells } from "./daily-cycle-execution";
+import { executeAgDailyCycleTransactions } from "./daily-cycle-execution";
 
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
   retryFailed?: boolean;
-  executeSells?: boolean;
+  executeTransactions?: boolean;
 }) {
   const maxCandidates = options?.maxCandidates ?? 5;
-  const executeSells = options?.executeSells === true;
+  const executeTransactions = options?.executeTransactions === true;
 
   return runAgDailyCycle({
     maxCandidates,
@@ -33,13 +33,17 @@ export async function runAgResearchDailyCycle(options?: {
       await persistAgResearchWatchlist(context.portfolioId, pipeline.upstream.deepResearchOutcomes);
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
-      const execution = await executeAgDailyCycleSells({ enabled: executeSells, decisions: persistedHoldingReviews });
+      const execution = await executeAgDailyCycleTransactions({
+        enabled: executeTransactions,
+        buyDecisions: persisted,
+        holdingDecisions: persistedHoldingReviews,
+      });
 
       return {
         result: {
           persisted: true,
           researchWatchlistPersisted: true,
-          transactionsWritten: execution.executedSellCount > 0,
+          transactionsWritten: execution.executedBuyCount + execution.executedSellCount > 0,
           executionEnabled: execution.enabled,
           execution,
           portfolioId: context.portfolioId,
