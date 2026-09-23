@@ -23,7 +23,7 @@ export async function GET() {
 
   const executionGate = await executeAgDailyCycleTransactions({
     enabled: false,
-    buyDecisions: [{ id: "diagnostic-buy-never-execute", ticker: "ZZAGBUY", decision_type: "buy", status: "active" }],
+    buyDecisions: [{ decisionId: "diagnostic-buy-never-execute", symbol: "ZZAGBUY", decision: "BUY" }],
     holdingDecisions: [{ decisionId: "diagnostic-sell-never-execute", symbol: "ZZAGSELL", decision: "SELL", reused: false }],
   });
 
