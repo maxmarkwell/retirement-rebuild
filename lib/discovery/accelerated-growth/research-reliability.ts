@@ -1,4 +1,4 @@
-export type AgResearchStage = "CATALYST" | "DEEP_RESEARCH" | "COMMITTEE";
+export type AgResearchStage = "CATALYST" | "DEEP_RESEARCH" | "COMMITTEE" | "HOLDING_REVIEW";
 
 const MAX_ATTEMPTS = 2;
 const BASE_BACKOFF_MS = 750;
