@@ -3,10 +3,16 @@ import { researchAgCatalyst } from "./catalyst-research";
 import { researchAgDeepCandidate, type AgDeepResearch, type AgPriorResearchWatch } from "./deep-research";
 import { createClient } from "@/lib/supabase/server";
 
+export type AgQuantitativeWatchResolution = {
+  symbol: string;
+  resolution: "REVIEW" | "REJECT" | "INSUFFICIENT_DATA";
+};
+
 export type AgDeepResearchPipelineResult = {
   discovery: { universeCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
   catalystSupportedCount: number; requestedCount: number; completedCount: number; failedCount: number;
   results: AgDeepResearch[];
+  quantitativeWatchResolutions: AgQuantitativeWatchResolution[];
   errors: Array<{ symbol: string; stage: "CATALYST" | "DEEP_RESEARCH" | "DISCOVERY"; error: string }>;
 };
 
@@ -48,8 +54,15 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly,
   };
   if (discovery.rateLimited || discovery.stoppedEarly) {
-    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: "Deep research skipped because AG Discovery did not complete cleanly." }] };
+    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: "Deep research skipped because AG Discovery did not complete cleanly." }] };
   }
+
+  const quantitativeWatchResolutions: AgQuantitativeWatchResolution[] = discovery.candidates
+    .filter((candidate) => priorWatchByTicker.has(candidate.symbol.toUpperCase()) && candidate.score.status !== "ADVANCE")
+    .map((candidate) => ({
+      symbol: candidate.symbol,
+      resolution: candidate.score.status as AgQuantitativeWatchResolution["resolution"],
+    }));
 
   const maxCandidates = Math.max(1, Math.min(options?.maxCandidates ?? 5, 5));
   const advance = discovery.candidates.filter((candidate) => candidate.score.status === "ADVANCE");
@@ -86,5 +99,5 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     }
   }
 
-  return { discovery: discoverySummary, catalystSupportedCount, requestedCount: selected.length, completedCount: results.length, failedCount: errors.length, results, errors };
+  return { discovery: discoverySummary, catalystSupportedCount, requestedCount: selected.length, completedCount: results.length, failedCount: errors.length, results, quantitativeWatchResolutions, errors };
 }
