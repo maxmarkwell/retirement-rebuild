@@ -32,6 +32,7 @@ export type AgCommitteePipelineResult = {
       priorWatchReassessed: boolean;
     }>;
     quantitativeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["quantitativeWatchResolutions"];
+    committeeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["committeeWatchResolutions"];
   };
   requestedCount: number;
   completedCount: number;
@@ -64,6 +65,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
       priorWatchReassessed: result.priorWatchReassessed,
     })),
     quantitativeWatchResolutions: upstream.quantitativeWatchResolutions,
+    committeeWatchResolutions: upstream.committeeWatchResolutions,
   };
 
   if (upstream.errors.length > 0 || upstream.discovery.rateLimited || upstream.discovery.stoppedEarly) {
@@ -181,6 +183,46 @@ export async function persistAgResearchWatchlist(
       .is("resolved_at", null);
     if (error) throw new Error(`Unable to resolve quantitatively failed AG watch for ${resolution.symbol}: ${error.message}`);
   }
+}
+
+export async function supersedeAgCommitteeWatches(
+  portfolioId: string,
+  resolutions: AgCommitteePipelineResult["upstream"]["committeeWatchResolutions"] = []
+): Promise<number> {
+  if (resolutions.length === 0) return 0;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: era, error: eraError } = await supabase
+    .from("portfolio_strategy_eras")
+    .select("inception_at")
+    .eq("portfolio_id", portfolioId)
+    .eq("user_id", user.id)
+    .eq("strategy_key", "accelerated_growth")
+    .eq("execution_mode", "paper")
+    .is("ended_at", null)
+    .single();
+  if (eraError || !era) throw new Error("An open paper Accelerated Growth strategy era is required.");
+
+  let supersededCount = 0;
+  for (const resolution of resolutions) {
+    const { data, error } = await supabase
+      .from("investment_decisions")
+      .update({ status: "superseded" })
+      .eq("user_id", user.id)
+      .eq("portfolio_id", portfolioId)
+      .eq("ticker", resolution.symbol.toUpperCase())
+      .eq("source", "ai_committee")
+      .eq("decision_type", "watch")
+      .eq("status", "active")
+      .gte("created_at", era.inception_at)
+      .select("id");
+    if (error) throw new Error(`Unable to supersede stale AG Committee WATCH for ${resolution.symbol}: ${error.message}`);
+    supersededCount += data?.length ?? 0;
+  }
+  return supersededCount;
 }
 
 export async function persistAgCommitteeDecisions(
