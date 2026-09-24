@@ -31,6 +31,7 @@ export type AgCommitteePipelineResult = {
       promptVersion: string;
       priorWatchReassessed: boolean;
     }>;
+    quantitativeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["quantitativeWatchResolutions"];
   };
   requestedCount: number;
   completedCount: number;
@@ -62,6 +63,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
       promptVersion: result.promptVersion,
       priorWatchReassessed: result.priorWatchReassessed,
     })),
+    quantitativeWatchResolutions: upstream.quantitativeWatchResolutions,
   };
 
   if (upstream.errors.length > 0 || upstream.discovery.rateLimited || upstream.discovery.stoppedEarly) {
@@ -98,7 +100,8 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
 
 export async function persistAgResearchWatchlist(
   portfolioId: string,
-  outcomes: AgCommitteePipelineResult["upstream"]["deepResearchOutcomes"]
+  outcomes: AgCommitteePipelineResult["upstream"]["deepResearchOutcomes"],
+  quantitativeResolutions: AgCommitteePipelineResult["upstream"]["quantitativeWatchResolutions"] = []
 ): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -162,6 +165,21 @@ export async function persistAgResearchWatchlist(
       }).eq("id", existing.id);
       if (error) throw new Error(`Unable to resolve AG research watch for ${ticker}: ${error.message}`);
     }
+  }
+
+  for (const resolution of quantitativeResolutions) {
+    const { error } = await supabase.from("ag_research_watchlist").update({
+      resolved_at: new Date().toISOString(),
+      resolution: `QUANTITATIVE_${resolution.resolution}`,
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+      .eq("user_id", user.id)
+      .eq("portfolio_id", portfolioId)
+      .eq("strategy_era_id", era.id)
+      .eq("ticker", resolution.symbol.toUpperCase())
+      .is("resolved_at", null);
+    if (error) throw new Error(`Unable to resolve quantitatively failed AG watch for ${resolution.symbol}: ${error.message}`);
   }
 }
 
