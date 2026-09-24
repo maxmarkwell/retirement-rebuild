@@ -78,7 +78,6 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
   const decisions: AgCommitteeDecision[] = [];
   const errors: AgCommitteePipelineResult["errors"] = [];
 
-  // Committee is intentionally sequential and only receives Deep Research PROCEED candidates.
   for (const research of proceed) {
     try {
       decisions.push(await runAgCommittee(research));
@@ -96,7 +95,6 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
     errors,
   };
 }
-
 
 export async function persistAgResearchWatchlist(
   portfolioId: string,
@@ -214,6 +212,7 @@ export async function persistAgCommitteeDecisions(
       .gte("created_at", era.inception_at)
       .maybeSingle();
     if (existingError) throw new Error(`Unable to check existing AG decision for ${decision.symbol}: ${existingError.message}`);
+
     if (existing && getAgDecisionLifecycleAction({
       existingActiveDecisionType: existing.decision_type,
       nextDecision: decision.decision,
@@ -224,6 +223,17 @@ export async function persistAgCommitteeDecisions(
         decision: fromAgPersistedDecisionType(existing.decision_type),
       });
       continue;
+    }
+
+    if (existing) {
+      const { error: supersedeError } = await supabase
+        .from("investment_decisions")
+        .update({ status: "superseded" })
+        .eq("id", existing.id)
+        .eq("status", "active");
+      if (supersedeError) {
+        throw new Error(`Unable to supersede prior AG decision for ${decision.symbol}: ${supersedeError.message}`);
+      }
     }
 
     const { data: row, error } = await supabase
