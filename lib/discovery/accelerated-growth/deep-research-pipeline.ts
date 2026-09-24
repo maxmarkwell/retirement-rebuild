@@ -8,11 +8,14 @@ export type AgQuantitativeWatchResolution = {
   resolution: "REVIEW" | "REJECT" | "INSUFFICIENT_DATA";
 };
 
+export type AgCommitteeWatchResolution = AgQuantitativeWatchResolution;
+
 export type AgDeepResearchPipelineResult = {
   discovery: { universeCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
   catalystSupportedCount: number; requestedCount: number; completedCount: number; failedCount: number;
   results: AgDeepResearch[];
   quantitativeWatchResolutions: AgQuantitativeWatchResolution[];
+  committeeWatchResolutions: AgCommitteeWatchResolution[];
   errors: Array<{ symbol: string; stage: "CATALYST" | "DEEP_RESEARCH" | "DISCOVERY"; error: string }>;
 };
 
@@ -65,17 +68,24 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly,
   };
   if (discovery.rateLimited || discovery.stoppedEarly) {
-    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: "Deep research skipped because AG Discovery did not complete cleanly." }] };
+    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], committeeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: "Deep research skipped because AG Discovery did not complete cleanly." }] };
   }
 
-  // Only Deep Research WATCH rows are resolved here. Committee WATCHes have
-  // their own investment_decisions lifecycle and are superseded only by a new
-  // Committee decision, preserving the distinction between research and ownership states.
   const quantitativeWatchResolutions: AgQuantitativeWatchResolution[] = discovery.candidates
     .filter((candidate) => priorWatchByTicker.has(candidate.symbol.toUpperCase()) && candidate.score.status !== "ADVANCE")
     .map((candidate) => ({
       symbol: candidate.symbol,
       resolution: candidate.score.status as AgQuantitativeWatchResolution["resolution"],
+    }));
+
+  // Committee WATCH is an ownership decision, not a research-watch row. If its
+  // ticker is explicitly reassessed and no longer passes ADVANCE, report it
+  // separately so persistence can supersede that stale ownership decision.
+  const committeeWatchResolutions: AgCommitteeWatchResolution[] = discovery.candidates
+    .filter((candidate) => committeeWatchTickers.has(candidate.symbol.toUpperCase()) && candidate.score.status !== "ADVANCE")
+    .map((candidate) => ({
+      symbol: candidate.symbol,
+      resolution: candidate.score.status as AgCommitteeWatchResolution["resolution"],
     }));
 
   const maxCandidates = Math.max(1, Math.min(options?.maxCandidates ?? 5, 5));
@@ -116,5 +126,5 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     }
   }
 
-  return { discovery: discoverySummary, catalystSupportedCount, requestedCount: selected.length, completedCount: results.length, failedCount: errors.length, results, quantitativeWatchResolutions, errors };
+  return { discovery: discoverySummary, catalystSupportedCount, requestedCount: selected.length, completedCount: results.length, failedCount: errors.length, results, quantitativeWatchResolutions, committeeWatchResolutions, errors };
 }
