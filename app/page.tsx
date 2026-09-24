@@ -189,7 +189,7 @@ export default async function Home() {
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"><h2 className="mb-4 text-lg font-semibold text-gray-900">Performance Snapshot</h2><SnapshotButton /></div>
         </div>
 
-        <div className="mt-10"><TransactionHistory transactions={transactions ?? []} /></div>
+        <div className="mt-10"><TransactionHistory transactions={transactions ?? []} portfolios={portfolios ?? []} /></div>
       </div>
     </main>
   );
