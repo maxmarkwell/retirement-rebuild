@@ -30,7 +30,11 @@ export async function runAgResearchDailyCycle(options?: {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
-      await persistAgResearchWatchlist(context.portfolioId, pipeline.upstream.deepResearchOutcomes);
+      await persistAgResearchWatchlist(
+        context.portfolioId,
+        pipeline.upstream.deepResearchOutcomes,
+        pipeline.upstream.quantitativeWatchResolutions
+      );
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
       const execution = await executeAgDailyCycleTransactions({
