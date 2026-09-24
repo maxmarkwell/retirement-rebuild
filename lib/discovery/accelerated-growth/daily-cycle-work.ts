@@ -3,6 +3,7 @@ import {
   persistAgCommitteeDecisions,
   persistAgResearchWatchlist,
   runAgCommitteePipeline,
+  supersedeAgCommitteeWatches,
 } from "./committee-pipeline";
 import { runAgDailyCycle } from "./daily-cycle";
 import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./holding-review-pipeline";
@@ -35,6 +36,10 @@ export async function runAgResearchDailyCycle(options?: {
         pipeline.upstream.deepResearchOutcomes,
         pipeline.upstream.quantitativeWatchResolutions
       );
+      const supersededCommitteeWatchCount = await supersedeAgCommitteeWatches(
+        context.portfolioId,
+        pipeline.upstream.committeeWatchResolutions
+      );
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
       const execution = await executeAgDailyCycleTransactions({
@@ -47,6 +52,7 @@ export async function runAgResearchDailyCycle(options?: {
         result: {
           persisted: true,
           researchWatchlistPersisted: true,
+          supersededCommitteeWatchCount,
           transactionsWritten: execution.executedBuyCount + execution.executedSellCount > 0,
           executionEnabled: execution.enabled,
           execution,
