@@ -146,7 +146,7 @@ export async function addBuyTransaction(
   // ---------------------------------------------------------
 const { data: portfolio, error: portfolioError } = await supabase
   .from("portfolios")
-  .select("id, starting_capital, is_real_money")
+  .select("id, starting_capital, is_real_money, type")
   .eq("id", portfolioId)
   .single();
 
@@ -161,6 +161,14 @@ const { data: portfolio, error: portfolioError } = await supabase
       "Real-money purchases must be recorded from the linked investment decision after the brokerage order fills.",
   };
 }
+
+  if (portfolio.type === "paper_active") {
+    return {
+      success: false,
+      message:
+        "Accelerated Growth purchases must use the decision-linked deterministic AG execution path.",
+    };
+  }
 
   // ---------------------------------------------------------
   // Calculate contributions
@@ -332,6 +340,36 @@ export async function addSellTransaction(
     transactionDate,
     "America/Denver"
   ).toISOString();
+
+  // ---------------------------------------------------------
+  // Protect managed execution paths
+  // ---------------------------------------------------------
+
+  const { data: sellPortfolio, error: sellPortfolioError } = await supabase
+    .from("portfolios")
+    .select("id, is_real_money, type")
+    .eq("id", portfolioId)
+    .single();
+
+  if (sellPortfolioError || !sellPortfolio) {
+    throw new Error("Unable to load the selected portfolio.");
+  }
+
+  if (sellPortfolio.is_real_money) {
+    return {
+      success: false,
+      message:
+        "Real-money sales must use the decision-linked Real Portfolio execution path.",
+    };
+  }
+
+  if (sellPortfolio.type === "paper_active") {
+    return {
+      success: false,
+      message:
+        "Accelerated Growth sales must use the decision-linked AG execution path.",
+    };
+  }
 
   // ---------------------------------------------------------
   // Calculate shares currently owned
