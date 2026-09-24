@@ -71,8 +71,16 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const currentPositionHolding = holdings.get(decision.ticker.toUpperCase());
   const currentPositionPrice = valuation.prices[decision.ticker.toUpperCase()] ?? 0;
   const currentPositionMarketValue = currentPositionHolding ? Math.round(currentPositionHolding.quantity * currentPositionPrice * 100) / 100 : 0;
+
+  if (decision.ag_evidence_version !== "ag-execution-evidence-v1+ag-liquidity-v1" || decision.ag_thesis_valid !== true || decision.ag_liquidity_eligible !== true) {
+    throw new Error("AG BUY lacks persisted thesis/liquidity execution evidence.");
+  }
+  if (!decision.ag_theme_key || decision.ag_theme_key.trim().length === 0) {
+    throw new Error("AG BUY lacks persisted theme attribution; execution is blocked.");
+  }
+
   const currentThemeMarketValue = calculateAgThemeMarketValue({
-    targetThemeKey: decision.ag_theme_key ?? "",
+    targetThemeKey: decision.ag_theme_key,
     holdings: Array.from(holdings.entries()).map(([ticker, holding]) => ({ ticker, quantity: holding.quantity })),
     prices: valuation.prices,
     transactions: (transactions ?? []).map((tx) => ({ ticker: tx.ticker, ag_theme_key: tx.ag_theme_key })),
@@ -83,10 +91,6 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
     const hwmAdmin = createAdminClient();
     const { error: hwmError } = await hwmAdmin.rpc("advance_ag_high_water_mark", { p_era_id: era.id, p_current_equity: valuation.currentEquity });
     if (hwmError) throw new Error(`Unable to advance AG high-water mark: ${hwmError.message}`);
-  }
-
-  if (decision.ag_evidence_version !== "ag-execution-evidence-v1+ag-liquidity-v1" || decision.ag_thesis_valid !== true || decision.ag_liquidity_eligible !== true) {
-    throw new Error("AG BUY lacks persisted thesis/liquidity execution evidence.");
   }
 
   const executionQuote = await getMarketQuote(decision.ticker.toUpperCase());
@@ -113,8 +117,6 @@ export async function executeAgPaperBuy(input: ExecuteAgPaperBuyInput) {
   const admin = createAdminClient();
   const expiresAt = new Date(Date.now() + 60_000).toISOString();
 
-  // Only the trusted server/service role can mint an authorization. The
-  // end-user role has no RLS policy on this table and cannot consume the RPC.
   const { data: authorization, error: authorizationError } = await admin
     .from("ag_execution_authorizations")
     .insert({
