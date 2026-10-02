@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
         cycleStatus: cycle.status,
         reusedDailyCycle: true,
         retryAvailable: cycle.status === "failed",
+        staleRunningCycle: cycle.staleRunningCycle,
+        requiresManualRecoveryReview: cycle.staleRunningCycle,
         executionEnabled: false,
         transactionsWritten: false,
       });
