@@ -6,9 +6,9 @@ import { denverAgCycleDate } from "./daily-cycle";
 export const AG_STALE_CYCLE_MS = 20 * 60 * 1000;
 
 export function isAgCycleStale(cycle: { status: string; started_at: string | null }, now = Date.now()) {
-  if (cycle.status !== "running" || !cycle.started_at) return false;
-  const started = Date.parse(cycle.started_at);
-  return Number.isFinite(started) && now - started > AG_STALE_CYCLE_MS;
+  if (cycle.status !== "running") return false;
+  const started = cycle.started_at ? Date.parse(cycle.started_at) : NaN;
+  return !Number.isFinite(started) || now - started > AG_STALE_CYCLE_MS;
 }
 
 export async function getAgDailyCycleStatus() {
@@ -35,7 +35,7 @@ export async function getAgDailyCycleStatus() {
   const { data: recentCycles, error: recentError } = await supabase.from("ag_daily_cycles")
     .select("id, cycle_date, status, started_at, completed_at")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id)
-    .order("started_at", { ascending: false }).limit(15);
+    .eq("status", "running").order("started_at", { ascending: false }).limit(50);
   if (recentError) throw new Error(`Unable to load recent AG cycle diagnostics: ${recentError.message}`);
   const staleCycles = (recentCycles ?? []).filter(isAgCycleStale).map((item) => ({
     id: item.id, cycleDate: item.cycle_date, startedAt: item.started_at,
