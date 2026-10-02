@@ -2,6 +2,15 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { denverAgCycleDate } from "./daily-cycle";
 
+// Detection only: never automatically retry a possibly partially persisted cycle.
+export const AG_STALE_CYCLE_MS = 20 * 60 * 1000;
+
+export function isAgCycleStale(cycle: { status: string; started_at: string | null }, now = Date.now()) {
+  if (cycle.status !== "running" || !cycle.started_at) return false;
+  const started = Date.parse(cycle.started_at);
+  return Number.isFinite(started) && now - started > AG_STALE_CYCLE_MS;
+}
+
 export async function getAgDailyCycleStatus() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,6 +37,8 @@ export async function getAgDailyCycleStatus() {
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
     retryAvailable: cycle?.status === "failed",
+    staleCycleDetected: cycle ? isAgCycleStale(cycle) : false,
+    requiresManualRecoveryReview: cycle ? isAgCycleStale(cycle) : false,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
     cycle: cycle ?? null,
