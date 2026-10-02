@@ -104,6 +104,8 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   }
 
   const context: AgDailyCycleContext = { cycleId, cycleDate, portfolioId: portfolio.id, strategyEraId: era.id, attempt };
+  const runStarted = Date.now();
+  console.info("[AG cycle] started", { cycleId, cycleDate, attempt, maxCandidates });
 
   try {
     const work = await input.work(context);
@@ -113,12 +115,15 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
       ...countPatch(work.counts), updated_at: completedAt,
     }).eq("id", cycleId).eq("status", "running").select("id, status").single();
     if (completed.error || !completed.data) throw new Error(`Unable to complete AG daily cycle: ${completed.error?.message ?? "unknown error"}`);
+    console.info("[AG cycle] completed", { cycleId, elapsedMs: Date.now() - runStarted, counts: countPatch(work.counts) });
     return { executed: true as const, cycleId, cycleDate, status: "completed" as const, attempt, result: work.result, counts: countPatch(work.counts) };
   } catch (error) {
     const failedAt = new Date().toISOString();
     const message = error instanceof Error ? error.message : "AG daily cycle work failed.";
-    await supabase.from("ag_daily_cycles").update({ status: "failed", completed_at: failedAt, failure_message: message, updated_at: failedAt })
+    console.error("[AG cycle] failed", { cycleId, elapsedMs: Date.now() - runStarted, message });
+    const { error: failureUpdateError } = await supabase.from("ag_daily_cycles").update({ status: "failed", completed_at: failedAt, failure_message: message, updated_at: failedAt })
       .eq("id", cycleId).eq("status", "running");
+    if (failureUpdateError) console.error("[AG cycle] failed to persist failure state", { cycleId, error: failureUpdateError.message });
     throw error;
   }
 }
