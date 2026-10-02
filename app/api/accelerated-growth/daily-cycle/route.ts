@@ -19,6 +19,20 @@ export async function POST(request: NextRequest) {
       executeTransactions: false,
     });
 
+    if (!cycle.executed && cycle.staleRunningCycle) {
+      return NextResponse.json({
+        reason: "A potentially abandoned AG cycle requires manual review before another run.",
+        cycleId: cycle.cycleId,
+        cycleDate: cycle.cycleDate,
+        cycleStatus: cycle.status,
+        staleRunningCycle: true,
+        requiresManualRecoveryReview: true,
+        retryAvailable: false,
+        executionEnabled: false,
+        transactionsWritten: false,
+      }, { status: 409 });
+    }
+
     if (!cycle.executed) {
       return NextResponse.json({
         cycleId: cycle.cycleId,
