@@ -61,7 +61,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   }
 
   const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
+  console.info("[AG research] discovery started", { reassessCount: reassessTickers.size });
   const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
+  console.info("[AG research] discovery finished", { universe: discovery.universeCount, evaluated: discovery.evaluatedCount, advanced: discovery.advanceCount, rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly });
   const discoverySummary = {
     universeCount: discovery.universeCount, preselectedCount: discovery.preselectedCount,
     evaluatedCount: discovery.evaluatedCount, advanceCount: discovery.advanceCount,
@@ -112,16 +114,25 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const errors: AgDeepResearchPipelineResult["errors"] = [];
   let catalystSupportedCount = 0;
   for (const candidate of selected) {
+    console.info("[AG research] candidate started", { ticker: candidate.symbol });
     try {
       const catalyst = await researchAgCatalyst(candidate);
-      if (catalyst.catalystStatus === "NOT_FOUND") continue;
+      if (catalyst.catalystStatus === "NOT_FOUND") {
+        console.info("[AG research] catalyst not found", { ticker: candidate.symbol });
+        continue;
+      }
+      console.info("[AG research] catalyst supported", { ticker: candidate.symbol });
       catalystSupportedCount += 1;
       try {
-        results.push(await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null));
+        const research = await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null);
+        results.push(research);
+        console.info("[AG research] deep research finished", { ticker: candidate.symbol, status: research.researchStatus });
       } catch (error) {
+        console.error("[AG research] deep research failed", { ticker: candidate.symbol, error });
         errors.push({ symbol: candidate.symbol, stage: "DEEP_RESEARCH", error: error instanceof Error ? error.message : "Unknown AG deep research error." });
       }
     } catch (error) {
+      console.error("[AG research] catalyst failed", { ticker: candidate.symbol, error });
       errors.push({ symbol: candidate.symbol, stage: "CATALYST", error: error instanceof Error ? error.message : "Unknown AG catalyst research error." });
     }
   }
