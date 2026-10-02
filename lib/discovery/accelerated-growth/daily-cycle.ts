@@ -71,6 +71,22 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   const maxCandidates = input.maxCandidates ?? 5;
   const now = new Date().toISOString();
 
+  // Fail closed across dates: a timed-out earlier cycle may have partially persisted decisions.
+  // Detection only; recovery requires a separate manual review.
+  const { data: recentRunning, error: runningError } = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date, started_at")
+    .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id)
+    .eq("status", "running").order("started_at", { ascending: false }).limit(50);
+  if (runningError) throw new Error(`Unable to inspect running AG cycles: ${runningError.message}`);
+  const staleCycles = (recentRunning ?? []).filter((cycle) => {
+    const started = cycle.started_at ? Date.parse(cycle.started_at) : NaN;
+    return !Number.isFinite(started) || Date.now() - started > 20 * 60 * 1000;
+  });
+  if (staleCycles.length > 0) {
+    console.warn("[AG cycle] run blocked: stale or undated running cycle requires manual review", { cycleIds: staleCycles.map((cycle) => cycle.id) });
+    return { executed: false as const, cycleId: staleCycles[0].id, cycleDate: staleCycles[0].cycle_date, status: "running" as const, staleRunningCycle: true, requiresManualRecoveryReview: true, reason: "stale_cycle_requires_manual_review" as const };
+  }
+
   const existing = await supabase.from("ag_daily_cycles")
     .select("id, status, started_at")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
