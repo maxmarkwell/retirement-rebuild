@@ -2,6 +2,15 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { denverAgCycleDate } from "./daily-cycle";
 
+// Detection only: never automatically retry a possibly partially persisted cycle.
+export const AG_STALE_CYCLE_MS = 20 * 60 * 1000;
+
+export function isAgCycleStale(cycle: { status: string; started_at: string | null }, now = Date.now()) {
+  if (cycle.status !== "running") return false;
+  const started = cycle.started_at ? Date.parse(cycle.started_at) : NaN;
+  return !Number.isFinite(started) || now - started > AG_STALE_CYCLE_MS;
+}
+
 export async function getAgDailyCycleStatus() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -23,11 +32,23 @@ export async function getAgDailyCycleStatus() {
     .maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
+  const { data: recentCycles, error: recentError } = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date, status, started_at, completed_at")
+    .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id)
+    .eq("status", "running").order("started_at", { ascending: false }).limit(50);
+  if (recentError) throw new Error(`Unable to load recent AG cycle diagnostics: ${recentError.message}`);
+  const staleCycles = (recentCycles ?? []).filter(isAgCycleStale).map((item) => ({
+    id: item.id, cycleDate: item.cycle_date, startedAt: item.started_at,
+  }));
+
   return {
     cycleDate,
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
     retryAvailable: cycle?.status === "failed",
+    staleCycleDetected: cycle ? isAgCycleStale(cycle) : false,
+    requiresManualRecoveryReview: staleCycles.length > 0,
+    staleCycles,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
     cycle: cycle ?? null,

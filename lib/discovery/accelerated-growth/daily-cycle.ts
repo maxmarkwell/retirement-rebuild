@@ -71,8 +71,24 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   const maxCandidates = input.maxCandidates ?? 5;
   const now = new Date().toISOString();
 
+  // Fail closed across dates: a timed-out earlier cycle may have partially persisted decisions.
+  // Detection only; recovery requires a separate manual review.
+  const { data: recentRunning, error: runningError } = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date, started_at")
+    .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id)
+    .eq("status", "running").order("started_at", { ascending: false }).limit(50);
+  if (runningError) throw new Error(`Unable to inspect running AG cycles: ${runningError.message}`);
+  const staleCycles = (recentRunning ?? []).filter((cycle) => {
+    const started = cycle.started_at ? Date.parse(cycle.started_at) : NaN;
+    return !Number.isFinite(started) || Date.now() - started > 20 * 60 * 1000;
+  });
+  if (staleCycles.length > 0) {
+    console.warn("[AG cycle] run blocked: stale or undated running cycle requires manual review", { cycleIds: staleCycles.map((cycle) => cycle.id) });
+    return { executed: false as const, cycleId: staleCycles[0].id, cycleDate: staleCycles[0].cycle_date, status: "running" as const, staleRunningCycle: true, requiresManualRecoveryReview: true, reason: "stale_cycle_requires_manual_review" as const };
+  }
+
   const existing = await supabase.from("ag_daily_cycles")
-    .select("id, status")
+    .select("id, status, started_at")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
     .maybeSingle();
   if (existing.error) throw new Error(`Unable to inspect AG daily cycle: ${existing.error.message}`);
@@ -100,10 +116,15 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     cycleId = retried.data.id;
     attempt = "retried";
   } else {
-    return { executed: false as const, cycleId: existing.data.id, cycleDate, status: existing.data.status, reason: "authoritative_cycle_already_exists" as const };
+    const startedMs = existing.data.started_at ? Date.parse(existing.data.started_at) : NaN;
+    const staleRunningCycle = existing.data.status === "running" && Number.isFinite(startedMs) && Date.now() - startedMs > 20 * 60 * 1000;
+    if (staleRunningCycle) console.warn("[AG cycle] abandoned cycle suspected; retry blocked pending manual review", { cycleId: existing.data.id, cycleDate });
+    return { executed: false as const, cycleId: existing.data.id, cycleDate, status: existing.data.status, staleRunningCycle, reason: "authoritative_cycle_already_exists" as const };
   }
 
   const context: AgDailyCycleContext = { cycleId, cycleDate, portfolioId: portfolio.id, strategyEraId: era.id, attempt };
+  const runStarted = Date.now();
+  console.info("[AG cycle] started", { cycleId, cycleDate, attempt, maxCandidates });
 
   try {
     const work = await input.work(context);
@@ -113,12 +134,15 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
       ...countPatch(work.counts), updated_at: completedAt,
     }).eq("id", cycleId).eq("status", "running").select("id, status").single();
     if (completed.error || !completed.data) throw new Error(`Unable to complete AG daily cycle: ${completed.error?.message ?? "unknown error"}`);
+    console.info("[AG cycle] completed", { cycleId, elapsedMs: Date.now() - runStarted, counts: countPatch(work.counts) });
     return { executed: true as const, cycleId, cycleDate, status: "completed" as const, attempt, result: work.result, counts: countPatch(work.counts) };
   } catch (error) {
     const failedAt = new Date().toISOString();
     const message = error instanceof Error ? error.message : "AG daily cycle work failed.";
-    await supabase.from("ag_daily_cycles").update({ status: "failed", completed_at: failedAt, failure_message: message, updated_at: failedAt })
+    console.error("[AG cycle] failed", { cycleId, elapsedMs: Date.now() - runStarted, message });
+    const { error: failureUpdateError } = await supabase.from("ag_daily_cycles").update({ status: "failed", completed_at: failedAt, failure_message: message, updated_at: failedAt })
       .eq("id", cycleId).eq("status", "running");
+    if (failureUpdateError) console.error("[AG cycle] failed to persist failure state", { cycleId, error: failureUpdateError.message });
     throw error;
   }
 }

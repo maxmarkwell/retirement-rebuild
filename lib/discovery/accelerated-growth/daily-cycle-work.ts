@@ -21,16 +21,21 @@ export async function runAgResearchDailyCycle(options?: {
     maxCandidates,
     retryFailed: options?.retryFailed ?? false,
     work: async (context) => {
+      console.info("[AG cycle] holding review started", { cycleId: context.cycleId });
       const holdingReviews = await runAgHoldingReviewPipeline();
+      console.info("[AG cycle] holding review finished", { cycleId: context.cycleId, count: holdingReviews.decisions.length, errors: holdingReviews.errors.length });
       if (holdingReviews.errors.length > 0 || holdingReviews.failedCount > 0) {
         throw new Error("Holding reassessment did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
+      console.info("[AG cycle] research pipeline started", { cycleId: context.cycleId, maxCandidates });
       const pipeline = await runAgCommitteePipeline({ maxCandidates });
+      console.info("[AG cycle] research pipeline finished", { cycleId: context.cycleId, evaluated: pipeline.upstream.discovery.evaluatedCount, advanced: pipeline.upstream.discovery.advanceCount, deepResearchCompleted: pipeline.upstream.deepResearchCompletedCount, committeeDecisions: pipeline.decisions.length, errors: pipeline.errors.length });
       if (pipeline.errors.length > 0 || pipeline.failedCount > 0) {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
+      console.info("[AG cycle] persistence started", { cycleId: context.cycleId });
       await persistAgResearchWatchlist(
         context.portfolioId,
         pipeline.upstream.deepResearchOutcomes,
@@ -42,6 +47,7 @@ export async function runAgResearchDailyCycle(options?: {
       );
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
+      console.info("[AG cycle] decisions persisted", { cycleId: context.cycleId, persisted: persisted.length, holdingReviews: persistedHoldingReviews.length });
       const execution = await executeAgDailyCycleTransactions({
         enabled: executeTransactions,
         buyDecisions: persisted,
