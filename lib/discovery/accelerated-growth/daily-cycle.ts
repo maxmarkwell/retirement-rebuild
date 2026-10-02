@@ -72,7 +72,7 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   const now = new Date().toISOString();
 
   const existing = await supabase.from("ag_daily_cycles")
-    .select("id, status")
+    .select("id, status, started_at")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
     .maybeSingle();
   if (existing.error) throw new Error(`Unable to inspect AG daily cycle: ${existing.error.message}`);
@@ -100,7 +100,10 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     cycleId = retried.data.id;
     attempt = "retried";
   } else {
-    return { executed: false as const, cycleId: existing.data.id, cycleDate, status: existing.data.status, reason: "authoritative_cycle_already_exists" as const };
+    const startedMs = existing.data.started_at ? Date.parse(existing.data.started_at) : NaN;
+    const staleRunningCycle = existing.data.status === "running" && Number.isFinite(startedMs) && Date.now() - startedMs > 20 * 60 * 1000;
+    if (staleRunningCycle) console.warn("[AG cycle] abandoned cycle suspected; retry blocked pending manual review", { cycleId: existing.data.id, cycleDate });
+    return { executed: false as const, cycleId: existing.data.id, cycleDate, status: existing.data.status, staleRunningCycle, reason: "authoritative_cycle_already_exists" as const };
   }
 
   const context: AgDailyCycleContext = { cycleId, cycleDate, portfolioId: portfolio.id, strategyEraId: era.id, attempt };
