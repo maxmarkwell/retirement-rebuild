@@ -32,13 +32,23 @@ export async function getAgDailyCycleStatus() {
     .maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
+  const { data: recentCycles, error: recentError } = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date, status, started_at, completed_at")
+    .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id)
+    .order("started_at", { ascending: false }).limit(15);
+  if (recentError) throw new Error(`Unable to load recent AG cycle diagnostics: ${recentError.message}`);
+  const staleCycles = (recentCycles ?? []).filter(isAgCycleStale).map((item) => ({
+    id: item.id, cycleDate: item.cycle_date, startedAt: item.started_at,
+  }));
+
   return {
     cycleDate,
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
     retryAvailable: cycle?.status === "failed",
     staleCycleDetected: cycle ? isAgCycleStale(cycle) : false,
-    requiresManualRecoveryReview: cycle ? isAgCycleStale(cycle) : false,
+    requiresManualRecoveryReview: staleCycles.length > 0,
+    staleCycles,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
     cycle: cycle ?? null,
