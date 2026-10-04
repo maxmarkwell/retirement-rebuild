@@ -82,6 +82,25 @@ BEGIN
         AND d.user_id=w.user_id AND d.portfolio_id=w.portfolio_id
         AND d.ticker=w.ticker AND d.status='active'
         AND d.source='ai_committee'
+        -- A matching ledger hash is insufficient if the linked decision
+        -- row has subsequently diverged from the frozen Committee payload.
+        AND d.decision_type IS NOT DISTINCT FROM (m.entry->'args'->>3)
+        AND d.thesis IS NOT DISTINCT FROM (m.entry->'args'->>4)
+        AND d.confidence_score IS NOT DISTINCT FROM
+          ((m.entry->'args'->>5)::numeric)
+        AND d.expected_holding_period IS NOT DISTINCT FROM (m.entry->'args'->>6)
+        AND d.bull_case IS NOT DISTINCT FROM (m.entry->'args'->>7)
+        AND d.bear_case IS NOT DISTINCT FROM (m.entry->'args'->>8)
+        AND d.primary_risks IS NOT DISTINCT FROM (m.entry->'args'->>8)
+        AND d.reassessment_conditions IS NOT DISTINCT FROM (m.entry->'args'->>9)
+        AND d.exit_conditions IS NOT DISTINCT FROM (m.entry->'args'->>10)
+        AND d.notes IS NOT DISTINCT FROM (m.entry->'args'->>11)
+        AND d.ag_thesis_valid IS NOT DISTINCT FROM
+          ((m.entry->'args'->>12)::boolean)
+        AND d.ag_liquidity_eligible IS NOT DISTINCT FROM
+          ((m.entry->'args'->>13)::boolean)
+        AND d.ag_evidence_version IS NOT DISTINCT FROM (m.entry->'args'->>14)
+        AND d.ag_theme_key IS NOT DISTINCT FROM (m.entry->'args'->>15)
     )
   ) THEN RETURN false; END IF;
   RETURN true;
