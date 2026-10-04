@@ -57,7 +57,10 @@ describe("AG isolated RPC adapter", () => {
       return decisionId;
     }), (error: unknown) => error instanceof AgAmbiguousWriteError &&
       error.ticker === "MSFT" && error.cause instanceof Error &&
-      error.cause.message === "Simulated ambiguous timeout");
+      error.cause.message === "Simulated ambiguous timeout" &&
+      error.acknowledged.length === 1 &&
+      error.acknowledged[0].ticker === "NVDA" &&
+      error.acknowledged[0].decisionId === decisionId);
     assert.deepEqual(seen, ["NVDA", "MSFT"]);
   });
   it("requires complete independent committed-ledger evidence", () => {
