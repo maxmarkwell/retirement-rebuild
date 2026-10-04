@@ -11,6 +11,18 @@ SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111'
 DO $$
 DECLARE first_id uuid; retry_id uuid; count_rows integer;
 BEGIN
+ -- Required payload fields are enforced by the database, not just TS.
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision(
+   '44444444-4444-4444-8444-444444444444',
+   '55555555-5555-4555-8555-555555555555',
+   'BADCLK','committee','watch','Valid thesis',75,' ',null,null,null,null,null);
+  RAISE EXCEPTION 'Blank thesis clock accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Blank thesis clock accepted' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='BADCLK')
+ THEN RAISE EXCEPTION 'Invalid clock wrote ledger evidence'; END IF;
  first_id := public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','TEST','committee','watch','A research thesis',75,'short',null,null,null,null,null);
  retry_id := public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','TEST','committee','watch','A research thesis',75,'short',null,null,null,null,null);
  IF first_id IS NULL OR retry_id IS DISTINCT FROM first_id THEN RAISE EXCEPTION 'Idempotent retry failed'; END IF;
