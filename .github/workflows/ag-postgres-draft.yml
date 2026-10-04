@@ -46,3 +46,4 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
           bash tests/ag-postgres-concurrency.sh
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-restricted-role.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-stage-fencing.sql
