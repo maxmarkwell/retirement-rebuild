@@ -5,15 +5,21 @@ still fails closed before legacy persistence. This handoff ties the proposed
 checkpoint manifest to the *existing* AG research and holding pipelines; it
 does not create a second research or Committee implementation.
 
+## Implemented isolated capture boundary
+
+The pure `immutable-intent-capture.ts` now builds both manifests from existing decision types, validated upstream `eligibleSymbols`, `failedCount` **and** `errors`. Both existing pipeline result types now expose the actual eligible symbols. Its combined preflight rejects cross-stage duplicates and mixed cycles. The module is tested but **not called by the active runner**, and a successful in-memory snapshot is not durable evidence until checkpoint completion stores it atomically. It intentionally does not authorize RPC writes or completion.
+
 ## Existing output boundaries
 
 - `runAgHoldingReviewPipeline()` returns `candidateCount`,
-  `completedCount`, `failedCount`, `decisions`, and `errors`.
+  `completedCount`, `failedCount`, `decisions`, `errors`, and now
+  `eligibleSymbols`.
   The existing loop collects one `AgHoldingReviewDecision` per successful
   candidate. Freeze the complete candidate identity list and the full
   validated review outputs **before** marking `holding_review` completed.
 - `runAgCommitteePipeline()` returns `requestedCount`,
-  `completedCount`, `failedCount`, `decisions`, and `errors`.
+  `completedCount`, `failedCount`, `decisions`, `errors`, and now
+  `eligibleSymbols`.
   It derives `proceed` from the existing deep-research pipeline. Freeze
   the complete `proceed` identity list, full validated Committee outputs,
   and the canonical persistence arguments **before** completing `committee`.
@@ -74,3 +80,7 @@ batch, altered typed argument, mutated linked decision, mixed-kind coverage,
 and watchlist interruption. Run against a verified actual-schema disposable
 database. No live migrations, AG enablement or production deployment are
 authorized by this design.
+
+## Outstanding capture integration risk
+
+The existing Committee writer derives BUY execution evidence by fetching the dynamic discovery universe **at persistence time**. A resumable implementation must freeze the same evidence at Committee completion (or an explicitly versioned prior research checkpoint), then pass that exact evidence to the isolated capture builder. Never re-fetch a changed universe after a retry and silently change the persisted BUY evidence. Capture the original stage result and derived evidence together; a syntactically correct client-provided evidence map is not upstream provenance. The holding stage claim token and Committee stage claim token are distinct from the later persistence claim token: frozen argument arrays deliberately exclude claim tokens and persistence RPC calls must be prepared again under the current persistence claim.
