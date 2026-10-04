@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:ag": "node scripts/run-ag-contract-tests.mjs"
+    "test:ag": "node scripts/run-ag-contract-tests.mjs && node --test scripts/ag-persistence-safety.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
