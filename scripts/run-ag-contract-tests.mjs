@@ -16,7 +16,7 @@ function toDataUrl(source, filename) {
     throw new Error(ts.formatDiagnosticsWithColorAndContext(compiled.diagnostics, {
       getCanonicalFileName: (name) => name,
       getCurrentDirectory: () => process.cwd(),
-      getNewLine: () => "\\n",
+      getNewLine: () => "\n",
     }));
   }
   return `data:text/javascript;base64,${Buffer.from(compiled.outputText).toString("base64")}`;
