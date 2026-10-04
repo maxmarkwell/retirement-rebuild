@@ -19,6 +19,7 @@ describe("AG checkpoint envelope", () => {
       { ...valid, version: 2 },
       { ...valid, payload: [] },
       { ...valid, completedAt: "not-a-date" },
+      { ...valid, completedAt: "2026-99-99T12:00:00.000Z" },
     ]) {
       assert.throws(() => validateAgStageEnvelope(value, { cycleId, stage: "discovery" }));
     }
