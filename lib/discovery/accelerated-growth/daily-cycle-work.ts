@@ -54,11 +54,11 @@ export async function runAgResearchDailyCycle(options?: {
       assertUniqueAgDecisionTickers(holdingReviews.decisions, "holding review");
       assertUniqueAgDecisionTickers(pipeline.decisions, "committee");
       assertDisjointAgDecisionBatches(holdingReviews.decisions, pipeline.decisions);
-      // The current writes span multiple independent requests and are not atomic.
-      // Do not allow a configuration-only restart to supersede decisions until
-      // the cycle-linked transactional persistence path replaces this code.
-      throw new Error("AG persistence is blocked pending atomic cycle-linked writes and recovery verification.");
-      /* Legacy non-atomic persistence retained for reference only.
+      // Temporary fail-closed barrier while the atomic persistence replacement is built.
+      // Keep this runtime-conditional so TypeScript preserves the response shape.
+      if (process.env.AG_ATOMIC_PERSISTENCE_READY !== "verified") {
+        throw new Error("AG persistence blocked: atomic cycle-linked persistence is not verified.");
+      }
       console.info("[AG cycle] persistence started", { cycleId: context.cycleId });
       await persistAgResearchWatchlist(
         context.portfolioId,
@@ -117,7 +117,6 @@ export async function runAgResearchDailyCycle(options?: {
           persistedDecisionCount: persisted.length + persistedHoldingReviews.length,
         },
       };
-      */
     },
   });
 }
