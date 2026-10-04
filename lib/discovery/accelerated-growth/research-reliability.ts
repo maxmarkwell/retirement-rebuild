@@ -46,9 +46,11 @@ export async function withAgResearchRetry<T>(
   operation: (attempt: number) => Promise<T>
 ): Promise<T> {
   let lastError: unknown;
+  let attemptsMade = 0;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
+      attemptsMade = attempt;
       return await operation(attempt);
     } catch (error) {
       lastError = error;
@@ -58,5 +60,5 @@ export async function withAgResearchRetry<T>(
   }
 
   const message = errorText(lastError);
-  throw new Error(`${stage} failed for ${symbol} after ${MAX_ATTEMPTS} bounded attempts: ${message}`);
+  throw new Error(`${stage} failed for ${symbol} after ${attemptsMade} bounded attempt(s): ${message}`);
 }
