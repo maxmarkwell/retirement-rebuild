@@ -1,8 +1,10 @@
 -- PROPOSAL ONLY. Apply only after stage, ledger and decision drafts have been
 -- approved and the live schema has been independently verified.
 -- Persistence completion is atomic with an exact committed-ledger count.
--- Caller supplies expected ticker list, but payload identity still requires
--- separate canonical hash verification before this function is invoked.
+-- Caller supplies expected ticker list. Completion independently verifies
+-- canonical payload identity from frozen Committee stage output while holding
+-- the persistence checkpoint row lock. Full upstream manifest provenance and
+-- holding-review coverage are still mandatory release blockers.
 -- RELEASE BLOCKER: Committee checkpoint output must be independently validated
 -- and immutable after completion. Matching its manifest is necessary but not
 -- sufficient to prove the Committee planned the complete decision batch.
@@ -80,9 +82,16 @@ BEGIN
               )
           ))
  ) THEN RETURN false; END IF;
+ -- The verifier checks full frozen Committee argument arrays against the
+ -- server-derived ledger digest and rejects unexpected ledger entries.
+ -- All decision RPCs acquire this same persistence checkpoint FOR UPDATE,
+ -- preventing writes from racing between verification and completion.
+ IF NOT public.ag_verify_committee_payload_manifest(v_checkpoint.cycle_id)
+ THEN RETURN false; END IF;
  UPDATE public.ag_cycle_stage_checkpoints SET status='completed',
    claim_token=NULL, lease_expires_at=NULL, completed_at=now(),
    output=jsonb_build_object('ledger_coverage_verified',true,
+      'committee_payload_hashes_verified',true,
       'expected_tickers',to_jsonb(p_expected_tickers)),
    updated_at=now() WHERE id=v_checkpoint.id;
  RETURN true;
@@ -92,6 +101,7 @@ REVOKE ALL ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) FR
 GRANT EXECUTE ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) TO authenticated;
 -- TEMPORARY FAIL-CLOSED SCOPE: mixed holding-review/Committee batches must
 -- not complete until both intent manifests and combined coverage exist.
--- IMPORTANT: This proves ledger coverage and active decision linkage, NOT
--- canonical payload equality or manifest completeness. Do not enable
+-- IMPORTANT: This additionally proves canonical Committee payload equality
+-- against the stored checkpoint, NOT provenance/completeness of upstream
+-- Committee output or holding-review/watchlist parity. Do not enable
 -- automatic recovery or active daily-runner integration on this basis.
