@@ -4,7 +4,7 @@ INSERT INTO public.ag_daily_cycles VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111',
   '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
   current_date + 2,'running');
-DO $$
+DO $agtest$
 DECLARE checkpoint uuid; token uuid; other uuid; completed boolean;
 BEGIN
  SELECT c.checkpoint_id,c.claim_token INTO checkpoint,token
@@ -88,4 +88,4 @@ BEGIN
    '{"persistence_tickers":["ALPHA","BETA"]}');
  IF NOT completed THEN RAISE EXCEPTION 'Valid Committee manifest rejected'; END IF;
 
-END $;
+END $agtest$;
