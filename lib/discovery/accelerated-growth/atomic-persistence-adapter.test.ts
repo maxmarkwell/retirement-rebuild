@@ -153,7 +153,7 @@ describe("AG partial-batch diagnostics", () => {
     assert.equal(report.status, "REQUIRES_MANUAL_RECONCILIATION");
     const bad = reportAgPartialBatch(calls, ack,
       [row("NVDA", otherId), row("MSFT", otherId)], scope);
-    assert.deepEqual(bad.conflicting.sort(), ["MSFT", "NVDA"]);
+    assert.deepEqual([...bad.conflicting].sort(), ["MSFT", "NVDA"]);
     assert.deepEqual(reportAgPartialBatch(calls, ack, [row("NVDA", decisionId),
       row("NVDA", decisionId)], scope).conflicting, ["NVDA"]);
   });
