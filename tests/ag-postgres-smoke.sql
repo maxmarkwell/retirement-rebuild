@@ -11,6 +11,19 @@ SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111'
 DO $$
 DECLARE first_id uuid; retry_id uuid; count_rows integer;
 BEGIN
+ -- A valid but unlisted Committee ticker cannot write a ledger entry.
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision(
+   '44444444-4444-4444-8444-444444444444',
+   '55555555-5555-4555-8555-555555555555',
+   'UNLISTED','committee','watch','Valid but unlisted',75,'short',
+   null,null,null,null,null);
+  RAISE EXCEPTION 'Unlisted Committee ticker accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Unlisted Committee ticker accepted' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='UNLISTED')
+ THEN RAISE EXCEPTION 'Unlisted Committee ticker wrote ledger evidence'; END IF;
  -- Required payload fields are enforced by the database, not just TS.
  BEGIN
   PERFORM public.ag_commit_cycle_decision(
