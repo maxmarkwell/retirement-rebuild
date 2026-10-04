@@ -75,6 +75,27 @@ export async function commitPreparedAgBatch(
   calls: readonly AgRpcCall[],
   invoke: (args: AgRpcCall) => Promise<string>,
 ): Promise<readonly string[]> {
+  // Defense in depth: reject forged or mutated prepared calls before the first RPC.
+  // Callers must not pass arbitrary objects as a prevalidated batch.
+  if (!Array.isArray(calls)) throw new Error("Invalid prepared AG batch.");
+  const seen = new Set<string>();
+  for (const call of calls) {
+    if (!call || !UUID.test(call.p_cycle_id) || !UUID.test(call.p_claim_token) ||
+      typeof call.p_ticker !== "string" || !/^[A-Z][A-Z0-9.-]{0,14}$/.test(call.p_ticker) ||
+      !["holding_review", "committee"].includes(call.p_kind) ||
+      !["buy", "hold", "sell", "watch", "avoid"].includes(call.p_decision_type) ||
+      (call.p_kind === "committee" && !["buy", "watch", "avoid"].includes(call.p_decision_type)) ||
+      (call.p_kind === "holding_review" && !["hold", "sell"].includes(call.p_decision_type)) ||
+      typeof call.p_thesis !== "string" || !call.p_thesis.trim() ||
+      typeof call.p_confidence !== "number" || !Number.isFinite(call.p_confidence) ||
+      call.p_confidence < 0 || call.p_confidence > 100 ||
+      typeof call.p_thesis_clock !== "string" || !call.p_thesis_clock.trim()) {
+      throw new Error("Invalid prepared AG RPC arguments.");
+    }
+    const key = `${call.p_cycle_id.toLowerCase()}:${call.p_ticker}`;
+    if (seen.has(key)) throw new Error("Duplicate prepared AG RPC ticker.");
+    seen.add(key);
+  }
   const ids: string[] = [];
   for (const call of calls) {
     const id = await invoke(call);
