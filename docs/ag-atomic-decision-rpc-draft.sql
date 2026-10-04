@@ -49,7 +49,8 @@ BEGIN
     'sha256'),'hex') THEN
     RAISE EXCEPTION 'AG decision payload hash mismatch';
   END IF;
-  IF p_ticker IS NULL OR p_ticker !~ '^[A-Z][A-Z0-9.-]{0,14}
+  IF p_ticker IS NULL OR p_ticker !~ '^[A-Z][A-Z0-9.-]{0,14}$'
+     OR p_kind IS NULL OR p_kind NOT IN ('holding_review','committee')
      OR p_payload_hash IS NULL OR p_payload_hash !~ '^[0-9a-f]{64}$'
      OR p_decision_type IS NULL
      OR p_decision_type NOT IN ('buy','hold','sell','watch','avoid')
