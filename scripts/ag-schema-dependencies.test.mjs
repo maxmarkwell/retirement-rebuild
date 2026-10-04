@@ -31,6 +31,6 @@ test("AG notes mismatch remains an explicit live-schema release blocker", () => 
   const fixture = read("tests/ag-postgres-fixture.sql");
   assert.match(rpc, /recommended_quantity,recommended_allocation,notes,/);
   assert.doesNotMatch(decisions, /notes\\s+(?:text|varchar|character varying)/);
-  assert.match(review, /read-only live catalog query/);
+  assert.match(review, /read-only\\*\\* live catalog query/);
   assert.match(fixture, /notes text/);
 });
