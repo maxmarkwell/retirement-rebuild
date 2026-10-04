@@ -31,6 +31,22 @@ describe("AG isolated RPC adapter", () => {
     await commitPreparedAgBatch(prepared, async () => { calls++; return decisionId; });
     assert.equal(calls, 1);
   });
+  it("rejects mutated prepared calls before issuing any RPC", async () => {
+    const prepared = prepareAgRpcBatch([base, { ...base, symbol: "MSFT" }], claimToken);
+    const tampered = [{ ...prepared[0] }, { ...prepared[1], p_confidence: Number.NaN }];
+    let invoked = 0;
+    await assert.rejects(commitPreparedAgBatch(tampered, async () => {
+      invoked++;
+      return decisionId;
+    }), /Invalid prepared AG RPC arguments/);
+    assert.equal(invoked, 0);
+    const duplicate = [prepared[0], { ...prepared[1], p_ticker: "NVDA" }];
+    await assert.rejects(commitPreparedAgBatch(duplicate, async () => {
+      invoked++;
+      return decisionId;
+    }), /Duplicate prepared AG RPC ticker/);
+    assert.equal(invoked, 0);
+  });
   it("stops on a failed RPC and does not invoke subsequent writes", async () => {
     const prepared = prepareAgRpcBatch([base, { ...base, symbol: "MSFT" },
       { ...base, symbol: "ADBE" }], claimToken);
