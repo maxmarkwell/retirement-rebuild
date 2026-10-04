@@ -87,6 +87,25 @@ BEGIN
  IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
  THEN RAISE EXCEPTION 'Rejected completion mutated stage'; END IF;
+ -- Corrupt decision linkage without changing the expected ticker set.
+ UPDATE public.investment_decisions SET status='superseded'
+ WHERE id=(SELECT investment_decision_id FROM public.ag_cycle_decision_writes
+           WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='BETA');
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF ok THEN RAISE EXCEPTION 'Inactive linked decision completed persistence'; END IF;
+ UPDATE public.investment_decisions SET status='active'
+ WHERE id=(SELECT investment_decision_id FROM public.ag_cycle_decision_writes
+           WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='BETA');
+ UPDATE public.ag_cycle_decision_writes
+ SET investment_decision_id='ffffffff-ffff-4fff-8fff-ffffffffffff'
+ WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='BETA';
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF ok THEN RAISE EXCEPTION 'Missing linked decision completed persistence'; END IF;
+ UPDATE public.ag_cycle_decision_writes w
+ SET investment_decision_id=(SELECT d.id FROM public.investment_decisions d
+   WHERE d.ticker='BETA' AND d.portfolio_id=w.portfolio_id AND d.status='active'
+   ORDER BY d.created_at DESC LIMIT 1)
+ WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='BETA';
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
  IF NOT ok THEN RAISE EXCEPTION 'Exact two-decision ledger rejected'; END IF;
 END $$;
