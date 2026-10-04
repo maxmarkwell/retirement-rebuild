@@ -28,6 +28,7 @@ test("draft RPC fails closed on null inputs, ownership, claim and ambiguous acti
     "p_kind is null", "p_decision_type is null",
     "user_id = auth.uid()", "p.is_real_money = false",
     "v_checkpoint.claim_token is distinct from p_claim_token",
+    "v_checkpoint.lease_expires_at is null",
     "v_checkpoint.lease_expires_at <= now()",
     "if v_existing_count > 1",
     "newer_cycle.cycle_date > v_cycle.cycle_date",
