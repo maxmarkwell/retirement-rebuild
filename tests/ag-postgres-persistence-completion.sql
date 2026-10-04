@@ -54,6 +54,18 @@ BEGIN
  ok := public.ag_complete_persistence_stage(cp,
    'dddddddd-dddd-4ddd-8ddd-dddddddddddd',ARRAY['SUCCESS']);
  IF ok THEN RAISE EXCEPTION 'Wrong claim completed persistence'; END IF;
+ -- A syntactically valid but incorrect digest must block completion.
+ UPDATE public.ag_cycle_decision_writes SET payload_hash=repeat('a',64)
+ WHERE cycle_id='cccccccc-cccc-4ccc-8ccc-cccccccccccc' AND ticker='SUCCESS';
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['SUCCESS']);
+ IF ok THEN RAISE EXCEPTION 'Mismatched Committee digest completed persistence'; END IF;
+ UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(public.digest(
+  convert_to(jsonb_build_array(
+   'cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid,
+   'SUCCESS','committee','watch','Success-path thesis',75::numeric,
+   'short',null,null,null,null,null,null,null,null,null)::text,'UTF8'),
+  'sha256'),'hex')
+ WHERE cycle_id='cccccccc-cccc-4ccc-8ccc-cccccccccccc' AND ticker='SUCCESS';
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['SUCCESS']);
  IF NOT ok THEN RAISE EXCEPTION 'Complete ledger did not finish persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'completed'
