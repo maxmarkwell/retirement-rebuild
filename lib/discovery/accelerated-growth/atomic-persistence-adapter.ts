@@ -104,3 +104,60 @@ export async function commitPreparedAgBatch(
   }
   return ids;
 }
+
+export type AgCommittedLedgerRow = {
+  cycle_id: string;
+  ticker: string;
+  status: string;
+  investment_decision_id: string | null;
+  payload_hash: string;
+  decision_kind: string;
+  user_id: string;
+  portfolio_id: string;
+  strategy_era_id: string;
+};
+/** Read-only post-write reconciliation. Never infer completion from RPC return
+ * values alone. The database must independently supply committed ledger rows.
+ * Hash and ownership integrity are enforced by the RPC; this adapter checks
+ * completeness and decision-ID correspondence, not cryptographic identity.
+ */
+export function reconcileAgCommittedBatch(
+  calls: readonly AgRpcCall[],
+  decisionIds: readonly string[],
+  rows: readonly AgCommittedLedgerRow[],
+): "COMPLETE" | "MANUAL_RECONCILIATION" {
+  if (!Array.isArray(calls) || !Array.isArray(decisionIds) ||
+      !Array.isArray(rows) || calls.length !== decisionIds.length ||
+      rows.length !== calls.length) return "MANUAL_RECONCILIATION";
+  const expected = new Map<string, string>();
+  for (let i = 0; i < calls.length; i++) {
+    const call = calls[i];
+    const id = decisionIds[i];
+    if (!call || !UUID.test(call.p_cycle_id) ||
+        typeof call.p_ticker !== "string" || !UUID.test(id)) return "MANUAL_RECONCILIATION";
+    const key = `${call.p_cycle_id.toLowerCase()}:${call.p_ticker}`;
+    if (expected.has(key)) return "MANUAL_RECONCILIATION";
+    expected.set(key, id.toLowerCase());
+  }
+  const observed = new Set<string>();
+  for (const row of rows) {
+    if (!row || !UUID.test(row.cycle_id) || typeof row.ticker !== "string") {
+      return "MANUAL_RECONCILIATION";
+    }
+    const key = `${row.cycle_id.toLowerCase()}:${row.ticker}`;
+    if (!expected.has(key) || observed.has(key) ||
+        row.status !== "committed" || !row.investment_decision_id ||
+        !UUID.test(row.investment_decision_id) ||
+        row.investment_decision_id.toLowerCase() !== expected.get(key) ||
+        !/^[a-f0-9]{64}$/.test(row.payload_hash) ||
+        !["holding_review", "committee"].includes(row.decision_kind)) {
+      return "MANUAL_RECONCILIATION";
+    }
+    const call = calls.find((item) =>
+      item.p_cycle_id.toLowerCase() === row.cycle_id.toLowerCase() &&
+      item.p_ticker === row.ticker);
+    if (!call || call.p_kind !== row.decision_kind) return "MANUAL_RECONCILIATION";
+    observed.add(key);
+  }
+  return observed.size === expected.size ? "COMPLETE" : "MANUAL_RECONCILIATION";
+}
