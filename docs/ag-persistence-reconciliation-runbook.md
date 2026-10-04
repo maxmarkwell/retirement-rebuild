@@ -105,3 +105,31 @@ itself proof that the original write failed. Reconcile against the original
 checkpoint and later cycle history before deciding whether the entire stage
 is complete. Missing or mismatched ledger rows require manual review; do not
 blindly rerun a timed-out persistence stage.
+
+## Read-only schema verification before isolated RPC tests
+
+The repository's original `investment_decisions` CREATE TABLE migration does not
+include `notes`, but the AG holding-review code and proposed RPC both write it.
+Confirm the actual catalog before preparing a disposable database or approving
+any schema changes. Do not assume the live schema matches the initial migration.
+
+```sql
+SELECT table_name, column_name, data_type, udt_name, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'investment_decisions', 'ag_daily_cycles',
+    'portfolio_strategy_eras', 'ag_research_watchlist'
+  )
+ORDER BY table_name, ordinal_position;
+
+SELECT n.nspname AS extension_schema, e.extname
+FROM pg_extension e
+JOIN pg_namespace n ON n.oid = e.extnamespace
+WHERE e.extname = 'pgcrypto';
+```
+
+Specifically confirm `investment_decisions.notes` and its type, the AG
+`ag_*` evidence columns, and the schema of `pgcrypto`. The draft currently
+calls `public.digest`; this must be changed if the installed extension is
+elsewhere. These are inspections only, not permission to modify the database.
