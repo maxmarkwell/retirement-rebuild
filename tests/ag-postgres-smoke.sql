@@ -79,3 +79,29 @@ DO $$ BEGIN
  THEN RAISE EXCEPTION 'Supersession did not roll back'; END IF;
  IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='ROLL') THEN RAISE EXCEPTION 'Failed insert left ledger write'; END IF;
 END $$;
+
+-- An older delayed cycle cannot overwrite a ticker committed by a newer cycle.
+-- Build two additional running cycles in the same strategy era.
+INSERT INTO public.ag_daily_cycles VALUES
+ ('66666666-6666-4666-8666-666666666666','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',current_date-interval '2 days','running'),
+ ('77777777-7777-4777-8777-777777777777','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',current_date-interval '1 day','running');
+INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at)
+VALUES
+ ('66666666-6666-4666-8666-666666666666','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','persistence','running','88888888-8888-4888-8888-888888888888',now()+interval '10 minutes'),
+ ('77777777-7777-4777-8777-777777777777','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','persistence','running','99999999-9999-4999-8999-999999999999',now()+interval '10 minutes');
+DO $$
+DECLARE newer_id uuid;
+BEGIN
+ newer_id := public.ag_commit_cycle_decision('77777777-7777-4777-8777-777777777777','99999999-9999-4999-8999-999999999999','FENCE','committee','watch','Newer cycle thesis',75,'short',null,null,null,null,null);
+ IF newer_id IS NULL THEN RAISE EXCEPTION 'Newer cycle failed to commit'; END IF;
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision('66666666-6666-4666-8666-666666666666','88888888-8888-4888-8888-888888888888','FENCE','committee','avoid','Older stale thesis',75,'short',null,null,null,null,null);
+  RAISE EXCEPTION 'Older cycle unexpectedly overwrote newer decision';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM = 'Older cycle unexpectedly overwrote newer decision' THEN RAISE; END IF;
+ END;
+ IF (SELECT count(*) FROM public.investment_decisions WHERE ticker='FENCE' AND status='active' AND id=newer_id) <> 1
+ THEN RAISE EXCEPTION 'Newer cycle decision was altered'; END IF;
+ IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='FENCE' AND cycle_id='66666666-6666-4666-8666-666666666666')
+ THEN RAISE EXCEPTION 'Older cycle left ledger entry'; END IF;
+END $$;
