@@ -19,7 +19,7 @@ describe("AG persistence planning", () => {
     assert.throws(() => planAgDecisionWrites([{ ...base, symbol: "BAD TICKER" }]));
   });
   it("rejects malformed runtime values and incompatible decision kinds", () => {
-    assert.throws(() => planAgDecisionWrites(null as unknown as typeof base[]));
+    assert.throws(() => planAgDecisionWrites(null as unknown as Array<typeof base>));
     assert.throws(() => planAgDecisionWrites([{ ...base, symbol: null as unknown as string }]));
     assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: 1 as unknown as string }]));
     assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: "sell" }]));
