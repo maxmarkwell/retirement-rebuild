@@ -21,3 +21,18 @@ test("draft AG RPC GRANT and REVOKE signatures match its declaration", () => {
   assert.match(normalize(sql), /security definer/);
   assert.match(normalize(sql), /set search_path = ''/);
 });
+
+test("draft RPC fails closed on null inputs, ownership, claim and ambiguous active decisions", () => {
+  const normalized = normalize(sql);
+  for (const requirement of [
+    "p_kind is null", "p_decision_type is null",
+    "user_id = auth.uid()", "p.is_real_money = false",
+    "v_checkpoint.claim_token is distinct from p_claim_token",
+    "v_checkpoint.lease_expires_at <= now()",
+    "if v_existing_count > 1",
+    "newer_cycle.cycle_date > v_cycle.cycle_date",
+    "raise exception 'conflicting payload for ag cycle ticker'",
+  ]) {
+    assert.ok(normalized.includes(requirement), "Missing RPC safety check: " + requirement);
+  }
+});
