@@ -89,6 +89,10 @@ BEGIN
     RAISE EXCEPTION 'AG decision requires manual reconciliation';
   END IF;
 
+  -- Serialize writes across different cycles targeting the same portfolio
+  -- and ticker, not merely concurrent writes within one cycle.
+  PERFORM pg_advisory_xact_lock(hashtextextended(v_cycle.portfolio_id::text || ':' || p_ticker, 0));
+
   SELECT count(*) INTO v_existing_count FROM public.investment_decisions
   WHERE portfolio_id = v_cycle.portfolio_id AND ticker = p_ticker
     AND source = 'ai_committee' AND status = 'active'
@@ -155,6 +159,8 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including REUSE of existing decisions.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
+-- * Validate advisory lock key collision risk and lock ordering with other
+--   portfolio writers; consider a dedicated per-portfolio lock table.
 -- * Add tests for conflicting payload, duplicate concurrent call, rollback
 --   on failed INSERT, expired claim, and cross-user/real-money access.
 -- * Do not enable the API or apply this proposal until those are resolved.
