@@ -83,15 +83,16 @@ BEGIN
  );
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA']);
  IF ok THEN RAISE EXCEPTION 'Subset completed persistence despite extra ledger row'; END IF;
- -- A correct ledger cannot override an incomplete Committee manifest.
- UPDATE public.ag_cycle_stage_checkpoints
- SET output='{"persistence_tickers":["ALPHA"]}'::jsonb
- WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
- ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
- IF ok THEN RAISE EXCEPTION 'Incomplete Committee manifest accepted'; END IF;
- UPDATE public.ag_cycle_stage_checkpoints
- SET output='{"persistence_tickers":["ALPHA","BETA"]}'::jsonb
- WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
+ -- Completed Committee output is immutable, even if a privileged writer
+ -- attempts to replace the expected ticker manifest.
+ BEGIN
+  UPDATE public.ag_cycle_stage_checkpoints
+  SET output='{"persistence_tickers":["ALPHA"]}'::jsonb
+  WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
+  RAISE EXCEPTION 'Completed Committee manifest was mutable';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Completed Committee manifest was mutable' THEN RAISE; END IF;
+ END;
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','GAMMA']);
  IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
