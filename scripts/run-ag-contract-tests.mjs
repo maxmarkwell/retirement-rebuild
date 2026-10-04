@@ -42,3 +42,14 @@ await import(toDataUrl(
   adapterTests.replace('"./atomic-persistence-adapter"', JSON.stringify(adapterUrl)),
   "atomic-persistence-adapter.test.ts"
 ));
+
+const intentSource = await readFile(resolve(directory, "immutable-intent-capture.ts"), "utf8");
+const intentUrl = toDataUrl(
+  intentSource.replace('"./atomic-persistence-adapter"', JSON.stringify(adapterUrl)),
+  "immutable-intent-capture.ts"
+);
+const intentTests = await readFile(resolve(directory, "immutable-intent-capture.test.ts"), "utf8");
+await import(toDataUrl(
+  intentTests.replace('"./immutable-intent-capture"', JSON.stringify(intentUrl)),
+  "immutable-intent-capture.test.ts"
+));
