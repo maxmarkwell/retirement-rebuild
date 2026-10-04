@@ -50,7 +50,6 @@ BEGIN
     'sha256'),'hex');
   IF p_ticker IS NULL OR p_ticker !~ '^[A-Z][A-Z0-9.-]{0,14}$'
      OR p_kind IS NULL OR p_kind NOT IN ('holding_review','committee')
-     OR p_decision_type IS NULL
      OR p_decision_type IS NULL OR p_decision_type NOT IN ('buy','hold','sell','watch','avoid')
      OR p_thesis IS NULL OR length(trim(p_thesis)) = 0
      OR p_confidence IS NULL OR p_confidence < 0 OR p_confidence > 100
