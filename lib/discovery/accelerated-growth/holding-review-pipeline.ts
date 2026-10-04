@@ -13,6 +13,7 @@ export type PersistedAgHoldingReviewDecision = {
 export type AgHoldingReviewPipelineResult = {
   portfolioId: string;
   eraId: string;
+  eligibleSymbols: string[];
   candidateCount: number;
   completedCount: number;
   failedCount: number;
@@ -47,6 +48,7 @@ export async function runAgHoldingReviewPipeline(): Promise<AgHoldingReviewPipel
   return {
     portfolioId: plan.portfolioId,
     eraId: plan.eraId,
+    eligibleSymbols: plan.candidates.map((candidate) => candidate.ticker),
     candidateCount: plan.candidates.length,
     completedCount: decisions.length,
     failedCount: errors.length,
