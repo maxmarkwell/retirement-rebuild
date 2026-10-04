@@ -26,6 +26,14 @@ BEGIN
   RAISE EXCEPTION 'Restricted role unexpectedly inserted ledger';
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
+ BEGIN
+  INSERT INTO public.investment_decisions(user_id,portfolio_id,ticker,decision_type,source,status,thesis)
+  VALUES ('11111111-1111-4111-8111-111111111111',
+          '22222222-2222-4222-8222-222222222222','ILLEGAL','watch',
+          'ai_committee','active','Direct write should fail');
+  RAISE EXCEPTION 'Restricted role unexpectedly inserted decision';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
  result_id := public.ag_commit_cycle_decision(
    '44444444-4444-4444-8444-444444444444',
    '55555555-5555-4555-8555-555555555555',
@@ -40,5 +48,16 @@ DECLARE visible integer;
 BEGIN
  SELECT count(*) INTO visible FROM public.ag_cycle_decision_writes;
  IF visible <> 0 THEN RAISE EXCEPTION 'RLS leaked another owners ledger'; END IF;
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision(
+    '44444444-4444-4444-8444-444444444444',
+    '55555555-5555-4555-8555-555555555555',
+    'CROSSOWNER','committee','watch','Unauthorized test',75,'short',
+    null,null,null,null,null
+  );
+  RAISE EXCEPTION 'Cross-owner RPC unexpectedly accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM = 'Cross-owner RPC unexpectedly accepted' THEN RAISE; END IF;
+ END;
 END $$;
 RESET ROLE;
