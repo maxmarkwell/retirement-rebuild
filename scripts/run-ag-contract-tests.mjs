@@ -29,3 +29,16 @@ for (const name of contracts) {
   if (!testSource.includes(importPath)) throw new Error(`Expected contract import missing: ${name}`);
   await import(toDataUrl(testSource.replace(importPath, JSON.stringify(moduleUrl)), `${name}.test.ts`));
 }
+
+const adapterSource = await readFile(resolve(directory, "atomic-persistence-adapter.ts"), "utf8");
+const plannerSource = await readFile(resolve(directory, "atomic-persistence-contract.ts"), "utf8");
+const plannerUrl = toDataUrl(plannerSource, "atomic-persistence-contract.ts");
+const adapterUrl = toDataUrl(
+  adapterSource.replace('"./atomic-persistence-contract"', JSON.stringify(plannerUrl)),
+  "atomic-persistence-adapter.ts"
+);
+const adapterTests = await readFile(resolve(directory, "atomic-persistence-adapter.test.ts"), "utf8");
+await import(toDataUrl(
+  adapterTests.replace('"./atomic-persistence-adapter"', JSON.stringify(adapterUrl)),
+  "atomic-persistence-adapter.test.ts"
+));
