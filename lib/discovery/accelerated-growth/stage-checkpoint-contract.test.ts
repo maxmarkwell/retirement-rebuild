@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { precedingAgStage, validateAgStageEnvelope } from "./stage-checkpoint-contract";
 
 const cycleId = "123e4567-e89b-42d3-a456-426614174000";
@@ -9,20 +10,22 @@ const valid = {
 
 describe("AG checkpoint envelope", () => {
   it("accepts a matching envelope", () => {
-    expect(validateAgStageEnvelope(valid, { cycleId, stage: "discovery" }).payload).toEqual({ evaluatedCount: 3 });
+    assert.deepEqual(validateAgStageEnvelope(valid, { cycleId, stage: "discovery" }).payload, { evaluatedCount: 3 });
   });
-  it.each([
-    [{ ...valid, cycleId: "123e4567-e89b-42d3-a456-426614174001" }, "discovery"],
-    [{ ...valid, stage: "committee" }, "discovery"],
-    [{ ...valid, version: 2 }, "discovery"],
-    [{ ...valid, payload: [] }, "discovery"],
-    [{ ...valid, completedAt: "not-a-date" }, "discovery"],
-  ] as const)("rejects mismatched or malformed checkpoint %#", (value, stage) => {
-    expect(() => validateAgStageEnvelope(value, { cycleId, stage })).toThrow();
+  it("rejects mismatched or malformed checkpoints", () => {
+    for (const value of [
+      { ...valid, cycleId: "123e4567-e89b-42d3-a456-426614174001" },
+      { ...valid, stage: "committee" },
+      { ...valid, version: 2 },
+      { ...valid, payload: [] },
+      { ...valid, completedAt: "not-a-date" },
+    ]) {
+      assert.throws(() => validateAgStageEnvelope(value, { cycleId, stage: "discovery" }));
+    }
   });
   it("enforces stage order", () => {
-    expect(precedingAgStage("holding_review")).toBeNull();
-    expect(precedingAgStage("discovery")).toBe("holding_review");
-    expect(precedingAgStage("persistence")).toBe("committee");
+    assert.equal(precedingAgStage("holding_review"), null);
+    assert.equal(precedingAgStage("discovery"), "holding_review");
+    assert.equal(precedingAgStage("persistence"), "committee");
   });
 });
