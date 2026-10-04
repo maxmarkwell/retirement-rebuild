@@ -19,7 +19,11 @@ CREATE OR REPLACE FUNCTION public.ag_commit_cycle_decision(
   p_bear_case text,
   p_monitoring text,
   p_invalidation text,
-  p_notes text DEFAULT NULL
+  p_notes text,
+  p_ag_thesis_valid boolean DEFAULT NULL,
+  p_ag_liquidity_eligible boolean DEFAULT NULL,
+  p_ag_evidence_version text DEFAULT NULL,
+  p_ag_theme_key text DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
@@ -43,7 +47,7 @@ BEGIN
      OR p_confidence IS NULL OR p_confidence < 0 OR p_confidence > 100
   THEN RAISE EXCEPTION 'Invalid AG decision input'; END IF;
   IF (p_kind = 'holding_review' AND p_decision_type NOT IN ('hold','sell'))
-     OR (p_kind = 'committee' AND p_decision_type NOT IN ('buy','hold','sell','watch','avoid'))
+     OR (p_kind = 'committee' AND p_decision_type NOT IN ('buy','watch','avoid'))
   THEN RAISE EXCEPTION 'Decision type incompatible with AG decision kind'; END IF;
 
   SELECT * INTO v_cycle FROM public.ag_daily_cycles
@@ -103,11 +107,10 @@ BEGIN
       WHERE id = v_cycle.strategy_era_id
     ) FOR UPDATE;
 
-  -- Conservative reuse only for identical HOLD decisions. All other
-  -- lifecycle reuse cases must be reviewed against existing TypeScript rules
-  -- before this draft may replace the legacy implementation.
+  -- Match the existing lifecycle rules: same type is reused only within
+  -- its own decision family. Committee: buy/watch/avoid; holding: hold/sell.
   v_reuse := v_existing.id IS NOT NULL
-    AND v_existing.decision_type = 'hold' AND p_decision_type = 'hold';
+    AND v_existing.decision_type = p_decision_type;
   IF v_reuse THEN
     v_decision_id := v_existing.id;
   ELSE
@@ -119,12 +122,17 @@ BEGIN
       user_id,portfolio_id,transaction_id,ticker,decision_type,decision_date,
       source,status,thesis,confidence_score,expected_holding_period,
       bull_case,bear_case,primary_risks,reassessment_conditions,exit_conditions,
-      recommended_quantity,recommended_allocation,notes
+      recommended_quantity,recommended_allocation,notes,
+      ag_thesis_valid,ag_liquidity_eligible,ag_evidence_version,ag_theme_key
     ) VALUES (
       auth.uid(),v_cycle.portfolio_id,NULL,p_ticker,p_decision_type,now(),
       'ai_committee','active',p_thesis,p_confidence,p_thesis_clock,
       p_bull_case,p_bear_case,p_bear_case,p_monitoring,p_invalidation,
-      NULL,NULL,p_notes
+      NULL,NULL,p_notes,
+      CASE WHEN p_kind = 'committee' THEN p_ag_thesis_valid ELSE NULL END,
+      CASE WHEN p_kind = 'committee' THEN p_ag_liquidity_eligible ELSE NULL END,
+      CASE WHEN p_kind = 'committee' THEN p_ag_evidence_version ELSE NULL END,
+      CASE WHEN p_kind = 'committee' THEN p_ag_theme_key ELSE NULL END
     ) RETURNING id INTO v_decision_id;
   END IF;
 
@@ -136,7 +144,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text
+  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,text,boolean,boolean,text,text
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
   uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,text
@@ -144,8 +152,8 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 
 -- BLOCKERS BEFORE APPROVAL:
 -- * Confirm actual decision_type enum/constraints and confidence scale.
--- * Preserve all committee ag_* execution evidence fields and full lifecycle
---   REUSE behavior. Current draft deliberately does NOT do either.
+-- * Verify committee ag_* field semantics and lifecycle parity against live
+--   schema and tests, including REUSE of existing decisions.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
 -- * Add tests for conflicting payload, duplicate concurrent call, rollback
 --   on failed INSERT, expired claim, and cross-user/real-money access.
