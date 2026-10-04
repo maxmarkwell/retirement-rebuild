@@ -80,6 +80,7 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND OR v_checkpoint.status <> 'running'
      OR v_checkpoint.claim_token IS DISTINCT FROM p_claim_token
+     OR v_checkpoint.lease_expires_at IS NULL
      OR v_checkpoint.lease_expires_at <= now()
   THEN RAISE EXCEPTION 'Valid persistence stage claim required'; END IF;
 
