@@ -25,7 +25,10 @@ export function isRetryableAgResearchError(error: unknown): boolean {
   if (error instanceof AgResearchOutputError) return true;
 
   const status = statusCode(error);
-  if (status === 404 || status === 408 || status === 409 || status === 429 || (status !== null && status >= 500)) {
+  // A provider quota/rate-limit response needs a later scheduled run, not
+  // an immediate repeat that consumes more of the request time budget.
+  if (status === 429 || /\b429\b|rate.?limit|limit reach|api credits/i.test(errorText(error))) return false;
+  if (status === 404 || status === 408 || status === 409 || (status !== null && status >= 500)) {
     return true;
   }
 
