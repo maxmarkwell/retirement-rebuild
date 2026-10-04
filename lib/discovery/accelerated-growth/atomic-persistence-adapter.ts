@@ -299,9 +299,12 @@ export function reportAgPartialBatch(
     return { ...empty, conflicting: ["INVALID_INPUT"] };
   }
   const cycle = calls[0]?.p_cycle_id?.toLowerCase();
+  const claim = calls[0]?.p_claim_token?.toLowerCase();
   const expected = new Map<string, AgRpcCall>();
   for (const call of calls) {
     if (!call || !UUID.test(call.p_cycle_id) || call.p_cycle_id.toLowerCase() !== cycle ||
+        !UUID.test(call.p_claim_token) || call.p_claim_token.toLowerCase() !== claim ||
+        typeof call.p_ticker !== "string" ||
         !/^[A-Z][A-Z0-9.-]{0,14}$/.test(call.p_ticker) ||
         expected.has(call.p_ticker)) return { ...empty, conflicting: ["INVALID_BATCH"] };
     expected.set(call.p_ticker, call);
