@@ -12,7 +12,8 @@ Use a disposable Supabase/PostgreSQL instance with the *actual* Retirement Rebui
 |---|---|---|
 | Successful insert | Claim persistence and submit a new ticker | Exactly one active decision and one committed ledger row with matching decision ID |
 | Replacement | Existing active decision differs from incoming decision | Old row superseded and replacement active, ledger committed in one transaction |
-| Reuse | Existing active decision has the same type | Existing decision ID reused; no duplicate inserted; ledger records reuse |
+| Same-type new-cycle snapshot | Existing active decision has the same type but different incoming thesis | Prior row superseded and new decision inserted with new content; ledger points to new row |
+| Same-cycle retry | Repeat the exact same cycle/ticker/payload after commit | Existing ledger decision ID returned; no duplicate inserted |
 | Forced INSERT failure | Add a temporary test-only trigger that raises an exception on replacement INSERT | Old decision remains active; no committed ledger entry or replacement row |
 | Same-cycle concurrency | Two sessions submit the same cycle/ticker/payload | Both resolve to the same committed decision ID; one effective write |
 | Conflicting retry | Same cycle/ticker but different payload | Second call fails; original decision and ledger remain unchanged |
@@ -32,7 +33,7 @@ Use a disposable Supabase/PostgreSQL instance with the *actual* Retirement Rebui
 2. Payload hash is now derived from typed RPC arguments inside PostgreSQL; verify the installed digest extension, deterministic hashing, and conflicting-retry behavior in the isolated database. No client-supplied hash is accepted.
 3. A per-ticker RPC is atomic **per decision**, not across the entire batch. A failure between tickers requires durable per-ticker reconciliation; watchlist updates also need their own idempotency contract.
 4. Cross-cycle ordering: an advisory lock serializes concurrent operations but does not prove that an older cycle cannot overwrite a newer completed decision. Add an explicit cycle ordering/fencing check.
-5. Verify existing lifecycle parity and Committee execution-evidence fields; confirm that no real-money execution path invokes this RPC.
+5. Review the deliberate lifecycle change: new cycles snapshot even same-type decisions rather than reuse a potentially stale row. Verify Committee execution-evidence fields and downstream decision-history consumers; confirm that no real-money execution path invokes this RPC.
 6. Tests must run as actual authenticated roles, not just as a database superuser. Include simultaneous database sessions for concurrency tests.
 
 **Release gate:** no AG research restart until migrations are reviewed, database tests pass, checkpoint stage execution is wired, reconciliation is demonstrated, and the paused endpoint is deliberately re-enabled. A Vercel READY build alone is insufficient.
