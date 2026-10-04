@@ -33,7 +33,7 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
 ) VALUES (
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc','11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
- 'committee','completed','{}'
+ 'committee','completed','{"persistence_tickers":["SUCCESS"]}'
 );
 DO $$
 DECLARE cp uuid; token uuid; v_decision_id uuid; ok boolean;
@@ -66,7 +66,7 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
 ) VALUES (
  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
- 'committee','completed','{}'
+ 'committee','completed','{"persistence_tickers":["ALPHA","BETA"]}'
 );
 DO $$
 DECLARE cp uuid; token uuid; ok boolean;
@@ -83,6 +83,15 @@ BEGIN
  );
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA']);
  IF ok THEN RAISE EXCEPTION 'Subset completed persistence despite extra ledger row'; END IF;
+ -- A correct ledger cannot override an incomplete Committee manifest.
+ UPDATE public.ag_cycle_stage_checkpoints
+ SET output='{"persistence_tickers":["ALPHA"]}'::jsonb
+ WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF ok THEN RAISE EXCEPTION 'Incomplete Committee manifest accepted'; END IF;
+ UPDATE public.ag_cycle_stage_checkpoints
+ SET output='{"persistence_tickers":["ALPHA","BETA"]}'::jsonb
+ WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','GAMMA']);
  IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
