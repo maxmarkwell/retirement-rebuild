@@ -38,4 +38,47 @@ BEGIN
  IF completed THEN RAISE EXCEPTION 'Stale worker completed reclaimed stage'; END IF;
  completed := public.ag_complete_cycle_stage(checkpoint,other,'{"verified":true}');
  IF NOT completed THEN RAISE EXCEPTION 'Current claim could not complete stage'; END IF;
-END $$;
+ -- Committee completion rejects malformed caller-supplied manifests.
+ INSERT INTO public.ag_cycle_stage_checkpoints
+   (cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,
+    attempt_count,claim_token,lease_expires_at)
+ VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   '11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-222222222222',
+   '33333333-3333-4333-8333-333333333333',
+   'committee','running',1,'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+   now()+interval '3 minutes')
+ RETURNING id INTO checkpoint;
+ token := 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,'{}');
+  RAISE EXCEPTION 'Missing Committee manifest accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Missing Committee manifest accepted' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,
+    '{"persistence_tickers":[]}');
+  RAISE EXCEPTION 'Empty Committee manifest accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Empty Committee manifest accepted' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,
+    '{"persistence_tickers":["ALPHA","ALPHA"]}');
+  RAISE EXCEPTION 'Duplicate Committee ticker accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Duplicate Committee ticker accepted' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,
+    '{"persistence_tickers":["alpha"]}');
+  RAISE EXCEPTION 'Malformed Committee ticker accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Malformed Committee ticker accepted' THEN RAISE; END IF;
+ END;
+ completed := public.ag_complete_cycle_stage(checkpoint,token,
+   '{"persistence_tickers":["ALPHA","BETA"]}');
+ IF NOT completed THEN RAISE EXCEPTION 'Valid Committee manifest rejected'; END IF;
+
+END $;
