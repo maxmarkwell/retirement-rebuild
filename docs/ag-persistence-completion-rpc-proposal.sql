@@ -56,7 +56,7 @@ BEGIN
  ) THEN RETURN false; END IF;
  UPDATE public.ag_cycle_stage_checkpoints SET status='completed',
    claim_token=NULL, lease_expires_at=NULL, completed_at=now(),
-   output=jsonb_build_object('ledger_verified',true,
+   output=jsonb_build_object('ledger_coverage_verified',true,
       'expected_tickers',to_jsonb(p_expected_tickers)),
    updated_at=now() WHERE id=v_checkpoint.id;
  RETURN true;
