@@ -307,8 +307,9 @@ export function reportAgPartialBatch(
     expected.set(call.p_ticker, call);
   }
   const acknowledgments = new Map<string, string>();
-  for (const ack of acknowledged) {
-    if (!ack || !expected.has(ack.ticker) || !UUID.test(ack.decisionId) ||
+  for (const [index, ack] of acknowledged.entries()) {
+    if (!ack || !expected.has(ack.ticker) ||
+        calls[index]?.p_ticker !== ack.ticker || !UUID.test(ack.decisionId) ||
         acknowledgments.has(ack.ticker)) {
       return { ...empty, conflicting: ["INVALID_ACKNOWLEDGMENTS"] };
     }
