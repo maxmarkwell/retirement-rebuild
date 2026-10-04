@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch } from "./atomic-persistence-adapter";
+import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger } from "./atomic-persistence-adapter";
 
 const cycleId = "123e4567-e89b-42d3-a456-426614174000";
 const claimToken = "223e4567-e89b-42d3-a456-426614174000";
@@ -78,6 +78,26 @@ describe("AG isolated RPC adapter", () => {
       [valid[0], { ...valid[1], status: "pending" }], scope), "MANUAL_RECONCILIATION");
     assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId],
       [valid[0], { ...valid[1], investment_decision_id: decisionId }], scope), "MANUAL_RECONCILIATION");
+  });
+  it("uses scoped read-only ledger verification and fails closed on read errors", async () => {
+    const calls = prepareAgRpcBatch([base], claimToken);
+    const scope = { userId: cycleId, portfolioId: cycleId, strategyEraId: cycleId };
+    let selected = 0;
+    const complete = await verifyAgBatchFromLedger(calls, [decisionId], scope, async (query) => {
+      selected++;
+      assert.deepEqual(query, { cycleId, userId: cycleId, portfolioId: cycleId, strategyEraId: cycleId });
+      return [{ cycle_id: cycleId, ticker: "NVDA", status: "committed",
+        investment_decision_id: decisionId, payload_hash: "a".repeat(64),
+        decision_kind: "committee", user_id: cycleId,
+        portfolio_id: cycleId, strategy_era_id: cycleId }];
+    });
+    assert.equal(complete, "COMPLETE");
+    assert.equal(selected, 1);
+    assert.equal(await verifyAgBatchFromLedger(calls, [decisionId], scope,
+      async () => { throw new Error("Read timeout"); }), "MANUAL_RECONCILIATION");
+    assert.equal(await verifyAgBatchFromLedger([], [], scope,
+      async () => { selected++; return []; }), "MANUAL_RECONCILIATION");
+    assert.equal(selected, 1);
   });
   it("rejects an invalid decision ID rather than treating it as committed", async () => {
     const prepared = prepareAgRpcBatch([base], claimToken);
