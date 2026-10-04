@@ -166,3 +166,39 @@ export function reconcileAgCommittedBatch(
   }
   return observed.size === expected.size ? "COMPLETE" : "MANUAL_RECONCILIATION";
 }
+
+/** Read-only database boundary. An actual Supabase caller must implement this
+ * scoped SELECT after approved migrations; this module never opens a client.
+ * No stage completion or automatic retry occurs here.
+ */
+export async function verifyAgBatchFromLedger(
+  calls: readonly AgRpcCall[],
+  decisionIds: readonly string[],
+  scope: { userId: string; portfolioId: string; strategyEraId: string },
+  selectCommittedLedger: (query: {
+    cycleId: string; userId: string; portfolioId: string; strategyEraId: string;
+  }) => Promise<readonly AgCommittedLedgerRow[]>,
+): Promise<"COMPLETE" | "MANUAL_RECONCILIATION"> {
+  if (!Array.isArray(calls) || calls.length === 0 ||
+      !scope || !UUID.test(scope.userId) || !UUID.test(scope.portfolioId) ||
+      !UUID.test(scope.strategyEraId) ||
+      !Array.isArray(decisionIds) || decisionIds.length !== calls.length) {
+    return "MANUAL_RECONCILIATION";
+  }
+  const cycleId = calls[0]?.p_cycle_id;
+  if (!UUID.test(cycleId) || calls.some((call) =>
+    !call || !UUID.test(call.p_cycle_id) ||
+    call.p_cycle_id.toLowerCase() !== cycleId.toLowerCase())) {
+    return "MANUAL_RECONCILIATION";
+  }
+  try {
+    const rows = await selectCommittedLedger({
+      cycleId, userId: scope.userId,
+      portfolioId: scope.portfolioId, strategyEraId: scope.strategyEraId,
+    });
+    return reconcileAgCommittedBatch(calls, decisionIds, rows, scope);
+  } catch {
+    // Failed/ambiguous reads are never evidence of a completed stage.
+    return "MANUAL_RECONCILIATION";
+  }
+}
