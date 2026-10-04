@@ -84,6 +84,21 @@ BEGIN
      OR v_checkpoint.lease_expires_at <= now()
   THEN RAISE EXCEPTION 'Valid persistence stage claim required'; END IF;
 
+  -- Fail closed before any ledger or decision write if Committee intent
+  -- does not contain this ticker. A ticker list is not payload proof.
+  IF p_kind = 'committee' AND NOT EXISTS (
+    SELECT 1 FROM public.ag_cycle_stage_checkpoints committee
+    WHERE committee.cycle_id=p_cycle_id AND committee.stage='committee'
+      AND committee.status='completed'
+      AND committee.user_id=v_cycle.user_id
+      AND committee.portfolio_id=v_cycle.portfolio_id
+      AND committee.strategy_era_id=v_cycle.strategy_era_id
+      AND jsonb_typeof(committee.output->'persistence_tickers')='array'
+      AND (committee.output->'persistence_tickers') ? p_ticker
+  ) THEN
+    RAISE EXCEPTION 'Committee ticker absent from completed persistence manifest';
+  END IF;
+
   INSERT INTO public.ag_cycle_decision_writes
     (cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash)
   VALUES
@@ -183,12 +198,10 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
   uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) TO authenticated;
 
--- * FUTURE HARDENING: require every Committee write ticker to appear in a
---   completed, immutable Committee manifest BEFORE the first ledger insert.
---   Existing isolated fixtures for older/newer cycles do not yet carry such
---   manifests; add complete fixtures and explicit out-of-manifest rejection
---   tests before introducing that gate. Holding-review decisions need their
---   own validated manifest and combined batch coverage semantics.
+-- The Committee ticker-membership gate is implemented, but the manifest
+-- must still be independently derived from complete upstream intent and
+-- verified against full payloads. Holding-review intent needs its own
+-- immutable manifest and combined batch coverage before activation.
 -- BLOCKERS BEFORE APPROVAL:
 -- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
 -- * Hashes are computed server-side; test digest availability and deterministic
