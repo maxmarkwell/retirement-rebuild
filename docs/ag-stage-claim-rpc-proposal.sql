@@ -147,6 +147,10 @@ BEGIN
    NEW.output IS DISTINCT FROM OLD.output OR
    NEW.claim_token IS DISTINCT FROM OLD.claim_token OR
    NEW.cycle_id IS DISTINCT FROM OLD.cycle_id OR
+   NEW.user_id IS DISTINCT FROM OLD.user_id OR
+   NEW.portfolio_id IS DISTINCT FROM OLD.portfolio_id OR
+   NEW.strategy_era_id IS DISTINCT FROM OLD.strategy_era_id OR
+   NEW.completed_at IS DISTINCT FROM OLD.completed_at OR
    NEW.stage IS DISTINCT FROM OLD.stage
  ) THEN RAISE EXCEPTION 'Completed AG checkpoint is immutable'; END IF;
  RETURN NEW;
