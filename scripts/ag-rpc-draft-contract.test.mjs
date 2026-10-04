@@ -14,7 +14,7 @@ test("draft AG RPC GRANT and REVOKE signatures match its declaration", () => {
     return parts[1].toLowerCase();
   });
   for (const operation of ["REVOKE", "GRANT"]) {
-    const match = sql.match(new RegExp(operation + String.raw`[^;]*?ON FUNCTION public\\.ag_commit_cycle_decision\\(([^)]*)\\)`, "i"));
+    const match = sql.match(new RegExp(operation + String.raw`[^;]*?ON FUNCTION public\.ag_commit_cycle_decision\(([^)]*)\)`, "i"));
     assert.ok(match, operation + " signature must exist");
     assert.deepEqual(signature(match[1]), declaredTypes, operation + " signature mismatch");
   }
