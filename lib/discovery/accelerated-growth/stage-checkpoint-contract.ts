@@ -35,7 +35,7 @@ export function validateAgStageEnvelope(
       value.cycleId !== expected.cycleId || !UUID.test(expected.cycleId) ||
       value.stage !== expected.stage || !isAgStage(value.stage) ||
       typeof value.completedAt !== "string" ||
-      !/^\\d{4}-\\d{2}-\\d{2}T/.test(value.completedAt) ||
+      !/^\d{4}-\d{2}-\d{2}T/.test(value.completedAt) ||
       !Number.isFinite(Date.parse(value.completedAt)) ||
       !isRecord(value.payload)) {
     throw new Error("Invalid AG checkpoint envelope; cycle, stage and payload must match.");
