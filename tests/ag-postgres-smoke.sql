@@ -105,3 +105,26 @@ BEGIN
  IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='FENCE' AND cycle_id='66666666-6666-4666-8666-666666666666')
  THEN RAISE EXCEPTION 'Older cycle left ledger entry'; END IF;
 END $$;
+
+-- Simulate a process that commits its first decision, disappears, and resumes
+-- with a fresh request using the same stage claim and identical payloads.
+DO $$
+DECLARE first_id uuid; retry_id uuid; second_id uuid;
+BEGIN
+ first_id := public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','BATCHA','committee','watch','First batch item',70,'short',null,null,null,null,null);
+ IF first_id IS NULL THEN RAISE EXCEPTION 'First batch decision missing'; END IF;
+END $$;
+-- Separate SQL statements represent independent committed client requests.
+DO $$
+DECLARE first_id uuid; retry_id uuid; second_id uuid;
+BEGIN
+ SELECT investment_decision_id INTO first_id FROM public.ag_cycle_decision_writes
+ WHERE cycle_id='44444444-4444-4444-8444-444444444444' AND ticker='BATCHA';
+ retry_id := public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','BATCHA','committee','watch','First batch item',70,'short',null,null,null,null,null);
+ second_id := public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','BATCHB','committee','watch','Second batch item',70,'short',null,null,null,null,null);
+ IF retry_id IS DISTINCT FROM first_id OR second_id IS NULL THEN RAISE EXCEPTION 'Interrupted batch resume failed'; END IF;
+ IF (SELECT count(*) FROM public.ag_cycle_decision_writes WHERE ticker IN ('BATCHA','BATCHB') AND status='committed') <> 2
+ THEN RAISE EXCEPTION 'Interrupted batch ledger incomplete'; END IF;
+ IF (SELECT count(*) FROM public.investment_decisions WHERE ticker IN ('BATCHA','BATCHB') AND status='active') <> 2
+ THEN RAISE EXCEPTION 'Interrupted batch produced duplicate or missing active decisions'; END IF;
+END $$;
