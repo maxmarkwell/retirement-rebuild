@@ -82,95 +82,59 @@ BEGIN
 END;
 $$;
 
--- Completion requires the original claim token. Expired claims cannot finish
--- automatically; a human must reconcile and explicitly reset them.
+-- Completion requires the original claim token. Expired claims cannot finish.
 CREATE OR REPLACE FUNCTION public.ag_complete_cycle_stage(
-  p_checkpoint_id uuid,
-  p_claim_token uuid,
-  p_output jsonb
+  p_checkpoint_id uuid, p_claim_token uuid, p_output jsonb
 )
-RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = ''
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE v_count integer;
 BEGIN
   IF auth.uid() IS NULL OR p_output IS NULL THEN
     RAISE EXCEPTION 'Authenticated caller and non-null output required';
   END IF;
-  -- A Committee checkpoint must record a unique normalized ticker manifest.
-  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
-             WHERE c.id=p_checkpoint_id AND c.stage='committee') THEN
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
+             WHERE id=p_checkpoint_id AND stage='committee') THEN
     IF jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array'
-       OR jsonb_array_length(CASE WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-           THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)=0
+       OR jsonb_array_length(CASE
+          WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+          THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)=0
        OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE
-           WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-           THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) AS item
-           WHERE jsonb_typeof(item)<>'string'
-              OR (item #>> '{}') !~ '^[A-Z][A-Z0-9.-]{0,14}
-  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
-    WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
-    RAISE EXCEPTION 'Persistence requires ledger-verified completion';
-  END IF;
-  UPDATE public.ag_cycle_stage_checkpoints c
-  SET status = 'completed', output = p_output, claim_token = NULL,
-      lease_expires_at = NULL, completed_at = now(), updated_at = now()
-  WHERE c.id = p_checkpoint_id AND c.user_id = auth.uid()
-    AND c.status = 'running' AND c.claim_token = p_claim_token
-    AND c.lease_expires_at IS NOT NULL AND c.lease_expires_at > now()
-    AND EXISTS (
-      SELECT 1 FROM public.ag_daily_cycles d
-      WHERE d.id = c.cycle_id AND d.user_id = auth.uid() AND d.status = 'running'
-    );
-  GET DIAGNOSTICS v_count = ROW_COUNT;
-  RETURN v_count = 1;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.ag_claim_cycle_stage(uuid,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.ag_claim_cycle_stage(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) TO authenticated;
-
--- SECURITY NOTE: p_output is caller-provided; server must validate stage-specific
--- schemas before passing output to later stages. No stage execution is enabled here.
--- An explicit reviewed administrative recovery function will be required to
--- reset failed/expired claims; deliberately omitted.
-)
-       OR (SELECT count(*) FROM jsonb_array_elements_text(p_output->'persistence_tickers'))
+          WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+          THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) AS item
+          WHERE jsonb_typeof(item)<>'string'
+             OR (item #>> '{}') !~ '^[A-Z][A-Z0-9.-]{0,14}$')
+       OR (SELECT count(*) FROM jsonb_array_elements_text(CASE
+          WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+          THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END))
           <> (SELECT count(DISTINCT item)
-              FROM jsonb_array_elements_text(p_output->'persistence_tickers') AS item)
+              FROM jsonb_array_elements_text(CASE
+              WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+              THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) AS item)
     THEN RAISE EXCEPTION 'Valid Committee persistence manifest required'; END IF;
   END IF;
-  -- Persistence must use a separate ledger-verified completion function.
-  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
-    WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
+             WHERE id=p_checkpoint_id AND stage='persistence') THEN
     RAISE EXCEPTION 'Persistence requires ledger-verified completion';
   END IF;
   UPDATE public.ag_cycle_stage_checkpoints c
-  SET status = 'completed', output = p_output, claim_token = NULL,
-      lease_expires_at = NULL, completed_at = now(), updated_at = now()
-  WHERE c.id = p_checkpoint_id AND c.user_id = auth.uid()
-    AND c.status = 'running' AND c.claim_token = p_claim_token
-    AND c.lease_expires_at IS NOT NULL AND c.lease_expires_at > now()
-    AND EXISTS (
-      SELECT 1 FROM public.ag_daily_cycles d
-      WHERE d.id = c.cycle_id AND d.user_id = auth.uid() AND d.status = 'running'
-    );
+  SET status='completed', output=p_output, claim_token=NULL,
+      lease_expires_at=NULL, completed_at=now(), updated_at=now()
+  WHERE c.id=p_checkpoint_id AND c.user_id=auth.uid()
+    AND c.status='running' AND c.claim_token=p_claim_token
+    AND c.lease_expires_at>now()
+    AND EXISTS (SELECT 1 FROM public.ag_daily_cycles d
+      WHERE d.id=c.cycle_id AND d.user_id=auth.uid() AND d.status='running');
   GET DIAGNOSTICS v_count = ROW_COUNT;
-  RETURN v_count = 1;
+  RETURN v_count=1;
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.ag_claim_cycle_stage(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_claim_cycle_stage(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) TO authenticated;
-
--- SECURITY NOTE: p_output is caller-provided; server must validate stage-specific
--- schemas before passing output to later stages. No stage execution is enabled here.
--- An explicit reviewed administrative recovery function will be required to
--- reset failed/expired claims; deliberately omitted.
+-- Committee manifest semantics require independent upstream verification.
+-- Administrative recovery remains deliberately unimplemented.
 
 -- Defense in depth: completed checkpoint evidence cannot be rewritten by
 -- ordinary UPDATEs, including privileged RPC mistakes. Recovery needs a
