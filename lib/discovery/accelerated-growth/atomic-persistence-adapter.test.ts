@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger, classifyAgAmbiguousBatch, AgAmbiguousWriteError } from "./atomic-persistence-adapter";
+import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger, classifyAgAmbiguousBatch, AgAmbiguousWriteError, reportAgPartialBatch } from "./atomic-persistence-adapter";
 
 const cycleId = "123e4567-e89b-42d3-a456-426614174000";
 const claimToken = "223e4567-e89b-42d3-a456-426614174000";
@@ -128,5 +128,33 @@ describe("AG isolated RPC adapter", () => {
     const prepared = prepareAgRpcBatch([base], claimToken);
     await assert.rejects(commitPreparedAgBatch(prepared, async () => "not-a-uuid"),
       (error: unknown) => error instanceof AgAmbiguousWriteError && error.ticker === "NVDA");
+  });
+});
+
+describe("AG partial-batch diagnostics", () => {
+  it("separates acknowledged, unacknowledged, missing and conflicting evidence", () => {
+    const calls = prepareAgRpcBatch([base, { ...base, symbol: "MSFT" },
+      { ...base, symbol: "ADBE" }], claimToken);
+    const scope = { userId: cycleId, portfolioId: cycleId, strategyEraId: cycleId };
+    const row = (ticker: string, id: string) => ({
+      cycle_id: cycleId, ticker, status: "committed",
+      investment_decision_id: id, payload_hash: "a".repeat(64),
+      decision_kind: "committee", user_id: cycleId,
+      portfolio_id: cycleId, strategy_era_id: cycleId,
+    });
+    const ack = [{ ticker: "NVDA", decisionId }];
+    const otherId = "423e4567-e89b-42d3-a456-426614174000";
+    const report = reportAgPartialBatch(calls, ack,
+      [row("NVDA", decisionId), row("MSFT", otherId)], scope);
+    assert.deepEqual(report.acknowledged, ["NVDA"]);
+    assert.deepEqual(report.recordedUnacknowledged, ["MSFT"]);
+    assert.deepEqual(report.missing, ["ADBE"]);
+    assert.deepEqual(report.conflicting, []);
+    assert.equal(report.status, "REQUIRES_MANUAL_RECONCILIATION");
+    const bad = reportAgPartialBatch(calls, ack,
+      [row("NVDA", otherId), row("MSFT", otherId)], scope);
+    assert.deepEqual(bad.conflicting.sort(), ["MSFT", "NVDA"]);
+    assert.deepEqual(reportAgPartialBatch(calls, ack, [row("NVDA", decisionId),
+      row("NVDA", decisionId)], scope).conflicting, ["NVDA"]);
   });
 });
