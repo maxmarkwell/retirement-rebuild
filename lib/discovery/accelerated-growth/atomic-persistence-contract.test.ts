@@ -9,6 +9,7 @@ describe("AG persistence planning", () => {
   it("produces stable cycle-linked idempotency keys", () => {
     assert.equal(planAgDecisionWrites([base])[0].idempotencyKey, `${cycleId}:NVDA`);
     assert.equal(planAgDecisionWrites([{ ...base, symbol: " nvda " }])[0].idempotencyKey, `${cycleId}:NVDA`);
+    assert.equal(planAgDecisionWrites([{ ...base, cycleId: cycleId.toUpperCase() }])[0].cycleId, cycleId);
   });
   it("rejects duplicate tickers across decision kinds", () => {
     assert.throws(() => planAgDecisionWrites([base, { ...base, kind: "holding_review" }]));
@@ -18,6 +19,7 @@ describe("AG persistence planning", () => {
     assert.throws(() => planAgDecisionWrites([{ ...base, symbol: "BAD TICKER" }]));
   });
   it("rejects malformed runtime values and incompatible decision kinds", () => {
+    assert.throws(() => planAgDecisionWrites(null as unknown as typeof base[]));
     assert.throws(() => planAgDecisionWrites([{ ...base, symbol: null as unknown as string }]));
     assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: 1 as unknown as string }]));
     assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: "sell" }]));
