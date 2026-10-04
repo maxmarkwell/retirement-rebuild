@@ -16,7 +16,7 @@ const holding={...common,decision:"HOLD" as const,rationale:"Thesis remains inta
 const evidence={TEST:{liquidityEligible:true,evidenceVersion:"v1",themeKey:"software"}};
 const captureCommittee=(override={})=>captureAgCommitteeIntent({
   cycleId,claimToken,eligibleSymbols:["TEST"],decisions:[committee],
-  failedCount:0,evidenceByTicker:evidence,...override,
+  failedCount:0,errors:[],evidenceByTicker:evidence,...override,
 });
 test("Committee snapshot preserves original decision and exact canonical typed arguments",()=>{
   const result=captureCommittee();
@@ -33,13 +33,14 @@ test("Committee capture rejects incomplete, unexpected, duplicate and failed res
   assert.throws(()=>captureCommittee({eligibleSymbols:["TEST","OTHER"]}));
   assert.throws(()=>captureCommittee({eligibleSymbols:["OTHER"]}));
   assert.throws(()=>captureCommittee({decisions:[committee,committee]}));
-  assert.throws(()=>captureCommittee({failedCount:1}));
+  assert.throws(()=>captureCommittee({failedCount:1,errors:[]}));
+  assert.throws(()=>captureCommittee({failedCount:0,errors:[{symbol:"UPSTREAM"}]}));
   assert.throws(()=>captureCommittee({evidenceByTicker:{}}));
   assert.throws(()=>captureCommittee({decisions:[{...committee,ownershipThesis:""}]}));
 });
 test("Holding snapshot preserves legacy notes provenance and nullable evidence",()=>{
   const result=captureAgHoldingIntent({
-    cycleId,claimToken,eligibleSymbols:["TEST"],decisions:[holding],failedCount:0,
+    cycleId,claimToken,eligibleSymbols:["TEST"],decisions:[holding],failedCount:0,errors:[],
   });
   assert.deepEqual(result.persistence_tickers,["TEST"]);
   assert.deepEqual(result.source_decisions,[holding]);
@@ -53,14 +54,14 @@ test("Holding snapshot preserves legacy notes provenance and nullable evidence",
 });
 test("Holding capture rejects incomplete source sets and malformed decisions",()=>{
   const base={cycleId,claimToken,eligibleSymbols:["TEST"],
-    decisions:[holding],failedCount:0};
+    decisions:[holding],failedCount:0,errors:[]};
   assert.throws(()=>captureAgHoldingIntent({...base,eligibleSymbols:[]}));
-  assert.throws(()=>captureAgHoldingIntent({...base,failedCount:1}));
+  assert.throws(()=>captureAgHoldingIntent({...base,failedCount:1,errors:[]}));
   assert.throws(()=>captureAgHoldingIntent({...base,decisions:[{...holding,confidence:Infinity}]}));
 });
 test("Empty stages are represented explicitly, never by a fabricated ticker",()=>{
   const result=captureAgHoldingIntent({
-    cycleId,claimToken,eligibleSymbols:[],decisions:[],failedCount:0,
+    cycleId,claimToken,eligibleSymbols:[],decisions:[],failedCount:0,errors:[],
   });
   assert.deepEqual(result.persistence_tickers,[]);
   assert.equal(result.source_count,0);
@@ -69,7 +70,7 @@ test("Empty stages are represented explicitly, never by a fabricated ticker",()=
 test("Combined preflight rejects duplicate tickers across Committee and holding",()=>{
   const committeeManifest=captureCommittee();
   const holdingManifest=captureAgHoldingIntent({
-    cycleId,claimToken,eligibleSymbols:["TEST"],decisions:[holding],failedCount:0,
+    cycleId,claimToken,eligibleSymbols:["TEST"],decisions:[holding],failedCount:0,errors:[],
   });
   assert.throws(()=>validateAgCombinedIntent(committeeManifest,holdingManifest));
 });
@@ -78,14 +79,14 @@ test("Combined preflight accepts disjoint source-verified manifests",()=>{
   const holdingDecision={...holding,symbol:"HOLDING"};
   const holdingManifest=captureAgHoldingIntent({
     cycleId,claimToken,eligibleSymbols:["HOLDING"],
-    decisions:[holdingDecision],failedCount:0,
+    decisions:[holdingDecision],failedCount:0,errors:[],
   });
   assert.deepEqual(validateAgCombinedIntent(committeeManifest,holdingManifest),{
     cycleId,tickers:["HOLDING","TEST"],
   });
   const otherCycle=captureAgHoldingIntent({
     cycleId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",claimToken,
-    eligibleSymbols:["HOLDING"],decisions:[holdingDecision],failedCount:0,
+    eligibleSymbols:["HOLDING"],decisions:[holdingDecision],failedCount:0,errors:[],
   });
   assert.throws(()=>validateAgCombinedIntent(committeeManifest,otherCycle));
 });
