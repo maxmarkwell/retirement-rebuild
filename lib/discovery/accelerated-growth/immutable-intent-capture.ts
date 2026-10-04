@@ -150,3 +150,34 @@ export function captureAgHoldingIntent(input: {
     calls,
   };
 }
+
+/** Read-only combined preflight. Stage claims are intentionally distinct;
+ * persistence must acquire its own claim and reprepare all writes under it.
+ * This does not authorize completion or automatic replay.
+ */
+export function validateAgCombinedIntent(
+  committee: ReturnType<typeof captureAgCommitteeIntent>,
+  holding: ReturnType<typeof captureAgHoldingIntent>,
+): { cycleId: string; tickers: readonly string[] } {
+  if (!committee || !holding || !Array.isArray(committee.decision_payloads) ||
+      !Array.isArray(holding.decision_payloads)) {
+    throw new Error("Both AG intent manifests are required");
+  }
+  const all = [...holding.decision_payloads,...committee.decision_payloads];
+  const cycleIds = new Set(all.map((item) => item.args?.[0]));
+  const sourceCycles = [holding.calls[0]?.p_cycle_id,committee.calls[0]?.p_cycle_id]
+    .filter((value) => value !== undefined);
+  for (const cycle of sourceCycles) cycleIds.add(cycle);
+  if (cycleIds.size !== 1 || !UUID.test([...cycleIds][0] as string)) {
+    // An entirely empty combined batch needs a separately approved no-op
+    // protocol; it must not be treated as a successfully persisted cycle.
+    throw new Error("AG combined intent has missing or mixed cycle identity");
+  }
+  const tickers = symbols(all.map((item) => item.ticker),"combined AG");
+  if (committee.output_count !== committee.persistence_tickers.length ||
+      holding.output_count !== holding.persistence_tickers.length ||
+      committee.failure_count !== 0 || holding.failure_count !== 0) {
+    throw new Error("Incomplete combined AG intent");
+  }
+  return { cycleId:[...cycleIds][0] as string,tickers };
+}
