@@ -5,7 +5,7 @@ on:
     paths:
       - 'docs/ag-*.sql'
       - 'docs/ag-resumable-cycle-checkpoint-design.md'
-      - 'tests/ag-postgres-*.sql'
+      - 'tests/ag-postgres-*'
       - '.github/workflows/ag-postgres-draft.yml'
   workflow_dispatch:
 jobs:
@@ -42,4 +42,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/ag-cycle-decision-ledger-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
       - name: Run isolated transactional smoke tests
-        run: psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
+        run: |
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
+          bash tests/ag-postgres-concurrency.sh
