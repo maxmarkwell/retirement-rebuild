@@ -110,6 +110,13 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Completed Committee timestamp was mutable' THEN RAISE; END IF;
  END;
+ BEGIN
+  DELETE FROM public.ag_cycle_stage_checkpoints
+  WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
+  RAISE EXCEPTION 'Completed Committee checkpoint was deletable';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Completed Committee checkpoint was deletable' THEN RAISE; END IF;
+ END;
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','GAMMA']);
  IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
