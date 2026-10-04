@@ -97,6 +97,11 @@ BEGIN
   IF auth.uid() IS NULL OR p_output IS NULL THEN
     RAISE EXCEPTION 'Authenticated caller and non-null output required';
   END IF;
+  -- Persistence must use a separate ledger-verified completion function.
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
+    WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
+    RAISE EXCEPTION 'Persistence requires ledger-verified completion';
+  END IF;
   UPDATE public.ag_cycle_stage_checkpoints c
   SET status = 'completed', output = p_output, claim_token = NULL,
       lease_expires_at = NULL, completed_at = now(), updated_at = now()
