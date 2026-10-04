@@ -17,6 +17,7 @@ const SYMBOL = /^[A-Z][A-Z0-9.-]{0,14}$/;
 /** Reject ambiguous inputs before contacting the persistence RPC. */
 export function planAgDecisionWrites(writes: readonly AgDecisionWrite[]): AgDecisionWritePlan[] {
   const seen = new Set<string>();
+  if (!Array.isArray(writes)) throw new Error("Invalid AG persistence batch.");
   return writes.map((write) => {
     if (!write || typeof write.symbol !== "string" || typeof write.cycleId !== "string" ||
         typeof write.decisionType !== "string") {
@@ -36,7 +37,7 @@ export function planAgDecisionWrites(writes: readonly AgDecisionWrite[]): AgDeci
     const idempotencyKey = `${write.cycleId.toLowerCase()}:${symbol}`;
     if (seen.has(idempotencyKey)) throw new Error(`Duplicate AG write: ${symbol}`);
     seen.add(idempotencyKey);
-    return { ...write, symbol, idempotencyKey };
+    return { ...write, cycleId: write.cycleId.toLowerCase(), symbol, idempotencyKey };
   });
 }
 
