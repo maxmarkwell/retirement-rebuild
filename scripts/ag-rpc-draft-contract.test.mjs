@@ -36,3 +36,12 @@ test("draft RPC fails closed on null inputs, ownership, claim and ambiguous acti
     assert.ok(normalized.includes(requirement), "Missing RPC safety check: " + requirement);
   }
 });
+
+test("draft RPC ticker regex is complete and SQL string literals are balanced", () => {
+  assert.ok(sql.includes("p_ticker !~ '^[A-Z][A-Z0-9.-]{0,14}$'"));
+  const body = sql.split("AS $$")[1]?.split("$$;")[0];
+  assert.ok(body, "PL/pgSQL function body must exist");
+  const withoutComments = body.replace(/--[^\n]*/g, "");
+  // Escaped SQL apostrophes are pairs; odd quote count signals a truncated literal.
+  assert.equal((withoutComments.match(/'/g) ?? []).length % 2, 0);
+});
