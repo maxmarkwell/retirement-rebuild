@@ -3,10 +3,9 @@
 -- Persistence completion is atomic with an exact committed-ledger count.
 -- Caller supplies expected ticker list, but payload identity still requires
 -- separate canonical hash verification before this function is invoked.
--- RELEASE BLOCKER: p_expected_tickers is caller-controlled; this function
--- cannot establish that the caller supplied the COMPLETE planned batch.
--- Bind the expected manifest to a separately validated, immutable server-side
--- committee-stage artifact before enabling this RPC in any daily runner.
+-- RELEASE BLOCKER: Committee checkpoint output must be independently validated
+-- and immutable after completion. Matching its manifest is necessary but not
+-- sufficient to prove the Committee planned the complete decision batch.
 CREATE OR REPLACE FUNCTION public.ag_complete_persistence_stage(
   p_checkpoint_id uuid, p_claim_token uuid, p_expected_tickers text[]
 )
@@ -14,6 +13,7 @@ RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE v_checkpoint public.ag_cycle_stage_checkpoints%ROWTYPE;
         v_count integer;
+        v_manifest jsonb;
 BEGIN
  IF auth.uid() IS NULL OR p_expected_tickers IS NULL OR
     cardinality(p_expected_tickers) = 0 OR
@@ -39,6 +39,23 @@ BEGIN
      AND e.portfolio_id=p.id AND e.ended_at IS NULL
      AND e.strategy_key='accelerated_growth' AND e.execution_mode='paper'
  ) THEN RETURN false; END IF;
+ -- Require the expected set to match the completed Committee checkpoint.
+ -- The Committee manifest must itself be validated and frozen at completion;
+ -- this comparison alone is not proof that upstream Committee output is sound.
+ SELECT c.output->'persistence_tickers' INTO v_manifest
+ FROM public.ag_cycle_stage_checkpoints c
+ WHERE c.cycle_id=v_checkpoint.cycle_id AND c.stage='committee'
+   AND c.status='completed' AND c.user_id=v_checkpoint.user_id
+   AND c.portfolio_id=v_checkpoint.portfolio_id
+   AND c.strategy_era_id=v_checkpoint.strategy_era_id;
+ IF v_manifest IS NULL OR jsonb_typeof(v_manifest)<>'array' OR
+    jsonb_array_length(v_manifest)<>cardinality(p_expected_tickers) OR
+    EXISTS (
+      SELECT 1 FROM jsonb_array_elements(v_manifest) element
+      WHERE jsonb_typeof(element)<>'string' OR
+        NOT ((element #>> '{}')=ANY(p_expected_tickers))
+    )
+ THEN RETURN false; END IF;
  -- Count every row for the cycle, not just the caller's expected subset.
  SELECT count(*) INTO v_count FROM public.ag_cycle_decision_writes w
  WHERE w.cycle_id=v_checkpoint.cycle_id;
