@@ -24,7 +24,7 @@ DECLARE
   v_token uuid := gen_random_uuid();
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
-  IF p_stage NOT IN ('holding_review','discovery','catalyst_deep_research','committee','persistence','finalized')
+  IF p_stage IS NULL OR p_stage NOT IN ('holding_review','discovery','catalyst_deep_research','committee','persistence','finalized')
   THEN RAISE EXCEPTION 'Invalid AG stage'; END IF;
 
   SELECT * INTO v_cycle FROM public.ag_daily_cycles
@@ -99,7 +99,7 @@ BEGIN
       lease_expires_at = NULL, completed_at = now(), updated_at = now()
   WHERE c.id = p_checkpoint_id AND c.user_id = auth.uid()
     AND c.status = 'running' AND c.claim_token = p_claim_token
-    AND c.lease_expires_at > now()
+    AND c.lease_expires_at IS NOT NULL AND c.lease_expires_at > now()
     AND EXISTS (
       SELECT 1 FROM public.ag_daily_cycles d
       WHERE d.id = c.cycle_id AND d.user_id = auth.uid() AND d.status = 'running'
