@@ -24,10 +24,11 @@ function symbols(values: readonly string[], label: string): string[] {
 }
 function validateSource(
   cycleId: string, eligible: readonly string[], decisions: readonly { symbol: string }[],
-  failedCount: number, label: string,
+  failedCount: number, errors: readonly unknown[], label: string,
 ): string[] {
   if (!UUID.test(cycleId) || !Array.isArray(decisions) ||
-      !Number.isSafeInteger(failedCount) || failedCount !== 0) {
+      !Number.isSafeInteger(failedCount) || failedCount !== 0 ||
+      !Array.isArray(errors) || errors.length !== 0) {
     throw new Error(`Incomplete ${label} stage`);
   }
   const source = symbols(eligible, label);
@@ -63,10 +64,11 @@ export type AgCommitteeEvidence = {
 export function captureAgCommitteeIntent(input: {
   cycleId: string; claimToken: string; eligibleSymbols: readonly string[];
   decisions: readonly AgCommitteeDecision[]; failedCount: number;
+  errors: readonly unknown[];
   evidenceByTicker: Readonly<Record<string, AgCommitteeEvidence>>;
 }) {
   const { cycleId, claimToken, decisions } = input;
-  const eligible = validateSource(cycleId,input.eligibleSymbols,decisions,input.failedCount,"Committee");
+  const eligible = validateSource(cycleId,input.eligibleSymbols,decisions,input.failedCount,input.errors,"Committee");
   if (!input.evidenceByTicker || typeof input.evidenceByTicker !== "object" ||
       Object.keys(input.evidenceByTicker).some((key) => !eligible.includes(key))) {
     throw new Error("Invalid Committee execution evidence set");
@@ -116,9 +118,10 @@ export function captureAgCommitteeIntent(input: {
 export function captureAgHoldingIntent(input: {
   cycleId: string; claimToken: string; eligibleSymbols: readonly string[];
   decisions: readonly AgHoldingReviewDecision[]; failedCount: number;
+  errors: readonly unknown[];
 }) {
   const { cycleId, claimToken, decisions } = input;
-  const eligible = validateSource(cycleId,input.eligibleSymbols,decisions,input.failedCount,"holding review");
+  const eligible = validateSource(cycleId,input.eligibleSymbols,decisions,input.failedCount,input.errors,"holding review");
   const writes = decisions.map((d) => {
     if (!validDecision(d) || !isText(d.rationale) ||
         !["HOLD","SELL"].includes(d.decision)) {
