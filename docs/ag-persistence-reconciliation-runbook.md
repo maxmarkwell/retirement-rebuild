@@ -70,3 +70,38 @@ ORDER BY w.ticker, w.updated_at DESC;
 - A new atomic persistence RPC must take a cycle ID and stable per-decision idempotency keys, lock the cycle and affected decision rows, and commit supersession and insertion in **one database transaction**.
 - Do not enable transaction execution during recovery. Any transaction already present must be reconciled separately.
 - Verify the audit queries against live schema before executing them; this is a proposed runbook, not evidence that reconciliation is complete.
+
+## Future ledger-based timeout recovery (only AFTER proposed migrations are approved)
+
+The following query requires `ag_cycle_decision_writes` and
+`ag_cycle_stage_checkpoints`, which **do not exist in the current schema**.
+Do not run it against today's production database. It provides a read-only
+post-timeout check once the proposed tables have been deployed and reviewed.
+
+```sql
+-- Replace the UUID and compare the complete result with the durable
+-- expected checkpoint payload and the original request's payload hashes.
+SELECT c.id AS cycle_id, c.cycle_date, c.status AS cycle_status,
+       s.status AS persistence_stage_status, s.completed_at AS stage_completed_at,
+       l.ticker, l.decision_kind, l.payload_hash,
+       l.status AS write_status, l.investment_decision_id,
+       l.committed_at, d.status AS decision_status,
+       d.decision_type, d.transaction_id
+FROM public.ag_daily_cycles c
+LEFT JOIN public.ag_cycle_stage_checkpoints s
+  ON s.cycle_id = c.id AND s.stage = 'persistence'
+LEFT JOIN public.ag_cycle_decision_writes l ON l.cycle_id = c.id
+LEFT JOIN public.investment_decisions d ON d.id = l.investment_decision_id
+WHERE c.id = 'REPLACE_WITH_CYCLE_UUID'::uuid
+ORDER BY l.ticker;
+```
+
+A `committed` ledger entry with the expected hash and a matching decision ID
+is evidence that **that individual decision write** committed. It does not
+prove the watchlist was updated, that all expected tickers were processed, or
+that the persistence stage completed. A reused decision can subsequently be
+superseded by another cycle, so `decision_status = 'superseded'` is not by
+itself proof that the original write failed. Reconcile against the original
+checkpoint and later cycle history before deciding whether the entire stage
+is complete. Missing or mismatched ledger rows require manual review; do not
+blindly rerun a timed-out persistence stage.
