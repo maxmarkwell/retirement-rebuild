@@ -182,7 +182,7 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
 -- * Requires canonical server/client payload encoding;
 --   until those agree, do not invoke this RPC from the application.
--- * Confirm actual decision_type enum/constraints and confidence scale.
+-- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration\n--   does NOT define investment_decisions.notes, although the current holding\n--   pipeline and this draft INSERT use it. Inspect the isolated/live catalog\n--   read-only; locate any later/manual ALTER before testing or approving.\n--   Do not silently drop holding-review provenance or assume notes exists.\n-- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including REUSE of existing decisions.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
