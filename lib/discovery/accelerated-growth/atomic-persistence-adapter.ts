@@ -68,7 +68,7 @@ export function prepareAgRpcBatch(
   });
 }
 export class AgAmbiguousWriteError extends Error {
-  constructor(readonly ticker: string, readonly cause: unknown) {
+  constructor(readonly ticker: string, readonly cause: unknown, readonly acknowledged: readonly { ticker: string; decisionId: string }[] = []) {
     super(`AG write outcome unknown for ${ticker}; reconcile ledger before any retry.`);
     this.name = "AgAmbiguousWriteError";
   }
@@ -103,17 +103,19 @@ export async function commitPreparedAgBatch(
     seen.add(key);
   }
   const ids: string[] = [];
+  const acknowledged: { ticker: string; decisionId: string }[] = [];
   for (const call of calls) {
     let id: string;
     try {
       id = await invoke(call);
     } catch (cause) {
       // An RPC rejection can occur after the server committed the transaction.
-      throw new AgAmbiguousWriteError(call.p_ticker, cause);
+      throw new AgAmbiguousWriteError(call.p_ticker, cause, acknowledged);
     }
     if (!UUID.test(id)) throw new AgAmbiguousWriteError(call.p_ticker,
-      new Error("RPC returned an invalid decision ID"));
+      new Error("RPC returned an invalid decision ID"), acknowledged);
     ids.push(id);
+    acknowledged.push({ ticker: call.p_ticker, decisionId: id });
   }
   return ids;
 }
