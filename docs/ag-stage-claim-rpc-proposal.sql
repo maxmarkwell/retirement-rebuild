@@ -122,7 +122,7 @@ BEGIN
       lease_expires_at=NULL, completed_at=now(), updated_at=now()
   WHERE c.id=p_checkpoint_id AND c.user_id=auth.uid()
     AND c.status='running' AND c.claim_token=p_claim_token
-    AND c.lease_expires_at>now()
+    AND c.lease_expires_at IS NOT NULL AND c.lease_expires_at > now()
     AND EXISTS (SELECT 1 FROM public.ag_daily_cycles d
       WHERE d.id=c.cycle_id AND d.user_id=auth.uid() AND d.status='running');
   GET DIAGNOSTICS v_count = ROW_COUNT;
