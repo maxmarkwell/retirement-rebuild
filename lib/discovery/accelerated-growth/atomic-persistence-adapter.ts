@@ -67,6 +67,12 @@ export function prepareAgRpcBatch(
     };
   });
 }
+export class AgAmbiguousWriteError extends Error {
+  constructor(readonly ticker: string, readonly cause: unknown) {
+    super(`AG write outcome unknown for ${ticker}; reconcile ledger before any retry.`);
+    this.name = "AgAmbiguousWriteError";
+  }
+}
 /** Never infer success from an RPC timeout. The caller must verify the
  * committed ledger before claiming stage completion or attempting recovery.
  * Prevalidate the ENTIRE batch before issuing its first write.
@@ -98,8 +104,15 @@ export async function commitPreparedAgBatch(
   }
   const ids: string[] = [];
   for (const call of calls) {
-    const id = await invoke(call);
-    if (!UUID.test(id)) throw new Error("AG RPC returned an invalid decision ID; reconcile ledger.");
+    let id: string;
+    try {
+      id = await invoke(call);
+    } catch (cause) {
+      // An RPC rejection can occur after the server committed the transaction.
+      throw new AgAmbiguousWriteError(call.p_ticker, cause);
+    }
+    if (!UUID.test(id)) throw new AgAmbiguousWriteError(call.p_ticker,
+      new Error("RPC returned an invalid decision ID"));
     ids.push(id);
   }
   return ids;
