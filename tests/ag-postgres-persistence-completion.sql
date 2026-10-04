@@ -97,10 +97,11 @@ BEGIN
  WHERE id=(SELECT investment_decision_id FROM public.ag_cycle_decision_writes
            WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='BETA');
  UPDATE public.ag_cycle_decision_writes
- SET investment_decision_id='ffffffff-ffff-4fff-8fff-ffffffffffff'
+ SET investment_decision_id=(SELECT investment_decision_id FROM public.ag_cycle_decision_writes
+   WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='ALPHA')
  WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='BETA';
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
- IF ok THEN RAISE EXCEPTION 'Missing linked decision completed persistence'; END IF;
+ IF ok THEN RAISE EXCEPTION 'Wrong linked decision completed persistence'; END IF;
  UPDATE public.ag_cycle_decision_writes w
  SET investment_decision_id=(SELECT d.id FROM public.investment_decisions d
    WHERE d.ticker='BETA' AND d.portfolio_id=w.portfolio_id AND d.status='active'
