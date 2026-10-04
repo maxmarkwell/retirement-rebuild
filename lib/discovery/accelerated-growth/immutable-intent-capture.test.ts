@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { captureAgCommitteeIntent, captureAgHoldingIntent } from "./immutable-intent-capture";
+import { captureAgCommitteeIntent, captureAgHoldingIntent, validateAgCombinedIntent } from "./immutable-intent-capture";
 
 const cycleId="44444444-4444-4444-8444-444444444444";
 const claimToken="55555555-5555-4555-8555-555555555555";
@@ -64,4 +64,28 @@ test("Empty stages are represented explicitly, never by a fabricated ticker",()=
   });
   assert.deepEqual(result.persistence_tickers,[]);
   assert.equal(result.source_count,0);
+});
+
+test("Combined preflight rejects duplicate tickers across Committee and holding",()=>{
+  const committeeManifest=captureCommittee();
+  const holdingManifest=captureAgHoldingIntent({
+    cycleId,claimToken,eligibleSymbols:["TEST"],decisions:[holding],failedCount:0,
+  });
+  assert.throws(()=>validateAgCombinedIntent(committeeManifest,holdingManifest));
+});
+test("Combined preflight accepts disjoint source-verified manifests",()=>{
+  const committeeManifest=captureCommittee();
+  const holdingDecision={...holding,symbol:"HOLDING"};
+  const holdingManifest=captureAgHoldingIntent({
+    cycleId,claimToken,eligibleSymbols:["HOLDING"],
+    decisions:[holdingDecision],failedCount:0,
+  });
+  assert.deepEqual(validateAgCombinedIntent(committeeManifest,holdingManifest),{
+    cycleId,tickers:["HOLDING","TEST"],
+  });
+  const otherCycle=captureAgHoldingIntent({
+    cycleId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",claimToken,
+    eligibleSymbols:["HOLDING"],decisions:[holdingDecision],failedCount:0,
+  });
+  assert.throws(()=>validateAgCombinedIntent(committeeManifest,otherCycle));
 });
