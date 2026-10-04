@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+const read = (name) => readFileSync(name, "utf8");
+test("isolated AG ledger reader performs scoped SELECT only", () => {
+  const reader = read("lib/discovery/accelerated-growth/atomic-persistence-ledger-reader.ts");
+  const runner = read("lib/discovery/accelerated-growth/daily-cycle-work.ts");
+  assert.match(reader, /supabase\.auth\.getUser\(\)/);
+  for (const key of ["cycle_id", "user_id", "portfolio_id", "strategy_era_id"]) {
+    assert.ok(reader.includes('.eq("' + key + '"'));
+  }
+  assert.match(reader, /\.select\("cycle_id,ticker,status,investment_decision_id/);
+  assert.doesNotMatch(reader, /\.(?:insert|update|upsert|delete|rpc)\(/);
+  assert.doesNotMatch(runner, /atomic-persistence-ledger-reader/);
+  assert.match(runner, /assertAgLegacyPersistenceDisabled\(\);/);
+});
