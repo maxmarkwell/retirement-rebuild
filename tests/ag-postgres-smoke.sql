@@ -35,6 +35,35 @@ BEGIN
   IF SQLERRM = 'Conflicting retry unexpectedly accepted' THEN RAISE; END IF;
  END;
 END $$;
+-- A later cycle with the same decision type but different thesis must snapshot
+-- new content, not attach a new payload hash to the previous decision row.
+INSERT INTO public.investment_decisions
+ (id,user_id,portfolio_id,ticker,decision_type,source,status,thesis,created_at)
+VALUES
+ ('88888888-8888-4888-8888-888888888888',
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  'SNAP','watch','ai_committee','active','Old thesis',now());
+DO $agtest$
+DECLARE new_id uuid; retry_id uuid;
+BEGIN
+ new_id := public.ag_commit_cycle_decision(
+  '44444444-4444-4444-8444-444444444444',
+  '55555555-5555-4555-8555-555555555555',
+  'SNAP','committee','watch','New thesis',80,'long',null,null,null,null,null);
+ IF new_id='88888888-8888-4888-8888-888888888888' OR
+    (SELECT status FROM public.investment_decisions
+      WHERE id='88888888-8888-4888-8888-888888888888')<>'superseded' OR
+    (SELECT thesis FROM public.investment_decisions WHERE id=new_id)<>'New thesis'
+ THEN RAISE EXCEPTION 'Same-type cycle write reused stale decision payload'; END IF;
+ retry_id := public.ag_commit_cycle_decision(
+  '44444444-4444-4444-8444-444444444444',
+  '55555555-5555-4555-8555-555555555555',
+  'SNAP','committee','watch','New thesis',80,'long',null,null,null,null,null);
+ IF retry_id IS DISTINCT FROM new_id
+ THEN RAISE EXCEPTION 'Same-cycle retry duplicated decision snapshot'; END IF;
+END $agtest$;
+
 -- Expired lease must reject a fresh ticker without writing anything.
 UPDATE public.ag_cycle_stage_checkpoints SET lease_expires_at=now()-interval '1 minute';
 DO $$ BEGIN
