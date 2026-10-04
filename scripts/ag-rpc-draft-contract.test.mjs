@@ -57,6 +57,8 @@ test("stage claim and ledger drafts reject incomplete states", () => {
   const stage = normalize(readFileSync("docs/ag-stage-claim-rpc-proposal.sql", "utf8"));
   const ledger = normalize(readFileSync("docs/ag-cycle-decision-ledger-proposal.sql", "utf8"));
   assert.ok(stage.includes("p_stage is null or p_stage not in"));
+  assert.equal((stage.match(/interval '6 minutes'/g) ?? []).length, 2, "Both claim paths must use a six-minute lease");
+  assert.ok(!stage.includes("interval '4 minutes'"));
   assert.ok(stage.includes("c.lease_expires_at is not null and c.lease_expires_at > now()"));
   assert.ok(ledger.includes("status <> 'committed' and investment_decision_id is null and committed_at is null"));
 });
