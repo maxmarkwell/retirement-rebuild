@@ -96,7 +96,11 @@ describe("AG isolated RPC adapter", () => {
     });
     const valid = [row("NVDA", decisionId), row("MSFT", secondId)];
     const scope = { userId: cycleId, portfolioId: cycleId, strategyEraId: cycleId };
-    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId], valid, scope), "COMPLETE");
+    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId],
+      valid, scope), "COMPLETE");
+    assert.equal(reconcileAgCommittedBatch(
+      [calls[0], { ...calls[1], p_claim_token: "723e4567-e89b-42d3-a456-426614174000" }],
+      [decisionId, secondId], valid, scope), "MANUAL_RECONCILIATION");
     assert.equal(reconcileAgCommittedBatch(calls, [decisionId, decisionId],
       [valid[0], { ...valid[1], investment_decision_id: decisionId }], scope), "MANUAL_RECONCILIATION");
     assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId],
@@ -139,6 +143,11 @@ describe("AG isolated RPC adapter", () => {
       "ALL_RECORDED_REQUIRES_PAYLOAD_VERIFICATION");
     assert.equal(classifyAgAmbiguousBatch(calls, [], scope), "MANUAL_RECONCILIATION");
     const two = prepareAgRpcBatch([base, { ...base, symbol: "MSFT" }], claimToken);
+    assert.equal(classifyAgAmbiguousBatch(
+      [two[0], { ...two[1], p_claim_token: "723e4567-e89b-42d3-a456-426614174000" }],
+      [row, { ...row, ticker: "MSFT", investment_decision_id:
+        "423e4567-e89b-42d3-a456-426614174000" }], scope),
+      "MANUAL_RECONCILIATION");
     assert.equal(classifyAgAmbiguousBatch(two, [row, { ...row, ticker: "MSFT" }], scope),
       "MANUAL_RECONCILIATION");
     assert.equal(classifyAgAmbiguousBatch(calls, [{ ...row, portfolio_id: decisionId }], scope),
