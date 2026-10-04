@@ -117,6 +117,13 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Completed Committee checkpoint was deletable' THEN RAISE; END IF;
  END;
+ -- Committee-only completion must not silently certify a holding review.
+ UPDATE public.ag_cycle_decision_writes SET decision_kind='holding_review'
+ WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='ALPHA';
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF ok THEN RAISE EXCEPTION 'Mixed decision kinds completed Committee-only persistence'; END IF;
+ UPDATE public.ag_cycle_decision_writes SET decision_kind='committee'
+ WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND ticker='ALPHA';
  -- A matching active ID is insufficient if its source or era is wrong.
  UPDATE public.investment_decisions SET source='manual'
  WHERE ticker='ALPHA' AND portfolio_id='22222222-2222-4222-8222-222222222222'
