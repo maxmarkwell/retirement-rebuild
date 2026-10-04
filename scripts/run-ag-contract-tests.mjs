@@ -1,0 +1,31 @@
+// Runs existing TypeScript node:test suites without adding a test dependency.
+// Each tested contract is intentionally pure and has no relative imports.
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import ts from "typescript";
+
+const directory = resolve("lib/discovery/accelerated-growth");
+const contracts = ["stage-checkpoint-contract", "atomic-persistence-contract"];
+function toDataUrl(source, filename) {
+  const compiled = ts.transpileModule(source, {
+    fileName: filename,
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+    reportDiagnostics: true,
+  });
+  if (compiled.diagnostics?.length) {
+    throw new Error(ts.formatDiagnosticsWithColorAndContext(compiled.diagnostics, {
+      getCanonicalFileName: (name) => name,
+      getCurrentDirectory: () => process.cwd(),
+      getNewLine: () => "\\n",
+    }));
+  }
+  return `data:text/javascript;base64,${Buffer.from(compiled.outputText).toString("base64")}`;
+}
+for (const name of contracts) {
+  const moduleSource = await readFile(resolve(directory, `${name}.ts`), "utf8");
+  const moduleUrl = toDataUrl(moduleSource, `${name}.ts`);
+  const testSource = await readFile(resolve(directory, `${name}.test.ts`), "utf8");
+  const importPath = `"./${name}"`;
+  if (!testSource.includes(importPath)) throw new Error(`Expected contract import missing: ${name}`);
+  await import(toDataUrl(testSource.replace(importPath, JSON.stringify(moduleUrl)), `${name}.test.ts`));
+}
