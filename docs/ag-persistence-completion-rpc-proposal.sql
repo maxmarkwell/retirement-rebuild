@@ -65,6 +65,7 @@ BEGIN
      AND (w.user_id<>v_checkpoint.user_id OR
           w.portfolio_id<>v_checkpoint.portfolio_id OR
           w.strategy_era_id<>v_checkpoint.strategy_era_id OR
+          w.decision_kind<>'committee' OR
           w.status<>'committed' OR w.investment_decision_id IS NULL OR
           w.payload_hash !~ '^[a-f0-9]{64}$' OR
           NOT (w.ticker=ANY(p_expected_tickers)) OR
@@ -89,6 +90,8 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) TO authenticated;
+-- TEMPORARY FAIL-CLOSED SCOPE: mixed holding-review/Committee batches must
+-- not complete until both intent manifests and combined coverage exist.
 -- IMPORTANT: This proves ledger coverage and active decision linkage, NOT
 -- canonical payload equality or manifest completeness. Do not enable
 -- automatic recovery or active daily-runner integration on this basis.
