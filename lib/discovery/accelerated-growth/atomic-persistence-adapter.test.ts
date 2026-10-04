@@ -162,6 +162,14 @@ describe("AG partial-batch diagnostics", () => {
     assert.deepEqual(report.missing, ["ADBE"]);
     assert.deepEqual(report.conflicting, []);
     assert.equal(report.status, "REQUIRES_MANUAL_RECONCILIATION");
+    assert.deepEqual(reportAgPartialBatch(calls,
+      [{ ticker: "MSFT", decisionId: otherId }],
+      [row("NVDA", decisionId), row("MSFT", otherId)], scope).conflicting,
+      ["INVALID_ACKNOWLEDGMENTS"]);
+    assert.deepEqual(reportAgPartialBatch(calls,
+      [{ ticker: "NVDA", decisionId }, { ticker: "ADBE", decisionId: otherId }],
+      [row("NVDA", decisionId)], scope).conflicting,
+      ["INVALID_ACKNOWLEDGMENTS"]);
     const bad = reportAgPartialBatch(calls, ack,
       [row("NVDA", otherId), row("MSFT", otherId)], scope);
     assert.deepEqual([...bad.conflicting].sort(), ["MSFT", "NVDA"]);
