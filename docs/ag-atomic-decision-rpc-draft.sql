@@ -94,6 +94,9 @@ BEGIN
   IF v_ledger.payload_hash <> p_payload_hash OR v_ledger.decision_kind <> p_kind
   THEN RAISE EXCEPTION 'Conflicting payload for AG cycle ticker'; END IF;
   IF v_ledger.status = 'committed' THEN
+    IF v_ledger.investment_decision_id IS NULL THEN
+      RAISE EXCEPTION 'Committed AG ledger missing decision ID; manual reconciliation required';
+    END IF;
     RETURN v_ledger.investment_decision_id;
   END IF;
   IF v_ledger.status <> 'pending' THEN
@@ -183,7 +186,12 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
 -- * Requires canonical server/client payload encoding;
 --   until those agree, do not invoke this RPC from the application.
--- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration\n--   does NOT define investment_decisions.notes, although the current holding\n--   pipeline and this draft INSERT use it. Inspect the isolated/live catalog\n--   read-only; locate any later/manual ALTER before testing or approving.\n--   Do not silently drop holding-review provenance or assume notes exists.\n-- * Confirm actual decision_type enum/constraints and confidence scale.
+-- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration
+--   does NOT define investment_decisions.notes, although the current holding
+--   pipeline and this draft INSERT use it. Inspect the isolated/live catalog
+--   read-only; locate any later/manual ALTER before testing or approving.
+--   Do not silently drop holding-review provenance or assume notes exists.
+-- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including REUSE of existing decisions.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
@@ -327,7 +335,12 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
 -- * Requires canonical server/client payload encoding;
 --   until those agree, do not invoke this RPC from the application.
--- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration\n--   does NOT define investment_decisions.notes, although the current holding\n--   pipeline and this draft INSERT use it. Inspect the isolated/live catalog\n--   read-only; locate any later/manual ALTER before testing or approving.\n--   Do not silently drop holding-review provenance or assume notes exists.\n-- * Confirm actual decision_type enum/constraints and confidence scale.
+-- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration
+--   does NOT define investment_decisions.notes, although the current holding
+--   pipeline and this draft INSERT use it. Inspect the isolated/live catalog
+--   read-only; locate any later/manual ALTER before testing or approving.
+--   Do not silently drop holding-review provenance or assume notes exists.
+-- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including REUSE of existing decisions.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
