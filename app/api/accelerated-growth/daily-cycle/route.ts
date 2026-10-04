@@ -5,6 +5,17 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  // Fail closed until the timed-out research pipeline is made recoverable.
+  // Only a deliberate server-side configuration change can re-enable runs.
+  if (process.env.AG_DAILY_CYCLE_RUNS_ENABLED !== "true") {
+    return NextResponse.json({
+      reason: "Accelerated Growth research is paused pending timeout remediation.",
+      researchPaused: true,
+      retryAvailable: false,
+      executionEnabled: false,
+      transactionsWritten: false,
+    }, { status: 503 });
+  }
   try {
     const requested = Number(request.nextUrl.searchParams.get("max") ?? "5");
     const maxCandidates = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 5)) : 5;
