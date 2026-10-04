@@ -17,6 +17,13 @@ describe("AG persistence planning", () => {
     assert.throws(() => planAgDecisionWrites([{ ...base, cycleId: "not-a-cycle" }]));
     assert.throws(() => planAgDecisionWrites([{ ...base, symbol: "BAD TICKER" }]));
   });
+  it("rejects malformed runtime values and incompatible decision kinds", () => {
+    assert.throws(() => planAgDecisionWrites([{ ...base, symbol: null as unknown as string }]));
+    assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: 1 as unknown as string }]));
+    assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: "sell" }]));
+    assert.throws(() => planAgDecisionWrites([{ ...base, kind: "holding_review", decisionType: "buy" }]));
+    assert.throws(() => planAgDecisionWrites([{ ...base, decisionType: "  " }]));
+  });
   it("requires manual reconciliation after an ambiguous timeout", () => {
     assert.equal(classifyAgPersistenceRecovery({ stageClaimed: true, completionConfirmed: false, databaseLedgerVerified: false }), "MANUAL_RECONCILIATION");
     assert.equal(classifyAgPersistenceRecovery({ stageClaimed: true, completionConfirmed: true, databaseLedgerVerified: false }), "MANUAL_RECONCILIATION");
