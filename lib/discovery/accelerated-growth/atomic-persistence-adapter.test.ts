@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger, classifyAgAmbiguousBatch } from "./atomic-persistence-adapter";
+import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger, classifyAgAmbiguousBatch, AgAmbiguousWriteError } from "./atomic-persistence-adapter";
 
 const cycleId = "123e4567-e89b-42d3-a456-426614174000";
 const claimToken = "223e4567-e89b-42d3-a456-426614174000";
@@ -55,7 +55,9 @@ describe("AG isolated RPC adapter", () => {
       seen.push(call.p_ticker);
       if (call.p_ticker === "MSFT") throw new Error("Simulated ambiguous timeout");
       return decisionId;
-    }), /Simulated ambiguous timeout/);
+    }), (error: unknown) => error instanceof AgAmbiguousWriteError &&
+      error.ticker === "MSFT" && error.cause instanceof Error &&
+      error.cause.message === "Simulated ambiguous timeout");
     assert.deepEqual(seen, ["NVDA", "MSFT"]);
   });
   it("requires complete independent committed-ledger evidence", () => {
@@ -121,6 +123,7 @@ describe("AG isolated RPC adapter", () => {
   });
   it("rejects an invalid decision ID rather than treating it as committed", async () => {
     const prepared = prepareAgRpcBatch([base], claimToken);
-    await assert.rejects(commitPreparedAgBatch(prepared, async () => "not-a-uuid"), /reconcile ledger/);
+    await assert.rejects(commitPreparedAgBatch(prepared, async () => "not-a-uuid"),
+      (error: unknown) => error instanceof AgAmbiguousWriteError && error.ticker === "NVDA");
   });
 });
