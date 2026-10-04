@@ -49,6 +49,13 @@ BEGIN
     'short',null,null,null,null,null,null,null,null,null)::text,'UTF8'),
    'sha256'),'hex')
  WHERE cycle_id='abababab-abab-4bab-8bab-abababababab';
+ UPDATE public.investment_decisions SET thesis='Altered after commit'
+ WHERE id=result_id;
+ IF public.ag_verify_committee_payload_manifest(
+   'abababab-abab-4bab-8bab-abababababab')
+ THEN RAISE EXCEPTION 'Changed linked decision thesis verified'; END IF;
+ UPDATE public.investment_decisions SET thesis='Frozen payload thesis'
+ WHERE id=result_id;
  UPDATE public.investment_decisions SET source='manual' WHERE id=result_id;
  IF public.ag_verify_committee_payload_manifest(
    'abababab-abab-4bab-8bab-abababababab')
