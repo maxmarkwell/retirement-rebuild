@@ -125,8 +125,10 @@ export function reconcileAgCommittedBatch(
   calls: readonly AgRpcCall[],
   decisionIds: readonly string[],
   rows: readonly AgCommittedLedgerRow[],
+  scope: { userId: string; portfolioId: string; strategyEraId: string },
 ): "COMPLETE" | "MANUAL_RECONCILIATION" {
-  if (!Array.isArray(calls) || !Array.isArray(decisionIds) ||
+  if (!scope || !UUID.test(scope.userId) || !UUID.test(scope.portfolioId) ||
+      !UUID.test(scope.strategyEraId) || !Array.isArray(calls) || !Array.isArray(decisionIds) ||
       !Array.isArray(rows) || calls.length !== decisionIds.length ||
       rows.length !== calls.length) return "MANUAL_RECONCILIATION";
   const expected = new Map<string, string>();
@@ -150,7 +152,10 @@ export function reconcileAgCommittedBatch(
         !UUID.test(row.investment_decision_id) ||
         row.investment_decision_id.toLowerCase() !== expected.get(key) ||
         !/^[a-f0-9]{64}$/.test(row.payload_hash) ||
-        !["holding_review", "committee"].includes(row.decision_kind)) {
+        !["holding_review", "committee"].includes(row.decision_kind) ||
+        row.user_id?.toLowerCase() !== scope.userId.toLowerCase() ||
+        row.portfolio_id?.toLowerCase() !== scope.portfolioId.toLowerCase() ||
+        row.strategy_era_id?.toLowerCase() !== scope.strategyEraId.toLowerCase()) {
       return "MANUAL_RECONCILIATION";
     }
     const call = calls.find((item) =>
