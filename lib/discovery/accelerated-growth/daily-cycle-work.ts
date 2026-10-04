@@ -1,5 +1,5 @@
 import "server-only";
-import { assertUniqueAgDecisionTickers } from "./persistence-preflight";
+import { assertDisjointAgDecisionBatches, assertUniqueAgDecisionTickers } from "./persistence-preflight";
 import {
   persistAgCommitteeDecisions,
   persistAgResearchWatchlist,
@@ -53,6 +53,7 @@ export async function runAgResearchDailyCycle(options?: {
       // Validate all candidate decision batches before the first persistence write.
       assertUniqueAgDecisionTickers(holdingReviews.decisions, "holding review");
       assertUniqueAgDecisionTickers(pipeline.decisions, "committee");
+      assertDisjointAgDecisionBatches(holdingReviews.decisions, pipeline.decisions);
       console.info("[AG cycle] persistence started", { cycleId: context.cycleId });
       await persistAgResearchWatchlist(
         context.portfolioId,
