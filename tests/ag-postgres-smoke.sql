@@ -34,3 +34,48 @@ DO $$ BEGIN
  END;
  IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='LATE') THEN RAISE EXCEPTION 'Expired lease created ledger row'; END IF;
 END $$;
+
+-- Unauthorized callers must not write decisions or ledger rows.
+SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false);
+DO $$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','OTHER','committee','watch','Unauthorized',75,'short',null,null,null,null,null);
+  RAISE EXCEPTION 'Cross-user write unexpectedly accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM = 'Cross-user write unexpectedly accepted' THEN RAISE; END IF;
+ END;
+ IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='OTHER') THEN RAISE EXCEPTION 'Cross-user ledger write'; END IF;
+END $$;
+SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+
+-- A real-money flag must block persistence even with a valid cycle and claim.
+UPDATE public.ag_cycle_stage_checkpoints SET lease_expires_at=now()+interval '10 minutes';
+UPDATE public.portfolios SET is_real_money=true;
+DO $$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','REAL','committee','watch','Must reject',75,'short',null,null,null,null,null);
+  RAISE EXCEPTION 'Real-money write unexpectedly accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM = 'Real-money write unexpectedly accepted' THEN RAISE; END IF;
+ END;
+ IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='REAL') THEN RAISE EXCEPTION 'Real-money ledger write'; END IF;
+END $$;
+UPDATE public.portfolios SET is_real_money=false;
+
+-- Force the decision INSERT to fail after supersession. Both the prior active
+-- decision and ledger must remain unchanged when the RPC transaction aborts.
+INSERT INTO public.investment_decisions(user_id,portfolio_id,ticker,decision_type,source,status,thesis,created_at)
+VALUES ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','ROLL','hold','ai_committee','active','Existing decision',now());
+ALTER TABLE public.investment_decisions ADD CONSTRAINT ag_test_reject_new_thesis CHECK (thesis <> 'Force insert rollback');
+DO $$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision('44444444-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','ROLL','committee','watch','Force insert rollback',75,'short',null,null,null,null,null);
+  RAISE EXCEPTION 'Failed insert unexpectedly accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM = 'Failed insert unexpectedly accepted' THEN RAISE; END IF;
+ END;
+ IF (SELECT count(*) FROM public.investment_decisions WHERE ticker='ROLL' AND status='active') <> 1
+    OR (SELECT count(*) FROM public.investment_decisions WHERE ticker='ROLL' AND status='superseded') <> 0
+ THEN RAISE EXCEPTION 'Supersession did not roll back'; END IF;
+ IF EXISTS(SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='ROLL') THEN RAISE EXCEPTION 'Failed insert left ledger write'; END IF;
+END $$;
