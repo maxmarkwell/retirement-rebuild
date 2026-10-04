@@ -52,6 +52,7 @@ BEGIN
      OR p_kind IS NULL OR p_kind NOT IN ('holding_review','committee')
      OR p_decision_type IS NULL OR p_decision_type NOT IN ('buy','hold','sell','watch','avoid')
      OR p_thesis IS NULL OR length(trim(p_thesis)) = 0
+     OR p_thesis_clock IS NULL OR length(trim(p_thesis_clock)) = 0
      OR p_confidence IS NULL OR p_confidence < 0 OR p_confidence > 100
   THEN RAISE EXCEPTION 'Invalid AG decision input'; END IF;
   IF (p_kind = 'holding_review' AND p_decision_type NOT IN ('hold','sell'))
