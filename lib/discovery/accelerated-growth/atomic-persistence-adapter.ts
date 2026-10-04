@@ -163,10 +163,13 @@ export function reconcileAgCommittedBatch(
       !Array.isArray(rows) || calls.length !== decisionIds.length ||
       rows.length !== calls.length) return "MANUAL_RECONCILIATION";
   const expected = new Map<string, string>();
+  const claim = calls[0]?.p_claim_token?.toLowerCase();
+  if (!claim || !UUID.test(claim)) return "MANUAL_RECONCILIATION";
   for (let i = 0; i < calls.length; i++) {
     const call = calls[i];
     const id = decisionIds[i];
     if (!call || !UUID.test(call.p_cycle_id) ||
+        !UUID.test(call.p_claim_token) || call.p_claim_token.toLowerCase() !== claim ||
         typeof call.p_ticker !== "string" || !UUID.test(id)) return "MANUAL_RECONCILIATION";
     const key = `${call.p_cycle_id.toLowerCase()}:${call.p_ticker}`;
     if (expected.has(key)) return "MANUAL_RECONCILIATION";
@@ -254,9 +257,11 @@ export function classifyAgAmbiguousBatch(
   }
   const expected = new Map<string, AgRpcCall>();
   const cycle = calls[0]?.p_cycle_id?.toLowerCase();
-  if (!cycle || !UUID.test(cycle)) return "MANUAL_RECONCILIATION";
+  const claim = calls[0]?.p_claim_token?.toLowerCase();
+  if (!cycle || !UUID.test(cycle) || !claim || !UUID.test(claim)) return "MANUAL_RECONCILIATION";
   for (const call of calls) {
     if (!call || !UUID.test(call.p_cycle_id) || call.p_cycle_id.toLowerCase() !== cycle ||
+        !UUID.test(call.p_claim_token) || call.p_claim_token.toLowerCase() !== claim ||
         !/^[A-Z][A-Z0-9.-]{0,14}$/.test(call.p_ticker)) return "MANUAL_RECONCILIATION";
     if (expected.has(call.p_ticker)) return "MANUAL_RECONCILIATION";
     expected.set(call.p_ticker, call);
