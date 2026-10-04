@@ -117,6 +117,24 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Completed Committee checkpoint was deletable' THEN RAISE; END IF;
  END;
+ -- A matching active ID is insufficient if its source or era is wrong.
+ UPDATE public.investment_decisions SET source='manual'
+ WHERE ticker='ALPHA' AND portfolio_id='22222222-2222-4222-8222-222222222222'
+   AND status='active';
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF ok THEN RAISE EXCEPTION 'Non-Committee decision completed persistence'; END IF;
+ UPDATE public.investment_decisions SET source='ai_committee'
+ WHERE ticker='ALPHA' AND portfolio_id='22222222-2222-4222-8222-222222222222'
+   AND status='active';
+ UPDATE public.investment_decisions
+ SET created_at=now()-interval '10 days'
+ WHERE ticker='ALPHA' AND portfolio_id='22222222-2222-4222-8222-222222222222'
+   AND status='active';
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF ok THEN RAISE EXCEPTION 'Pre-era decision completed persistence'; END IF;
+ UPDATE public.investment_decisions SET created_at=now()
+ WHERE ticker='ALPHA' AND portfolio_id='22222222-2222-4222-8222-222222222222'
+   AND status='active';
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','GAMMA']);
  IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
