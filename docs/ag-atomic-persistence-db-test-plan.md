@@ -1,6 +1,6 @@
 # AG atomic persistence: isolated database acceptance tests
 
-**Status:** test specification only. No database migration has been applied and no test below is claimed to have passed.
+**Status:** draft acceptance specification. Selected cases pass against a deliberately simplified disposable PostgreSQL fixture in GitHub Actions; this is **not** actual-schema integration or evidence of a live migration. See `ag-release-acceptance-gate.md` for tested scope and outstanding blockers.
 
 ## Test environment
 
@@ -30,7 +30,7 @@ Use a disposable Supabase/PostgreSQL instance with the *actual* Retirement Rebui
 ## Current design blockers to resolve before running
 
 1. Verify live column types, NOT NULL constraints, default values, decision confidence range and actual pgcrypto extension schema. Draft SQL has not been compiled against the real database.
-2. Payload hash is now derived from typed RPC arguments inside PostgreSQL; verify the installed digest extension, deterministic hashing, and conflicting-retry behavior in the isolated database. No client-supplied hash is accepted.
+2. Payload hash is derived from typed RPC arguments inside PostgreSQL; isolated fixture tests exercise deterministic matching and conflicting retries, but the installed live digest extension and schema remain unverified. A separate draft verifier compares frozen full Committee argument arrays to ledger hashes; upstream manifest provenance and integration into locked completion remain unresolved. No client-supplied hash is accepted.
 3. A per-ticker RPC is atomic **per decision**, not across the entire batch. A failure between tickers requires durable per-ticker reconciliation; watchlist updates also need their own idempotency contract.
 4. Cross-cycle ordering: an advisory lock serializes concurrent operations but does not prove that an older cycle cannot overwrite a newer completed decision. Add an explicit cycle ordering/fencing check.
 5. Review the deliberate lifecycle change: new cycles snapshot even same-type decisions rather than reuse a potentially stale row. Verify Committee execution-evidence fields and downstream decision-history consumers; confirm that no real-money execution path invokes this RPC.
