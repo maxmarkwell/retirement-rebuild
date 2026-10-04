@@ -23,13 +23,13 @@ Use a disposable Supabase/PostgreSQL instance with the *actual* Retirement Rebui
 | Cross-user | User B attempts User A's cycle | RPC rejects write; no changes |
 | Real-money | Point test cycle at a real-money portfolio | RPC rejects write; no changes |
 | Multiple active decisions | Seed conflicting active rows | RPC fails closed without modifying them |
-| Invalid payload | Bad ticker, mismatched hash, unsupported kind/type | RPC rejects; no changes |
+| Invalid payload | Bad ticker, unsupported kind/type, same-key changed payload | RPC rejects; no changes |
 | RLS | Attempt direct ledger insert/update as authenticated user | Denied; only approved RPC may write |
 
 ## Current design blockers to resolve before running
 
 1. Verify live column types, NOT NULL constraints, default values, decision confidence range and actual pgcrypto extension schema. Draft SQL has not been compiled against the real database.
-2. Canonical payload hash: define one serialization format shared by TypeScript and PostgreSQL; compare known test vectors. Prefer a server-derived hash without trusting arbitrary client JSON.
+2. Payload hash is now derived from typed RPC arguments inside PostgreSQL; verify the installed digest extension, deterministic hashing, and conflicting-retry behavior in the isolated database. No client-supplied hash is accepted.
 3. A per-ticker RPC is atomic **per decision**, not across the entire batch. A failure between tickers requires durable per-ticker reconciliation; watchlist updates also need their own idempotency contract.
 4. Cross-cycle ordering: an advisory lock serializes concurrent operations but does not prove that an older cycle cannot overwrite a newer completed decision. Add an explicit cycle ordering/fencing check.
 5. Verify existing lifecycle parity and Committee execution-evidence fields; confirm that no real-money execution path invokes this RPC.
