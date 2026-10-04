@@ -58,6 +58,13 @@ BEGIN
  END;
  BEGIN
   PERFORM public.ag_complete_cycle_stage(checkpoint,token,
+    '{"persistence_tickers":"ALPHA"}');
+  RAISE EXCEPTION 'Non-array Committee manifest accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Non-array Committee manifest accepted' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,
     '{"persistence_tickers":[]}');
   RAISE EXCEPTION 'Empty Committee manifest accepted';
  EXCEPTION WHEN OTHERS THEN
