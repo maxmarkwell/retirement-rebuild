@@ -112,7 +112,7 @@ BEGIN
       AND newer.strategy_era_id = v_cycle.strategy_era_id
       AND newer.ticker = p_ticker AND newer.status = 'committed'
       AND newer.cycle_id <> p_cycle_id
-      AND (newer_cycle.cycle_date, newer_cycle.id) > (v_cycle.cycle_date, v_cycle.id)
+      AND newer_cycle.cycle_date > v_cycle.cycle_date
   ) THEN
     RAISE EXCEPTION 'Newer AG cycle already committed this ticker; manual reconciliation required';
   END IF;
@@ -186,8 +186,8 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including REUSE of existing decisions.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
--- * Confirm cycle_date column type, ordering semantics and same-day cycle
---   policy against actual schema; do not assume UUID ordering is business order.
+-- * Same-day competing cycles need explicit reconciliation/fencing; never
+--   infer chronological order from random UUIDs.
 -- * Validate advisory lock key collision risk and lock ordering with other
 --   portfolio writers; consider a dedicated per-portfolio lock table.
 -- * Add tests for conflicting payload, duplicate concurrent call, rollback
