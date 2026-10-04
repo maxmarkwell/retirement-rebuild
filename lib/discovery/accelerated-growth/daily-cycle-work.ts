@@ -1,4 +1,5 @@
 import "server-only";
+import { assertUniqueAgDecisionTickers } from "./persistence-preflight";
 import {
   persistAgCommitteeDecisions,
   persistAgResearchWatchlist,
@@ -49,6 +50,9 @@ export async function runAgResearchDailyCycle(options?: {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
+      // Validate all candidate decision batches before the first persistence write.
+      assertUniqueAgDecisionTickers(holdingReviews.decisions, "holding review");
+      assertUniqueAgDecisionTickers(pipeline.decisions, "committee");
       console.info("[AG cycle] persistence started", { cycleId: context.cycleId });
       await persistAgResearchWatchlist(
         context.portfolioId,
