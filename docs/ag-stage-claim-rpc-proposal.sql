@@ -9,6 +9,9 @@ ALTER TABLE public.ag_cycle_stage_checkpoints
 
 -- Atomic claim: serialize competing requests on the parent cycle row.
 -- A timed-out lease is NOT reclaimed automatically. It must be reconciled.
+-- Six-minute lease exceeds the existing five-minute Vercel request ceiling;
+-- future stage handlers must enforce a shorter execution budget and revisit
+-- this value if their platform timeout changes.
 CREATE OR REPLACE FUNCTION public.ag_claim_cycle_stage(
   p_cycle_id uuid,
   p_stage text
@@ -64,14 +67,14 @@ BEGIN
     UPDATE public.ag_cycle_stage_checkpoints c
     SET status = 'running', attempt_count = attempt_count + 1,
       claim_token = v_token, started_at = now(),
-      lease_expires_at = now() + interval '4 minutes', updated_at = now()
+      lease_expires_at = now() + interval '6 minutes', updated_at = now()
     WHERE c.id = v_checkpoint.id RETURNING c.id INTO checkpoint_id;
   ELSE
     INSERT INTO public.ag_cycle_stage_checkpoints
       (cycle_id, user_id, portfolio_id, strategy_era_id, stage, status,
        attempt_count, claim_token, started_at, lease_expires_at)
     VALUES (v_cycle.id, auth.uid(), v_cycle.portfolio_id, v_cycle.strategy_era_id,
-            p_stage, 'running', 1, v_token, now(), now() + interval '4 minutes')
+            p_stage, 'running', 1, v_token, now(), now() + interval '6 minutes')
     RETURNING id INTO checkpoint_id;
   END IF;
   claim_token := v_token;
