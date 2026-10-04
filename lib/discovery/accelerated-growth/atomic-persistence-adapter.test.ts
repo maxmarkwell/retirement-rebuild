@@ -46,6 +46,17 @@ describe("AG isolated RPC adapter", () => {
       return decisionId;
     }), /Duplicate prepared AG RPC ticker/);
     assert.equal(invoked, 0);
+    for (const tamper of [
+      { p_cycle_id: "523e4567-e89b-42d3-a456-426614174000" },
+      { p_claim_token: "623e4567-e89b-42d3-a456-426614174000" },
+    ]) {
+      await assert.rejects(commitPreparedAgBatch(
+        [prepared[0], { ...prepared[1], ...tamper }], async () => {
+          invoked++;
+          return decisionId;
+        }), /Invalid prepared AG RPC arguments/);
+    }
+    assert.equal(invoked, 0);
   });
   it("stops on a failed RPC and does not invoke subsequent writes", async () => {
     const prepared = prepareAgRpcBatch([base, { ...base, symbol: "MSFT" },
