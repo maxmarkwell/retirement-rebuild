@@ -33,7 +33,13 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
 ) VALUES (
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc','11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
- 'committee','completed','{"persistence_tickers":["SUCCESS"]}'
+ 'committee','completed',jsonb_build_object(
+  'persistence_tickers',jsonb_build_array('SUCCESS'),
+  'decision_payloads',jsonb_build_array(jsonb_build_object(
+   'ticker','SUCCESS','args',jsonb_build_array(
+    'cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid,
+    'SUCCESS','committee','watch','Success-path thesis',75::numeric,
+    'short',null,null,null,null,null,null,null,null,null))))
 );
 DO $$
 DECLARE cp uuid; token uuid; v_decision_id uuid; ok boolean;
@@ -66,7 +72,17 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
 ) VALUES (
  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
- 'committee','completed','{"persistence_tickers":["ALPHA","BETA"]}'
+ 'committee','completed',jsonb_build_object(
+  'persistence_tickers',jsonb_build_array('ALPHA','BETA'),
+  'decision_payloads',jsonb_build_array(
+   jsonb_build_object('ticker','ALPHA','args',jsonb_build_array(
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
+    'ALPHA','committee','watch','Alpha thesis',75::numeric,
+    'short',null,null,null,null,null,null,null,null,null)),
+   jsonb_build_object('ticker','BETA','args',jsonb_build_array(
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
+    'BETA','committee','watch','Beta thesis',75::numeric,
+    'short',null,null,null,null,null,null,null,null,null))))
 );
 DO $$
 DECLARE cp uuid; token uuid; ok boolean;
