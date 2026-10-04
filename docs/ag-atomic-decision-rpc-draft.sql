@@ -35,7 +35,6 @@ DECLARE
   v_existing public.investment_decisions%ROWTYPE;
   v_existing_count integer;
   v_decision_id uuid;
-  v_reuse boolean;
   v_payload_hash text;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
@@ -145,34 +144,30 @@ BEGIN
       WHERE id = v_cycle.strategy_era_id
     ) FOR UPDATE;
 
-  -- Match the existing lifecycle rules: same type is reused only within
-  -- its own decision family. Committee: buy/watch/avoid; holding: hold/sell.
-  v_reuse := v_existing.id IS NOT NULL
-    AND v_existing.decision_type = p_decision_type;
-  IF v_reuse THEN
-    v_decision_id := v_existing.id;
-  ELSE
-    IF v_existing.id IS NOT NULL THEN
-      UPDATE public.investment_decisions SET status = 'superseded'
-      WHERE id = v_existing.id AND status = 'active';
-    END IF;
-    INSERT INTO public.investment_decisions (
-      user_id,portfolio_id,transaction_id,ticker,decision_type,decision_date,
-      source,status,thesis,confidence_score,expected_holding_period,
-      bull_case,bear_case,primary_risks,reassessment_conditions,exit_conditions,
-      recommended_quantity,recommended_allocation,notes,
-      ag_thesis_valid,ag_liquidity_eligible,ag_evidence_version,ag_theme_key
-    ) VALUES (
-      auth.uid(),v_cycle.portfolio_id,NULL,p_ticker,p_decision_type,now(),
-      'ai_committee','active',p_thesis,p_confidence,p_thesis_clock,
-      p_bull_case,p_bear_case,p_bear_case,p_monitoring,p_invalidation,
-      NULL,NULL,p_notes,
-      CASE WHEN p_kind = 'committee' THEN p_ag_thesis_valid ELSE NULL END,
-      CASE WHEN p_kind = 'committee' THEN p_ag_liquidity_eligible ELSE NULL END,
-      CASE WHEN p_kind = 'committee' THEN p_ag_evidence_version ELSE NULL END,
-      CASE WHEN p_kind = 'committee' THEN p_ag_theme_key ELSE NULL END
-    ) RETURNING id INTO v_decision_id;
+  -- A new cycle always records a fresh immutable decision snapshot.
+  -- Reusing a same-type row while hashing new arguments would claim that
+  -- old content represents the new payload. Same-cycle retries are already
+  -- idempotent via the committed ledger above.
+  IF v_existing.id IS NOT NULL THEN
+    UPDATE public.investment_decisions SET status = 'superseded'
+    WHERE id = v_existing.id AND status = 'active';
   END IF;
+  INSERT INTO public.investment_decisions (
+    user_id,portfolio_id,transaction_id,ticker,decision_type,decision_date,
+    source,status,thesis,confidence_score,expected_holding_period,
+    bull_case,bear_case,primary_risks,reassessment_conditions,exit_conditions,
+    recommended_quantity,recommended_allocation,notes,
+    ag_thesis_valid,ag_liquidity_eligible,ag_evidence_version,ag_theme_key
+  ) VALUES (
+    auth.uid(),v_cycle.portfolio_id,NULL,p_ticker,p_decision_type,now(),
+    'ai_committee','active',p_thesis,p_confidence,p_thesis_clock,
+    p_bull_case,p_bear_case,p_bear_case,p_monitoring,p_invalidation,
+    NULL,NULL,p_notes,
+    CASE WHEN p_kind = 'committee' THEN p_ag_thesis_valid ELSE NULL END,
+    CASE WHEN p_kind = 'committee' THEN p_ag_liquidity_eligible ELSE NULL END,
+    CASE WHEN p_kind = 'committee' THEN p_ag_evidence_version ELSE NULL END,
+    CASE WHEN p_kind = 'committee' THEN p_ag_theme_key ELSE NULL END
+  ) RETURNING id INTO v_decision_id;
 
   UPDATE public.ag_cycle_decision_writes
   SET status = 'committed',investment_decision_id = v_decision_id,committed_at = now()
@@ -205,7 +200,7 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 --   Do not silently drop holding-review provenance or assume notes exists.
 -- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
---   schema and tests, including REUSE of existing decisions.
+--   schema and tests, including new-cycle same-type replacement and same-cycle retry reuse.
 -- * Verify stage lease behavior on long-running writes and timeout-after-commit.
 -- * Same-day competing cycles need explicit reconciliation/fencing; never
 --   infer chronological order from random UUIDs.
