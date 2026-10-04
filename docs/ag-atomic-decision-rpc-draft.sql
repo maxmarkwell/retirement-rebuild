@@ -84,6 +84,19 @@ BEGIN
      OR v_checkpoint.lease_expires_at <= now()
   THEN RAISE EXCEPTION 'Valid persistence stage claim required'; END IF;
 
+  -- Committee writes must belong to the frozen completed Committee manifest.
+  -- Holding-review decisions require their own separately validated manifest
+  -- before the entire persistence batch can be considered complete.
+  IF p_kind='committee' AND NOT EXISTS (
+    SELECT 1 FROM public.ag_cycle_stage_checkpoints c
+    WHERE c.cycle_id=p_cycle_id AND c.stage='committee'
+      AND c.status='completed' AND c.user_id=v_cycle.user_id
+      AND c.portfolio_id=v_cycle.portfolio_id
+      AND c.strategy_era_id=v_cycle.strategy_era_id
+      AND jsonb_typeof(c.output->'persistence_tickers')='array'
+      AND (c.output->'persistence_tickers') ? p_ticker
+  ) THEN RAISE EXCEPTION 'Ticker absent from completed Committee manifest'; END IF;
+
   INSERT INTO public.ag_cycle_decision_writes
     (cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash)
   VALUES
