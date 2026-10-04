@@ -85,8 +85,12 @@ export async function commitPreparedAgBatch(
   // Callers must not pass arbitrary objects as a prevalidated batch.
   if (!Array.isArray(calls)) throw new Error("Invalid prepared AG batch.");
   const seen = new Set<string>();
+  const expectedCycle = calls[0]?.p_cycle_id?.toLowerCase();
+  const expectedClaim = calls[0]?.p_claim_token?.toLowerCase();
   for (const call of calls) {
     if (!call || !UUID.test(call.p_cycle_id) || !UUID.test(call.p_claim_token) ||
+      call.p_cycle_id.toLowerCase() !== expectedCycle ||
+      call.p_claim_token.toLowerCase() !== expectedClaim ||
       typeof call.p_ticker !== "string" || !/^[A-Z][A-Z0-9.-]{0,14}$/.test(call.p_ticker) ||
       !["holding_review", "committee"].includes(call.p_kind) ||
       !["buy", "hold", "sell", "watch", "avoid"].includes(call.p_decision_type) ||
