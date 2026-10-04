@@ -97,18 +97,17 @@ BEGIN
   IF auth.uid() IS NULL OR p_output IS NULL THEN
     RAISE EXCEPTION 'Authenticated caller and non-null output required';
   END IF;
-  -- Committee completion must carry a nonempty, unique, normalized manifest.
-  -- Its contents still require upstream semantic validation against research.
+  -- A Committee checkpoint must record a unique normalized ticker manifest.
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
-    WHERE c.id=p_checkpoint_id AND c.stage='committee') AND (
-      jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array' OR
-      jsonb_array_length(CASE WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)=0 OR
-      EXISTS (SELECT 1 FROM jsonb_array_elements(CASE
-        WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) item
-        WHERE jsonb_typeof(item)<>'string' OR
-          (item #>> '{}') !~ '^[A-Z][A-Z0-9.-]{0,14}
+             WHERE c.id=p_checkpoint_id AND c.stage='committee') THEN
+    IF jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array'
+       OR jsonb_array_length(CASE WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+           THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)=0
+       OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE
+           WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+           THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) AS item
+           WHERE jsonb_typeof(item)<>'string'
+              OR (item #>> '{}') !~ '^[A-Z][A-Z0-9.-]{0,14}
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
     WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
     RAISE EXCEPTION 'Persistence requires ledger-verified completion';
@@ -137,14 +136,12 @@ GRANT EXECUTE ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) TO aut
 -- schemas before passing output to later stages. No stage execution is enabled here.
 -- An explicit reviewed administrative recovery function will be required to
 -- reset failed/expired claims; deliberately omitted.
-) OR
-      (SELECT count(*) FROM jsonb_array_elements_text(CASE
-        WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)) <>
-      (SELECT count(DISTINCT item) FROM jsonb_array_elements_text(CASE
-        WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) item)
-    ) THEN RAISE EXCEPTION 'Valid Committee persistence manifest required'; END IF;
+)
+       OR (SELECT count(*) FROM jsonb_array_elements_text(p_output->'persistence_tickers'))
+          <> (SELECT count(DISTINCT item)
+              FROM jsonb_array_elements_text(p_output->'persistence_tickers') AS item)
+    THEN RAISE EXCEPTION 'Valid Committee persistence manifest required'; END IF;
+  END IF;
   -- Persistence must use a separate ledger-verified completion function.
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
     WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
