@@ -57,6 +57,21 @@ BEGIN
  IF NOT public.ag_verify_committee_payload_manifest(
    'abababab-abab-4bab-8bab-abababababab')
  THEN RAISE EXCEPTION 'Restored payload did not verify'; END IF;
+ -- An extra pending row must not be hidden by the manifest's valid entry.
+ INSERT INTO public.ag_cycle_decision_writes(
+  cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash
+ ) VALUES (
+  'abababab-abab-4bab-8bab-abababababab',
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  '33333333-3333-4333-8333-333333333333',
+  'EXTRA','committee',repeat('b',64)
+ );
+ IF public.ag_verify_committee_payload_manifest(
+   'abababab-abab-4bab-8bab-abababababab')
+ THEN RAISE EXCEPTION 'Unexpected ledger row passed full manifest check'; END IF;
+ DELETE FROM public.ag_cycle_decision_writes
+ WHERE cycle_id='abababab-abab-4bab-8bab-abababababab' AND ticker='EXTRA';
  -- Completed intent must not be mutable to match a later altered digest.
  BEGIN
   UPDATE public.ag_cycle_stage_checkpoints SET output='{}'::jsonb
