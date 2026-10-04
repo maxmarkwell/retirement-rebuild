@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { prepareAgRpcBatch, commitPreparedAgBatch } from "./atomic-persistence-adapter";
+import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch } from "./atomic-persistence-adapter";
 
 const cycleId = "123e4567-e89b-42d3-a456-426614174000";
 const claimToken = "223e4567-e89b-42d3-a456-426614174000";
@@ -57,6 +57,24 @@ describe("AG isolated RPC adapter", () => {
       return decisionId;
     }), /Simulated ambiguous timeout/);
     assert.deepEqual(seen, ["NVDA", "MSFT"]);
+  });
+  it("requires complete independent committed-ledger evidence", () => {
+    const calls = prepareAgRpcBatch([base, { ...base, symbol: "MSFT" }], claimToken);
+    const secondId = "423e4567-e89b-42d3-a456-426614174000";
+    const row = (ticker: string, id: string) => ({
+      cycle_id: cycleId, ticker, status: "committed",
+      investment_decision_id: id, payload_hash: "a".repeat(64),
+      decision_kind: "committee", user_id: cycleId,
+      portfolio_id: cycleId, strategy_era_id: cycleId,
+    });
+    const valid = [row("NVDA", decisionId), row("MSFT", secondId)];
+    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId], valid), "COMPLETE");
+    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId], valid.slice(0, 1)), "MANUAL_RECONCILIATION");
+    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId], [valid[0], valid[0]]), "MANUAL_RECONCILIATION");
+    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId],
+      [valid[0], { ...valid[1], status: "pending" }]), "MANUAL_RECONCILIATION");
+    assert.equal(reconcileAgCommittedBatch(calls, [decisionId, secondId],
+      [valid[0], { ...valid[1], investment_decision_id: decisionId }]), "MANUAL_RECONCILIATION");
   });
   it("rejects an invalid decision ID rather than treating it as committed", async () => {
     const prepared = prepareAgRpcBatch([base], claimToken);
