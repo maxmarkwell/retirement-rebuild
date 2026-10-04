@@ -142,6 +142,12 @@ GRANT EXECUTE ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) TO aut
 CREATE OR REPLACE FUNCTION public.ag_protect_completed_checkpoint()
 RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
+ IF TG_OP='DELETE' THEN
+   IF OLD.status='completed' THEN
+     RAISE EXCEPTION 'Completed AG checkpoint cannot be deleted';
+   END IF;
+   RETURN OLD;
+ END IF;
  IF OLD.status='completed' AND (
    NEW.status IS DISTINCT FROM OLD.status OR
    NEW.output IS DISTINCT FROM OLD.output OR
@@ -157,5 +163,5 @@ BEGIN
 END;
 $$;
 CREATE TRIGGER ag_protect_completed_checkpoint_update
-BEFORE UPDATE ON public.ag_cycle_stage_checkpoints
+BEFORE UPDATE OR DELETE ON public.ag_cycle_stage_checkpoints
 FOR EACH ROW EXECUTE FUNCTION public.ag_protect_completed_checkpoint();
