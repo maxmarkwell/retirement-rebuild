@@ -15,3 +15,17 @@ export function assertUniqueAgDecisionTickers(
     seen.add(symbol);
   }
 }
+
+/** A ticker cannot be written by both holding review and new Committee research. */
+export function assertDisjointAgDecisionBatches(
+  holdingReviews: ReadonlyArray<{ symbol: string }>,
+  committeeDecisions: ReadonlyArray<{ symbol: string }>
+): void {
+  const held = new Set(holdingReviews.map((decision) => decision.symbol.trim().toUpperCase()));
+  for (const decision of committeeDecisions) {
+    const symbol = decision.symbol.trim().toUpperCase();
+    if (held.has(symbol)) {
+      throw new Error(`AG persistence conflict: ${symbol} appears in both holding review and Committee output.`);
+    }
+  }
+}
