@@ -27,7 +27,6 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: test_only
       PGDATABASE: ag_isolated
-      PGOPTIONS: '-v ON_ERROR_STOP=1'
     steps:
       - uses: actions/checkout@v4
       - name: Load isolated schema and AG draft SQL
@@ -36,7 +35,7 @@ jobs:
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE authenticated NOLOGIN;'
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-fixture.sql
-          awk '/^\\x60\\x60\\x60sql$/ {inside=1;next} /^\\x60\\x60\\x60$/ && inside {exit} inside {print}' docs/ag-resumable-cycle-checkpoint-design.md > /tmp/ag-checkpoints.sql
+          python3 -c "from pathlib import Path; t=Path('docs/ag-resumable-cycle-checkpoint-design.md').read_text(); Path('/tmp/ag-checkpoints.sql').write_text(t.split(chr(96)*3+'sql',1)[1].split(chr(96)*3,1)[0])"
           test -s /tmp/ag-checkpoints.sql
           psql -v ON_ERROR_STOP=1 -f /tmp/ag-checkpoints.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-stage-claim-rpc-proposal.sql
