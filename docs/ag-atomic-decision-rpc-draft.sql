@@ -10,7 +10,6 @@ CREATE OR REPLACE FUNCTION public.ag_commit_cycle_decision(
   p_claim_token uuid,
   p_ticker text,
   p_kind text,
-  p_payload_hash text,
   p_decision_type text,
   p_thesis text,
   p_confidence numeric,
@@ -37,21 +36,20 @@ DECLARE
   v_existing_count integer;
   v_decision_id uuid;
   v_reuse boolean;
+  v_payload_hash text;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
-  -- Recalculate the payload hash inside the trusted database boundary.
-  -- The caller-supplied hash alone cannot prove payload immutability.
-  IF p_payload_hash IS DISTINCT FROM encode(public.digest(
+  -- Compute retry identity exclusively from validated RPC arguments inside
+  -- PostgreSQL. The caller cannot spoof a digest or disagree on JSON encoding.
+  -- Exact argument values (including optional NULLs) are immutable per key.
+  v_payload_hash := encode(public.digest(
     convert_to(jsonb_build_array(p_cycle_id,p_ticker,p_kind,p_decision_type,
       p_thesis,p_confidence,p_thesis_clock,p_bull_case,p_bear_case,
       p_monitoring,p_invalidation,p_notes,p_ag_thesis_valid,
       p_ag_liquidity_eligible,p_ag_evidence_version,p_ag_theme_key)::text,'UTF8'),
-    'sha256'),'hex') THEN
-    RAISE EXCEPTION 'AG decision payload hash mismatch';
-  END IF;
+    'sha256'),'hex');
   IF p_ticker IS NULL OR p_ticker !~ '^[A-Z][A-Z0-9.-]{0,14}$'
      OR p_kind IS NULL OR p_kind NOT IN ('holding_review','committee')
-     OR p_payload_hash IS NULL OR p_payload_hash !~ '^[0-9a-f]{64}$'
      OR p_decision_type IS NULL
      OR p_decision_type NOT IN ('buy','hold','sell','watch','avoid')
      OR p_thesis IS NULL OR length(trim(p_thesis)) = 0
@@ -91,14 +89,14 @@ BEGIN
     (cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash)
   VALUES
     (p_cycle_id,auth.uid(),v_cycle.portfolio_id,v_cycle.strategy_era_id,
-     p_ticker,p_kind,p_payload_hash)
+     p_ticker,p_kind,v_payload_hash)
   ON CONFLICT (cycle_id,ticker) DO NOTHING;
   SELECT * INTO v_ledger FROM public.ag_cycle_decision_writes
   WHERE cycle_id = p_cycle_id AND ticker = p_ticker FOR UPDATE;
   IF v_ledger.user_id IS DISTINCT FROM v_cycle.user_id
      OR v_ledger.portfolio_id IS DISTINCT FROM v_cycle.portfolio_id
      OR v_ledger.strategy_era_id IS DISTINCT FROM v_cycle.strategy_era_id
-     OR v_ledger.payload_hash IS DISTINCT FROM p_payload_hash
+     OR v_ledger.payload_hash IS DISTINCT FROM v_payload_hash
      OR v_ledger.decision_kind IS DISTINCT FROM p_kind
   THEN RAISE EXCEPTION 'Conflicting payload for AG cycle ticker'; END IF;
   IF v_ledger.status = 'committed' THEN
@@ -184,16 +182,16 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
+  uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
+  uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) TO authenticated;
 
 -- BLOCKERS BEFORE APPROVAL:
 -- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
--- * Requires canonical server/client payload encoding;
---   until those agree, do not invoke this RPC from the application.
+-- * Hashes are computed server-side; test digest availability and deterministic
+--   serialization using an isolated PostgreSQL instance.
 -- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration
 --   does NOT define investment_decisions.notes, although the current holding
 --   pipeline and this draft INSERT use it. Inspect the isolated/live catalog
@@ -212,7 +210,7 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- * Do not enable the API or apply this proposal until those are resolved.
 
      OR p_kind IS NULL OR p_kind NOT IN ('holding_review','committee')
-     OR p_payload_hash IS NULL OR p_payload_hash !~ '^[0-9a-f]{64}$'
+     OR v_payload_hash IS NULL OR v_payload_hash !~ '^[0-9a-f]{64}$'
      OR p_decision_type NOT IN ('buy','hold','sell','watch','avoid')
      OR p_thesis IS NULL OR length(trim(p_thesis)) = 0
      OR p_confidence IS NULL OR p_confidence < 0 OR p_confidence > 100
@@ -247,11 +245,11 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
     (cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash)
   VALUES
     (p_cycle_id,auth.uid(),v_cycle.portfolio_id,v_cycle.strategy_era_id,
-     p_ticker,p_kind,p_payload_hash)
+     p_ticker,p_kind,v_payload_hash)
   ON CONFLICT (cycle_id,ticker) DO NOTHING;
   SELECT * INTO v_ledger FROM public.ag_cycle_decision_writes
   WHERE cycle_id = p_cycle_id AND ticker = p_ticker FOR UPDATE;
-  IF v_ledger.payload_hash <> p_payload_hash OR v_ledger.decision_kind <> p_kind
+  IF v_ledger.payload_hash <> v_payload_hash OR v_ledger.decision_kind <> p_kind
   THEN RAISE EXCEPTION 'Conflicting payload for AG cycle ticker'; END IF;
   IF v_ledger.status = 'committed' THEN
     RETURN v_ledger.investment_decision_id;
@@ -333,10 +331,10 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
+  uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
+  uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) TO authenticated;
 
 -- BLOCKERS BEFORE APPROVAL:
