@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger } from "./atomic-persistence-adapter";
+import { prepareAgRpcBatch, commitPreparedAgBatch, reconcileAgCommittedBatch, verifyAgBatchFromLedger, classifyAgAmbiguousBatch } from "./atomic-persistence-adapter";
 
 const cycleId = "123e4567-e89b-42d3-a456-426614174000";
 const claimToken = "223e4567-e89b-42d3-a456-426614174000";
@@ -98,6 +98,21 @@ describe("AG isolated RPC adapter", () => {
     assert.equal(await verifyAgBatchFromLedger([], [], scope,
       async () => { selected++; return []; }), "MANUAL_RECONCILIATION");
     assert.equal(selected, 1);
+  });
+  it("classifies ambiguous timeout evidence without authorizing replay", () => {
+    const calls = prepareAgRpcBatch([base], claimToken);
+    const scope = { userId: cycleId, portfolioId: cycleId, strategyEraId: cycleId };
+    const row = { cycle_id: cycleId, ticker: "NVDA", status: "committed",
+      investment_decision_id: decisionId, payload_hash: "a".repeat(64),
+      decision_kind: "committee", user_id: cycleId,
+      portfolio_id: cycleId, strategy_era_id: cycleId };
+    assert.equal(classifyAgAmbiguousBatch(calls, [row], scope),
+      "ALL_RECORDED_REQUIRES_PAYLOAD_VERIFICATION");
+    assert.equal(classifyAgAmbiguousBatch(calls, [], scope), "MANUAL_RECONCILIATION");
+    assert.equal(classifyAgAmbiguousBatch(calls, [{ ...row, portfolio_id: decisionId }], scope),
+      "MANUAL_RECONCILIATION");
+    assert.equal(classifyAgAmbiguousBatch(calls, [{ ...row, status: "pending" }], scope),
+      "MANUAL_RECONCILIATION");
   });
   it("rejects an invalid decision ID rather than treating it as committed", async () => {
     const prepared = prepareAgRpcBatch([base], claimToken);
