@@ -13,8 +13,12 @@ BEGIN
  END;
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['TEST']);
  IF ok THEN RAISE EXCEPTION 'Incomplete expected ticker list accepted'; END IF;
- ok := public.ag_complete_persistence_stage(cp,token,ARRAY['TEST','TEST']);
- IF ok THEN RAISE EXCEPTION 'Duplicate expected ticker list accepted'; END IF;
+ BEGIN
+  PERFORM public.ag_complete_persistence_stage(cp,token,ARRAY['TEST','TEST']);
+  RAISE EXCEPTION 'Duplicate expected ticker list accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Duplicate expected ticker list accepted' THEN RAISE; END IF;
+ END;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
  THEN RAISE EXCEPTION 'Failed completion changed stage'; END IF;
 END $$;
