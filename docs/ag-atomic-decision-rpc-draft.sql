@@ -41,7 +41,7 @@ BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
   -- Recalculate the payload hash inside the trusted database boundary.
   -- The caller-supplied hash alone cannot prove payload immutability.
-  IF p_payload_hash IS DISTINCT FROM encode(digest(
+  IF p_payload_hash IS DISTINCT FROM encode(public.digest(
     convert_to(jsonb_build_array(p_cycle_id,p_ticker,p_kind,p_decision_type,
       p_thesis,p_confidence,p_thesis_clock,p_bull_case,p_bear_case,
       p_monitoring,p_invalidation,p_notes,p_ag_thesis_valid,
@@ -165,7 +165,8 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 ) TO authenticated;
 
 -- BLOCKERS BEFORE APPROVAL:
--- * Requires pgcrypto digest() and canonical server/client payload encoding;
+-- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
+-- * Requires canonical server/client payload encoding;
 --   until those agree, do not invoke this RPC from the application.
 -- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
