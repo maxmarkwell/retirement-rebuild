@@ -36,7 +36,7 @@ CREATE POLICY ag_cycle_decision_writes_owner_read
 -- No INSERT, UPDATE or DELETE policies. Only reviewed SECURITY DEFINER
 -- RPCs may modify this ledger and investment_decisions together.
 
--- REQUIRED ATOMIC RPC (not implemented in this draft):
+-- IMPLEMENTATION REQUIREMENTS FOR THE SEPARATE DRAFT ATOMIC RPC:
 -- 1. Authenticate auth.uid(); lock ag_daily_cycles row FOR UPDATE.
 -- 2. Confirm cycle is running and belongs to caller's active, non-real-money
 --    paper AG portfolio and exact strategy era. Lock persistence checkpoint.
@@ -46,8 +46,10 @@ CREATE POLICY ag_cycle_decision_writes_owner_read
 --    SELECT FOR UPDATE. Same key + different payload_hash MUST fail closed.
 -- 5. Lock existing active ai_committee decision(s) for the same ticker and
 --    active era. Multiple active rows require manual reconciliation.
--- 6. Apply existing lifecycle REUSE semantics, otherwise supersede existing
---    and INSERT replacement, and mark ledger committed IN ONE transaction.
+-- 6. Preserve same-cycle idempotency via the committed ledger. For a new
+--    cycle, supersede an existing active decision and INSERT a fresh immutable
+--    snapshot even when its decision type matches; never attach a new payload
+--    hash to an old decision row. Mark ledger committed IN ONE transaction.
 -- 7. Validate all fields server-side; never blindly INSERT client JSON.
 -- 8. If any step fails, roll back the entire transaction. A network timeout
 --    after COMMIT requires a read-only ledger check, never blind retry.
