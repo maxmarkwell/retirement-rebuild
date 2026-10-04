@@ -93,6 +93,23 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Completed Committee manifest was mutable' THEN RAISE; END IF;
  END;
+ -- A completed checkpoint's scope and completion timestamp are evidence.
+ BEGIN
+  UPDATE public.ag_cycle_stage_checkpoints
+  SET portfolio_id='99999999-9999-4999-8999-999999999999'
+  WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
+  RAISE EXCEPTION 'Completed Committee scope was mutable';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Completed Committee scope was mutable' THEN RAISE; END IF;
+ END;
+ BEGIN
+  UPDATE public.ag_cycle_stage_checkpoints
+  SET completed_at=now()+interval '1 hour'
+  WHERE cycle_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' AND stage='committee';
+  RAISE EXCEPTION 'Completed Committee timestamp was mutable';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Completed Committee timestamp was mutable' THEN RAISE; END IF;
+ END;
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','GAMMA']);
  IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
