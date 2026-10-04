@@ -45,3 +45,9 @@ test("draft RPC ticker regex is complete and SQL string literals are balanced", 
   // Escaped SQL apostrophes are pairs; odd quote count signals a truncated literal.
   assert.equal((withoutComments.match(/'/g) ?? []).length % 2, 0);
 });
+
+test("draft RPC never treats a committed ledger with missing decision ID as success", () => {
+  const normalized = normalize(sql);
+  assert.match(normalized, /if v_ledger\.status = 'committed' then if v_ledger\.investment_decision_id is null then raise exception/);
+  assert.match(normalized, /return v_ledger\.investment_decision_id/);
+});
