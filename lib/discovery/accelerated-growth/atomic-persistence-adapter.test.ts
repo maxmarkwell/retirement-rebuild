@@ -161,6 +161,12 @@ describe("AG partial-batch diagnostics", () => {
     assert.deepEqual(report.recordedUnacknowledged, ["MSFT"]);
     assert.deepEqual(report.missing, ["ADBE"]);
     assert.deepEqual(report.conflicting, []);
+    assert.deepEqual(reportAgPartialBatch(
+      [calls[0], { ...calls[1], p_claim_token: "723e4567-e89b-42d3-a456-426614174000" }],
+      ack, [row("NVDA", decisionId)], scope).conflicting, ["INVALID_BATCH"]);
+    assert.deepEqual(reportAgPartialBatch(
+      [calls[0], { ...calls[1], p_cycle_id: "823e4567-e89b-42d3-a456-426614174000" }],
+      ack, [row("NVDA", decisionId)], scope).conflicting, ["INVALID_BATCH"]);
     assert.equal(report.status, "REQUIRES_MANUAL_RECONCILIATION");
     assert.deepEqual(reportAgPartialBatch(calls,
       [{ ticker: "MSFT", decisionId: otherId }],
