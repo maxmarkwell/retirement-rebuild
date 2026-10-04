@@ -42,7 +42,8 @@ BEGIN
     AND c.strategy_era_id=v_cycle.strategy_era_id;
   IF jsonb_typeof(v_manifest) IS DISTINCT FROM 'array'
      OR jsonb_typeof(v_tickers) IS DISTINCT FROM 'array'
-     OR jsonb_array_length(v_manifest)=0
+  THEN RETURN false; END IF;
+  IF jsonb_array_length(v_manifest)=0
      OR jsonb_array_length(v_manifest)<>jsonb_array_length(v_tickers)
   THEN RETURN false; END IF;
   -- Reject malformed, duplicate, missing or out-of-scope entries. A
