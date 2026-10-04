@@ -90,3 +90,19 @@ test("Combined preflight accepts disjoint source-verified manifests",()=>{
   });
   assert.throws(()=>validateAgCombinedIntent(committeeManifest,otherCycle));
 });
+
+test("Frozen manifest cannot be changed by later mutation of original research output",()=>{
+  const mutable={...committee,strongestEvidence:["Original evidence"]};
+  const result=captureCommittee({decisions:[mutable]});
+  mutable.strongestEvidence[0]="Changed after capture";
+  assert.deepEqual(result.source_decisions[0].strongestEvidence,["Original evidence"]);
+  assert.equal(result.decision_payloads[0].args[7],"Original evidence");
+});
+test("Committee capture requires exact evidence identity and validated fields",()=>{
+  assert.throws(()=>captureCommittee({evidenceByTicker:{
+    TEST:evidence.TEST,UNEXPECTED:evidence.TEST,
+  }}));
+  assert.throws(()=>captureCommittee({evidenceByTicker:{
+    TEST:{...evidence.TEST,evidenceVersion:""},
+  }}));
+});
