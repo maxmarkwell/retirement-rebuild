@@ -36,15 +36,15 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
  'committee','completed','{}'
 );
 DO $$
-DECLARE cp uuid; token uuid; id uuid; ok boolean;
+DECLARE cp uuid; token uuid; v_decision_id uuid; ok boolean;
 BEGIN
  SELECT checkpoint_id,claim_token INTO cp,token FROM
  public.ag_claim_cycle_stage('cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence');
- id := public.ag_commit_cycle_decision(
+ v_decision_id := public.ag_commit_cycle_decision(
   'cccccccc-cccc-4ccc-8ccc-cccccccccccc',token,'SUCCESS',
   'committee','watch','Success-path thesis',75,'short',null,null,null,null,null
  );
- IF id IS NULL THEN RAISE EXCEPTION 'Fixture decision missing'; END IF;
+ IF v_decision_id IS NULL THEN RAISE EXCEPTION 'Fixture decision missing'; END IF;
  ok := public.ag_complete_persistence_stage(cp,
    'dddddddd-dddd-4ddd-8ddd-dddddddddddd',ARRAY['SUCCESS']);
  IF ok THEN RAISE EXCEPTION 'Wrong claim completed persistence'; END IF;
