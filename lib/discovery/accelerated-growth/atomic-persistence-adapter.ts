@@ -202,3 +202,46 @@ export async function verifyAgBatchFromLedger(
     return "MANUAL_RECONCILIATION";
   }
 }
+
+/** Classify a timed-out batch using independently read ledger rows.
+ * This does NOT authorize replay: a row without a client-verifiable canonical
+ * payload hash is insufficient to prove an ambiguous write is safe to retry.
+ */
+export function classifyAgAmbiguousBatch(
+  calls: readonly AgRpcCall[],
+  rows: readonly AgCommittedLedgerRow[],
+  scope: { userId: string; portfolioId: string; strategyEraId: string },
+): "ALL_RECORDED_REQUIRES_PAYLOAD_VERIFICATION" | "MANUAL_RECONCILIATION" {
+  if (!scope || !UUID.test(scope.userId) || !UUID.test(scope.portfolioId) ||
+      !UUID.test(scope.strategyEraId) || !Array.isArray(calls) ||
+      !Array.isArray(rows) || calls.length === 0 || rows.length !== calls.length) {
+    return "MANUAL_RECONCILIATION";
+  }
+  const expected = new Map<string, AgRpcCall>();
+  const cycle = calls[0]?.p_cycle_id?.toLowerCase();
+  if (!cycle || !UUID.test(cycle)) return "MANUAL_RECONCILIATION";
+  for (const call of calls) {
+    if (!call || !UUID.test(call.p_cycle_id) || call.p_cycle_id.toLowerCase() !== cycle ||
+        !/^[A-Z][A-Z0-9.-]{0,14}$/.test(call.p_ticker)) return "MANUAL_RECONCILIATION";
+    if (expected.has(call.p_ticker)) return "MANUAL_RECONCILIATION";
+    expected.set(call.p_ticker, call);
+  }
+  const observed = new Set<string>();
+  for (const row of rows) {
+    const call = row && expected.get(row.ticker);
+    if (!call || observed.has(row.ticker) || row.cycle_id?.toLowerCase() !== cycle ||
+        row.status !== "committed" || !row.investment_decision_id ||
+        !UUID.test(row.investment_decision_id) ||
+        !/^[a-f0-9]{64}$/.test(row.payload_hash) ||
+        row.decision_kind !== call.p_kind ||
+        row.user_id?.toLowerCase() !== scope.userId.toLowerCase() ||
+        row.portfolio_id?.toLowerCase() !== scope.portfolioId.toLowerCase() ||
+        row.strategy_era_id?.toLowerCase() !== scope.strategyEraId.toLowerCase()) {
+      return "MANUAL_RECONCILIATION";
+    }
+    observed.add(row.ticker);
+  }
+  return observed.size === expected.size
+    ? "ALL_RECORDED_REQUIRES_PAYLOAD_VERIFICATION"
+    : "MANUAL_RECONCILIATION";
+}
