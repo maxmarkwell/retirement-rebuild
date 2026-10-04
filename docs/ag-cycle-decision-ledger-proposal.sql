@@ -22,7 +22,7 @@ CREATE TABLE public.ag_cycle_decision_writes (
   CONSTRAINT ag_cycle_decision_write_unique UNIQUE (cycle_id, ticker),
   CONSTRAINT ag_cycle_decision_write_commit_consistency CHECK (
     (status = 'committed' AND investment_decision_id IS NOT NULL AND committed_at IS NOT NULL)
-    OR (status <> 'committed' AND committed_at IS NULL)
+    OR (status <> 'committed' AND investment_decision_id IS NULL AND committed_at IS NULL)
   )
 );
 
