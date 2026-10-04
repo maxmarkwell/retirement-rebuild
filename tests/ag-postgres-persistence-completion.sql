@@ -55,3 +55,38 @@ BEGIN
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['SUCCESS']);
  IF ok THEN RAISE EXCEPTION 'Consumed token completed stage twice'; END IF;
 END $$;
+
+-- A subset or same-size incorrect ticker list must not complete a cycle.
+INSERT INTO public.ag_daily_cycles VALUES
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+  current_date+4,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+ 'committee','completed','{}'
+);
+DO $$
+DECLARE cp uuid; token uuid; ok boolean;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token FROM
+ public.ag_claim_cycle_stage('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','persistence');
+ PERFORM public.ag_commit_cycle_decision(
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',token,'ALPHA',
+  'committee','watch','Alpha thesis',75,'short',null,null,null,null,null
+ );
+ PERFORM public.ag_commit_cycle_decision(
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',token,'BETA',
+  'committee','watch','Beta thesis',75,'short',null,null,null,null,null
+ );
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA']);
+ IF ok THEN RAISE EXCEPTION 'Subset completed persistence despite extra ledger row'; END IF;
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','GAMMA']);
+ IF ok THEN RAISE EXCEPTION 'Incorrect same-size ticker list completed persistence'; END IF;
+ IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
+ THEN RAISE EXCEPTION 'Rejected completion mutated stage'; END IF;
+ ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
+ IF NOT ok THEN RAISE EXCEPTION 'Exact two-decision ledger rejected'; END IF;
+END $$;
