@@ -39,6 +39,16 @@ DECLARE
   v_reuse boolean;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
+  -- Recalculate the payload hash inside the trusted database boundary.
+  -- The caller-supplied hash alone cannot prove payload immutability.
+  IF p_payload_hash IS DISTINCT FROM encode(digest(
+    convert_to(jsonb_build_array(p_cycle_id,p_ticker,p_kind,p_decision_type,
+      p_thesis,p_confidence,p_thesis_clock,p_bull_case,p_bear_case,
+      p_monitoring,p_invalidation,p_notes,p_ag_thesis_valid,
+      p_ag_liquidity_eligible,p_ag_evidence_version,p_ag_theme_key)::text,'UTF8'),
+    'sha256'),'hex') THEN
+    RAISE EXCEPTION 'AG decision payload hash mismatch';
+  END IF;
   IF p_ticker IS NULL OR p_ticker !~ '^[A-Z][A-Z0-9.-]{0,14}$'
      OR p_kind NOT IN ('holding_review','committee')
      OR p_payload_hash IS NULL OR p_payload_hash !~ '^[0-9a-f]{64}$'
@@ -151,10 +161,12 @@ REVOKE ALL ON FUNCTION public.ag_commit_cycle_decision(
   uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,text,boolean,boolean,text,text
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,text
+  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,text,boolean,boolean,text,text
 ) TO authenticated;
 
 -- BLOCKERS BEFORE APPROVAL:
+-- * Requires pgcrypto digest() and canonical server/client payload encoding;
+--   until those agree, do not invoke this RPC from the application.
 -- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including REUSE of existing decisions.
