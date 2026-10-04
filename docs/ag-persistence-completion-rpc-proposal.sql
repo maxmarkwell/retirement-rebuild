@@ -72,7 +72,11 @@ BEGIN
             SELECT 1 FROM public.investment_decisions d
             WHERE d.id=w.investment_decision_id AND
               d.user_id=w.user_id AND d.portfolio_id=w.portfolio_id AND
-              d.ticker=w.ticker AND d.status='active'
+              d.ticker=w.ticker AND d.status='active' AND
+              d.source='ai_committee' AND d.created_at >= (
+                SELECT e.inception_at FROM public.portfolio_strategy_eras e
+                WHERE e.id=w.strategy_era_id AND e.portfolio_id=w.portfolio_id
+              )
           ))
  ) THEN RETURN false; END IF;
  UPDATE public.ag_cycle_stage_checkpoints SET status='completed',
