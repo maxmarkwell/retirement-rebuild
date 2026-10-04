@@ -56,6 +56,17 @@ describe("AG isolated RPC adapter", () => {
           return decisionId;
         }), /Invalid prepared AG RPC arguments/);
     }
+    for (const forged of [
+      { p_notes: 123 },
+      { p_ag_thesis_valid: "true" },
+      { p_bull_case: { unsafe: true } },
+      { p_payload_hash: "a".repeat(64) },
+    ]) {
+      await assert.rejects(commitPreparedAgBatch(
+        [prepared[0], { ...prepared[1], ...forged } as typeof prepared[number]],
+        async () => { invoked++; return decisionId; },
+      ), /Invalid prepared AG RPC arguments/);
+    }
     assert.equal(invoked, 0);
   });
   it("stops on a failed RPC and does not invoke subsequent writes", async () => {
