@@ -62,7 +62,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
 
   const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
   console.info("[AG research] discovery started", { reassessCount: reassessTickers.size });
+  const discoveryStartedMs = Date.now();
   const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
+  console.info("[AG research] discovery timing", { elapsedMs: Date.now() - discoveryStartedMs });
   console.info("[AG research] discovery finished", { universe: discovery.universeCount, evaluated: discovery.evaluatedCount, advanced: discovery.advanceCount, rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly });
   const discoverySummary = {
     universeCount: discovery.universeCount, preselectedCount: discovery.preselectedCount,
@@ -116,7 +118,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   for (const candidate of selected) {
     console.info("[AG research] candidate started", { ticker: candidate.symbol });
     try {
+      const catalystStartedMs = Date.now();
       const catalyst = await researchAgCatalyst(candidate);
+      console.info("[AG research] catalyst timing", { ticker: candidate.symbol, elapsedMs: Date.now() - catalystStartedMs });
       if (catalyst.catalystStatus === "NOT_FOUND") {
         console.info("[AG research] catalyst not found", { ticker: candidate.symbol });
         continue;
@@ -124,7 +128,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
       console.info("[AG research] catalyst supported", { ticker: candidate.symbol });
       catalystSupportedCount += 1;
       try {
+        const deepResearchStartedMs = Date.now();
         const research = await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null);
+        console.info("[AG research] deep research timing", { ticker: candidate.symbol, elapsedMs: Date.now() - deepResearchStartedMs });
         results.push(research);
         console.info("[AG research] deep research finished", { ticker: candidate.symbol, status: research.researchStatus });
       } catch (error) {
