@@ -25,3 +25,12 @@ test("AG decision and watchlist schema dependencies exist", () => {
     assert.match(watchlist, new RegExp("\\b" + column + "\\b"));
   }
 });
+
+test("AG notes mismatch remains an explicit live-schema release blocker", () => {
+  const review = read("docs/ag-schema-compatibility-review.md");
+  const fixture = read("tests/ag-postgres-fixture.sql");
+  assert.match(rpc, /recommended_quantity,recommended_allocation,notes,/);
+  assert.doesNotMatch(decisions, /\bnotes\s+(?:text|varchar|character varying)\b/);
+  assert.match(review, /read-only live catalog query/);
+  assert.match(fixture, /notes text/);
+});
