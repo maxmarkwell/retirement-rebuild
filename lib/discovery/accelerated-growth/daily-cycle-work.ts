@@ -10,6 +10,10 @@ import { runAgDailyCycle } from "./daily-cycle";
 import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./holding-review-pipeline";
 import { executeAgDailyCycleTransactions } from "./daily-cycle-execution";
 
+function assertAgLegacyPersistenceDisabled(): void {
+  throw new Error("AG persistence blocked: legacy multi-write persistence is not atomic.");
+}
+
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
   retryFailed?: boolean;
@@ -54,11 +58,9 @@ export async function runAgResearchDailyCycle(options?: {
       assertUniqueAgDecisionTickers(holdingReviews.decisions, "holding review");
       assertUniqueAgDecisionTickers(pipeline.decisions, "committee");
       assertDisjointAgDecisionBatches(holdingReviews.decisions, pipeline.decisions);
-      // Temporary fail-closed barrier while the atomic persistence replacement is built.
-      // Keep this runtime-conditional so TypeScript preserves the response shape.
-      if (process.env.AG_ATOMIC_PERSISTENCE_READY !== "verified") {
-        throw new Error("AG persistence blocked: atomic cycle-linked persistence is not verified.");
-      }
+      // Fail closed regardless of environment configuration. The legacy writes
+      // below must not run until replaced with a tested transactional workflow.
+      assertAgLegacyPersistenceDisabled();
       console.info("[AG cycle] persistence started", { cycleId: context.cycleId });
       await persistAgResearchWatchlist(
         context.portfolioId,
