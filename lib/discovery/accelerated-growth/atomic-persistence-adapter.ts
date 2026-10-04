@@ -99,7 +99,19 @@ export async function commitPreparedAgBatch(
       typeof call.p_thesis !== "string" || !call.p_thesis.trim() ||
       typeof call.p_confidence !== "number" || !Number.isFinite(call.p_confidence) ||
       call.p_confidence < 0 || call.p_confidence > 100 ||
-      typeof call.p_thesis_clock !== "string" || !call.p_thesis_clock.trim()) {
+      typeof call.p_thesis_clock !== "string" || !call.p_thesis_clock.trim() ||
+      [call.p_bull_case, call.p_bear_case, call.p_monitoring,
+        call.p_invalidation, call.p_notes, call.p_ag_evidence_version,
+        call.p_ag_theme_key].some((value) => value !== null && typeof value !== "string") ||
+      [call.p_ag_thesis_valid, call.p_ag_liquidity_eligible].some(
+        (value) => value !== null && typeof value !== "boolean") ||
+      Object.keys(call).some((key) => ![
+        "p_cycle_id", "p_claim_token", "p_ticker", "p_kind", "p_decision_type",
+        "p_thesis", "p_confidence", "p_thesis_clock", "p_bull_case",
+        "p_bear_case", "p_monitoring", "p_invalidation", "p_notes",
+        "p_ag_thesis_valid", "p_ag_liquidity_eligible", "p_ag_evidence_version",
+        "p_ag_theme_key",
+      ].includes(key))) {
       throw new Error("Invalid prepared AG RPC arguments.");
     }
     const key = `${call.p_cycle_id.toLowerCase()}:${call.p_ticker}`;
