@@ -79,6 +79,9 @@ BEGIN
   WHERE cycle_id = p_cycle_id AND stage = 'persistence'
   FOR UPDATE;
   IF NOT FOUND OR v_checkpoint.status <> 'running'
+     OR v_checkpoint.user_id IS DISTINCT FROM v_cycle.user_id
+     OR v_checkpoint.portfolio_id IS DISTINCT FROM v_cycle.portfolio_id
+     OR v_checkpoint.strategy_era_id IS DISTINCT FROM v_cycle.strategy_era_id
      OR v_checkpoint.claim_token IS DISTINCT FROM p_claim_token
      OR v_checkpoint.lease_expires_at IS NULL
      OR v_checkpoint.lease_expires_at <= now()
@@ -92,7 +95,11 @@ BEGIN
   ON CONFLICT (cycle_id,ticker) DO NOTHING;
   SELECT * INTO v_ledger FROM public.ag_cycle_decision_writes
   WHERE cycle_id = p_cycle_id AND ticker = p_ticker FOR UPDATE;
-  IF v_ledger.payload_hash <> p_payload_hash OR v_ledger.decision_kind <> p_kind
+  IF v_ledger.user_id IS DISTINCT FROM v_cycle.user_id
+     OR v_ledger.portfolio_id IS DISTINCT FROM v_cycle.portfolio_id
+     OR v_ledger.strategy_era_id IS DISTINCT FROM v_cycle.strategy_era_id
+     OR v_ledger.payload_hash IS DISTINCT FROM p_payload_hash
+     OR v_ledger.decision_kind IS DISTINCT FROM p_kind
   THEN RAISE EXCEPTION 'Conflicting payload for AG cycle ticker'; END IF;
   IF v_ledger.status = 'committed' THEN
     IF v_ledger.investment_decision_id IS NULL THEN
