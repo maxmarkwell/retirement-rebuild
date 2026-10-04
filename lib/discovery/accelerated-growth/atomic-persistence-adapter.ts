@@ -268,3 +268,82 @@ export function classifyAgAmbiguousBatch(
     ? "ALL_RECORDED_REQUIRES_PAYLOAD_VERIFICATION"
     : "MANUAL_RECONCILIATION";
 }
+
+/** Diagnostic-only partial-batch report. Never grants permission to retry or
+ * mark a persistence checkpoint complete; ledger hashes are not payload proof.
+ */
+export function reportAgPartialBatch(
+  calls: readonly AgRpcCall[],
+  acknowledged: readonly { ticker: string; decisionId: string }[],
+  rows: readonly AgCommittedLedgerRow[],
+  scope: { userId: string; portfolioId: string; strategyEraId: string },
+): {
+  status: "REQUIRES_MANUAL_RECONCILIATION";
+  acknowledged: readonly string[];
+  recordedUnacknowledged: readonly string[];
+  missing: readonly string[];
+  conflicting: readonly string[];
+} {
+  const empty = {
+    status: "REQUIRES_MANUAL_RECONCILIATION" as const,
+    acknowledged: [] as string[], recordedUnacknowledged: [] as string[],
+    missing: [] as string[], conflicting: [] as string[],
+  };
+  if (!scope || !UUID.test(scope.userId) || !UUID.test(scope.portfolioId) ||
+      !UUID.test(scope.strategyEraId) || !Array.isArray(calls) ||
+      !Array.isArray(acknowledged) || !Array.isArray(rows) || calls.length === 0) {
+    return { ...empty, conflicting: ["INVALID_INPUT"] };
+  }
+  const cycle = calls[0]?.p_cycle_id?.toLowerCase();
+  const expected = new Map<string, AgRpcCall>();
+  for (const call of calls) {
+    if (!call || !UUID.test(call.p_cycle_id) || call.p_cycle_id.toLowerCase() !== cycle ||
+        !/^[A-Z][A-Z0-9.-]{0,14}$/.test(call.p_ticker) ||
+        expected.has(call.p_ticker)) return { ...empty, conflicting: ["INVALID_BATCH"] };
+    expected.set(call.p_ticker, call);
+  }
+  const acknowledgments = new Map<string, string>();
+  for (const ack of acknowledged) {
+    if (!ack || !expected.has(ack.ticker) || !UUID.test(ack.decisionId) ||
+        acknowledgments.has(ack.ticker)) {
+      return { ...empty, conflicting: ["INVALID_ACKNOWLEDGMENTS"] };
+    }
+    acknowledgments.set(ack.ticker, ack.decisionId.toLowerCase());
+  }
+  if (new Set(acknowledgments.values()).size !== acknowledgments.size) {
+    return { ...empty, conflicting: ["DUPLICATE_ACKNOWLEDGED_ID"] };
+  }
+  const ledger = new Map<string, AgCommittedLedgerRow>();
+  const conflicting = new Set<string>();
+  const decisionIds = new Set<string>();
+  for (const row of rows) {
+    const call = row && expected.get(row.ticker);
+    if (!call || ledger.has(row.ticker)) {
+      conflicting.add(row?.ticker || "UNEXPECTED_ROW");
+      continue;
+    }
+    ledger.set(row.ticker, row);
+    const id = row.investment_decision_id?.toLowerCase();
+    if (!id || !UUID.test(id) || decisionIds.has(id) ||
+        row.cycle_id?.toLowerCase() !== cycle ||
+        row.status !== "committed" || !/^[a-f0-9]{64}$/.test(row.payload_hash) ||
+        row.decision_kind !== call.p_kind ||
+        row.user_id?.toLowerCase() !== scope.userId.toLowerCase() ||
+        row.portfolio_id?.toLowerCase() !== scope.portfolioId.toLowerCase() ||
+        row.strategy_era_id?.toLowerCase() !== scope.strategyEraId.toLowerCase() ||
+        (acknowledgments.has(row.ticker) && acknowledgments.get(row.ticker) !== id)) {
+      conflicting.add(row.ticker);
+    }
+    if (id) decisionIds.add(id);
+  }
+  const confirmed = [...acknowledgments.keys()].filter((ticker) =>
+    ledger.has(ticker) && !conflicting.has(ticker));
+  return {
+    status: "REQUIRES_MANUAL_RECONCILIATION",
+    acknowledged: confirmed,
+    recordedUnacknowledged: [...expected.keys()].filter((ticker) =>
+      !acknowledgments.has(ticker) && ledger.has(ticker) && !conflicting.has(ticker)),
+    missing: [...expected.keys()].filter((ticker) => !ledger.has(ticker)),
+    conflicting: [...conflicting],
+  };
+}
