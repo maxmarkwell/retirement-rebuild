@@ -3,6 +3,10 @@
 -- Persistence completion is atomic with an exact committed-ledger count.
 -- Caller supplies expected ticker list, but payload identity still requires
 -- separate canonical hash verification before this function is invoked.
+-- RELEASE BLOCKER: p_expected_tickers is caller-controlled; this function
+-- cannot establish that the caller supplied the COMPLETE planned batch.
+-- Bind the expected manifest to a separately validated, immutable server-side
+-- committee-stage artifact before enabling this RPC in any daily runner.
 CREATE OR REPLACE FUNCTION public.ag_complete_persistence_stage(
   p_checkpoint_id uuid, p_claim_token uuid, p_expected_tickers text[]
 )
@@ -65,4 +69,5 @@ $$;
 REVOKE ALL ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) TO authenticated;
 -- IMPORTANT: This proves ledger coverage and active decision linkage, NOT
--- canonical payload equality. Do not enable automatic recovery on this basis.
+-- canonical payload equality or manifest completeness. Do not enable
+-- automatic recovery or active daily-runner integration on this basis.
