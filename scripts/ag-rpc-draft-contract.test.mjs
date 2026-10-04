@@ -62,3 +62,19 @@ test("stage claim and ledger drafts reject incomplete states", () => {
   assert.ok(stage.includes("c.lease_expires_at is not null and c.lease_expires_at > now()"));
   assert.ok(ledger.includes("status <> 'committed' and investment_decision_id is null and committed_at is null"));
 });
+
+test("draft RPC checks checkpoint and ledger ownership metadata against locked cycle", () => {
+  const normalized = normalize(sql);
+  for (const prefix of ["v_checkpoint", "v_ledger"]) {
+    for (const [field, expected] of [
+      ["user_id", "v_cycle.user_id"],
+      ["portfolio_id", "v_cycle.portfolio_id"],
+      ["strategy_era_id", "v_cycle.strategy_era_id"],
+    ]) {
+      assert.ok(normalized.includes(prefix + "." + field + " is distinct from " + expected),
+        "Missing ownership fence: " + prefix + "." + field);
+    }
+  }
+  assert.ok(normalized.includes("v_ledger.payload_hash is distinct from p_payload_hash"));
+  assert.ok(normalized.includes("v_ledger.decision_kind is distinct from p_kind"));
+});
