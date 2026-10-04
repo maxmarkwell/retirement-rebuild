@@ -1,0 +1,46 @@
+name: AG isolated PostgreSQL draft tests
+on:
+  push:
+    branches: [fix/ag-stale-cycle-diagnostics]
+    paths:
+      - 'docs/ag-*.sql'
+      - 'docs/ag-resumable-cycle-checkpoint-design.md'
+      - 'tests/ag-postgres-*.sql'
+      - '.github/workflows/ag-postgres-draft.yml'
+  workflow_dispatch:
+jobs:
+  postgres-draft:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_only
+          POSTGRES_DB: ag_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U postgres -d ag_isolated'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: test_only
+      PGDATABASE: ag_isolated
+      PGOPTIONS: '-v ON_ERROR_STOP=1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load isolated schema and AG draft SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE authenticated NOLOGIN;'
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-fixture.sql
+          awk '/^\\x60\\x60\\x60sql$/ {inside=1;next} /^\\x60\\x60\\x60$/ && inside {exit} inside {print}' docs/ag-resumable-cycle-checkpoint-design.md > /tmp/ag-checkpoints.sql
+          test -s /tmp/ag-checkpoints.sql
+          psql -v ON_ERROR_STOP=1 -f /tmp/ag-checkpoints.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-stage-claim-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-cycle-decision-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
+      - name: Run isolated transactional smoke tests
+        run: psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
