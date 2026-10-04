@@ -18,10 +18,17 @@ const SYMBOL = /^[A-Z][A-Z0-9.-]{0,14}$/;
 export function planAgDecisionWrites(writes: readonly AgDecisionWrite[]): AgDecisionWritePlan[] {
   const seen = new Set<string>();
   return writes.map((write) => {
+    if (!write || typeof write.symbol !== "string" || typeof write.cycleId !== "string" ||
+        typeof write.decisionType !== "string") {
+      throw new Error("Invalid AG persistence write.");
+    }
     const symbol = write.symbol.trim().toUpperCase();
     if (!UUID.test(write.cycleId) || !SYMBOL.test(symbol) ||
         (write.kind !== "holding_review" && write.kind !== "committee") ||
-        !write.decisionType || !write.payload || Array.isArray(write.payload) ||
+        !write.decisionType.trim() ||
+        (write.kind === "committee" && !["buy", "watch", "avoid"].includes(write.decisionType)) ||
+        (write.kind === "holding_review" && !["hold", "sell"].includes(write.decisionType)) ||
+        !write.payload || Array.isArray(write.payload) ||
         typeof write.payload !== "object") {
       throw new Error("Invalid AG persistence write.");
     }
