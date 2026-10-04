@@ -175,7 +175,7 @@ REVOKE ALL ON FUNCTION public.ag_commit_cycle_decision(
   uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
-  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,text,boolean,boolean,text,text
+  uuid,uuid,text,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) TO authenticated;
 
 -- BLOCKERS BEFORE APPROVAL:
