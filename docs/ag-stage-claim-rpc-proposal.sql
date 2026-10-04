@@ -97,6 +97,54 @@ BEGIN
   IF auth.uid() IS NULL OR p_output IS NULL THEN
     RAISE EXCEPTION 'Authenticated caller and non-null output required';
   END IF;
+  -- Committee completion must carry a nonempty, unique, normalized manifest.
+  -- Its contents still require upstream semantic validation against research.
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
+    WHERE c.id=p_checkpoint_id AND c.stage='committee') AND (
+      jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array' OR
+      jsonb_array_length(CASE WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)=0 OR
+      EXISTS (SELECT 1 FROM jsonb_array_elements(CASE
+        WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) item
+        WHERE jsonb_typeof(item)<>'string' OR
+          (item #>> '{}') !~ '^[A-Z][A-Z0-9.-]{0,14}
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
+    WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
+    RAISE EXCEPTION 'Persistence requires ledger-verified completion';
+  END IF;
+  UPDATE public.ag_cycle_stage_checkpoints c
+  SET status = 'completed', output = p_output, claim_token = NULL,
+      lease_expires_at = NULL, completed_at = now(), updated_at = now()
+  WHERE c.id = p_checkpoint_id AND c.user_id = auth.uid()
+    AND c.status = 'running' AND c.claim_token = p_claim_token
+    AND c.lease_expires_at IS NOT NULL AND c.lease_expires_at > now()
+    AND EXISTS (
+      SELECT 1 FROM public.ag_daily_cycles d
+      WHERE d.id = c.cycle_id AND d.user_id = auth.uid() AND d.status = 'running'
+    );
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count = 1;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ag_claim_cycle_stage(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ag_claim_cycle_stage(uuid,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) TO authenticated;
+
+-- SECURITY NOTE: p_output is caller-provided; server must validate stage-specific
+-- schemas before passing output to later stages. No stage execution is enabled here.
+-- An explicit reviewed administrative recovery function will be required to
+-- reset failed/expired claims; deliberately omitted.
+) OR
+      (SELECT count(*) FROM jsonb_array_elements_text(CASE
+        WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)) <>
+      (SELECT count(DISTINCT item) FROM jsonb_array_elements_text(CASE
+        WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
+        THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) item)
+    ) THEN RAISE EXCEPTION 'Valid Committee persistence manifest required'; END IF;
   -- Persistence must use a separate ledger-verified completion function.
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints c
     WHERE c.id = p_checkpoint_id AND c.stage = 'persistence') THEN
@@ -126,3 +174,23 @@ GRANT EXECUTE ON FUNCTION public.ag_complete_cycle_stage(uuid,uuid,jsonb) TO aut
 -- schemas before passing output to later stages. No stage execution is enabled here.
 -- An explicit reviewed administrative recovery function will be required to
 -- reset failed/expired claims; deliberately omitted.
+
+-- Defense in depth: completed checkpoint evidence cannot be rewritten by
+-- ordinary UPDATEs, including privileged RPC mistakes. Recovery needs a
+-- separately reviewed migration/procedure rather than silent mutation.
+CREATE OR REPLACE FUNCTION public.ag_protect_completed_checkpoint()
+RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+ IF OLD.status='completed' AND (
+   NEW.status IS DISTINCT FROM OLD.status OR
+   NEW.output IS DISTINCT FROM OLD.output OR
+   NEW.claim_token IS DISTINCT FROM OLD.claim_token OR
+   NEW.cycle_id IS DISTINCT FROM OLD.cycle_id OR
+   NEW.stage IS DISTINCT FROM OLD.stage
+ ) THEN RAISE EXCEPTION 'Completed AG checkpoint is immutable'; END IF;
+ RETURN NEW;
+END;
+$$;
+CREATE TRIGGER ag_protect_completed_checkpoint_update
+BEFORE UPDATE ON public.ag_cycle_stage_checkpoints
+FOR EACH ROW EXECUTE FUNCTION public.ag_protect_completed_checkpoint();
