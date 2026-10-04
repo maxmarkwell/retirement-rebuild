@@ -142,6 +142,7 @@ export function reconcileAgCommittedBatch(
     expected.set(key, id.toLowerCase());
   }
   const observed = new Set<string>();
+  const observedDecisionIds = new Set<string>();
   for (const row of rows) {
     if (!row || !UUID.test(row.cycle_id) || typeof row.ticker !== "string") {
       return "MANUAL_RECONCILIATION";
@@ -162,6 +163,9 @@ export function reconcileAgCommittedBatch(
       item.p_cycle_id.toLowerCase() === row.cycle_id.toLowerCase() &&
       item.p_ticker === row.ticker);
     if (!call || call.p_kind !== row.decision_kind) return "MANUAL_RECONCILIATION";
+    const decisionId = row.investment_decision_id!.toLowerCase();
+    if (observedDecisionIds.has(decisionId)) return "MANUAL_RECONCILIATION";
+    observedDecisionIds.add(decisionId);
     observed.add(key);
   }
   return observed.size === expected.size ? "COMPLETE" : "MANUAL_RECONCILIATION";
@@ -227,6 +231,7 @@ export function classifyAgAmbiguousBatch(
     expected.set(call.p_ticker, call);
   }
   const observed = new Set<string>();
+  const observedDecisionIds = new Set<string>();
   for (const row of rows) {
     const call = row && expected.get(row.ticker);
     if (!call || observed.has(row.ticker) || row.cycle_id?.toLowerCase() !== cycle ||
@@ -239,6 +244,9 @@ export function classifyAgAmbiguousBatch(
         row.strategy_era_id?.toLowerCase() !== scope.strategyEraId.toLowerCase()) {
       return "MANUAL_RECONCILIATION";
     }
+    const decisionId = row.investment_decision_id.toLowerCase();
+    if (observedDecisionIds.has(decisionId)) return "MANUAL_RECONCILIATION";
+    observedDecisionIds.add(decisionId);
     observed.add(row.ticker);
   }
   return observed.size === expected.size
