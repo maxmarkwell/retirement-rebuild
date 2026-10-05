@@ -142,3 +142,8 @@ await import(toDataUrl(
  persistenceRecoveryTests.replace('"./persistence-recovery-contract"',JSON.stringify(persistenceRecoveryUrl)),
  "persistence-recovery-contract.test.ts"
 ));
+
+const runtimeBudgetSource=await readFile(resolve(directory,"stage-runtime-budget.ts"),"utf8");
+const runtimeBudgetUrl=toDataUrl(runtimeBudgetSource,"stage-runtime-budget.ts");
+const runtimeBudgetTests=await readFile(resolve(directory,"stage-runtime-budget.test.ts"),"utf8");
+await import(toDataUrl(runtimeBudgetTests.replace('"./stage-runtime-budget"',JSON.stringify(runtimeBudgetUrl)),"stage-runtime-budget.test.ts"));
