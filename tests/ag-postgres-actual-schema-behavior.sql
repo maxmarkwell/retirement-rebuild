@@ -214,16 +214,17 @@ BEGIN
  IF cp IS DISTINCT FROM 'a2333333-3333-4333-8333-333333333333'::uuid OR token IS NULL
  THEN RAISE EXCEPTION 'Deep-research stage claim identity invalid'; END IF;
  BEGIN
-  PERFORM public.ag_complete_cycle_stage(cp,token,'{"watchlist_intents":[]}'::jsonb);
+  PERFORM public.ag_complete_cycle_stage(cp,token,'{"selected_symbols":[],"deep_research_results":[],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
   RAISE EXCEPTION 'Incomplete deep-research handoff accepted';
  EXCEPTION WHEN OTHERS THEN IF SQLERRM='Incomplete deep-research handoff accepted' THEN RAISE; END IF; END;
  ok:=public.ag_complete_cycle_stage(cp,token,
-  '{"selected_symbols":[],"catalysts":[],"deep_research_results":[],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
+  '{"selected_symbols":[],"catalysts":[],"deep_research_results":[{"symbol":"DEEP","researchStatus":"PROCEED","confidence":0.8,"thesis":"Frozen thesis","model":"test-model","promptVersion":"test-v1"}],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
  IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'Valid deep-research handoff did not complete'; END IF;
  SELECT count(*) INTO n FROM public.ag_read_completed_stage_output(
   'a2020202-2020-4020-8020-202020202020'::uuid,'catalyst_deep_research')
  WHERE stage='catalyst_deep_research'
    AND output->>'watchlist_intent_count'='0'
-   AND output->'deep_research_results'='[]'::jsonb;
+   AND jsonb_array_length(output->'deep_research_results')=1
+   AND output->'deep_research_results'->0->>'symbol'='DEEP';
  IF n<>1 THEN RAISE EXCEPTION 'Completed deep-research output did not round-trip through authenticated RPC'; END IF;
 END $agdeep$;
