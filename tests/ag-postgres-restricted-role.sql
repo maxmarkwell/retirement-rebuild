@@ -68,7 +68,7 @@ BEGIN
  IF b THEN RAISE EXCEPTION 'Holding verifier accepted cross-owner cycle'; END IF;
 END $agcrossowner$;
 
-DO $
+DO $agcrosswrite$
 DECLARE visible integer;
 BEGIN
  SELECT count(*) INTO visible FROM public.ag_read_cycle_decision_ledger(
@@ -85,5 +85,5 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM = 'Cross-owner RPC unexpectedly accepted' THEN RAISE; END IF;
  END;
-END $$;
+END $agcrosswrite$;
 RESET ROLE;
