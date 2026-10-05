@@ -211,3 +211,68 @@ DO $agtest$ BEGIN
    WHERE cycle_id='19191919-1919-4919-8919-191919191919' AND ticker='FENCED')
  THEN RAISE EXCEPTION 'Fenced older cycle left pending ledger state'; END IF;
 END $agtest$;
+
+
+-- Simulate timeout-after-commit: ignore the original RPC return value and
+-- recover only by read-only ledger + actual target-row postconditions.
+DO $agtest$
+BEGIN
+ IF NOT public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','NEWWATCH','upsert_watch',null,null,'New Co',0.72,
+  'New watch thesis',ARRAY['Question'],'medium',ARRAY['Invalidation'],
+  'model','v1',false)
+ THEN RAISE EXCEPTION 'Committed watch upsert postcondition was not verified'; END IF;
+
+ IF NOT public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','NEWSTOP','resolve_research',null,'STOP',
+  null,null,null,null,null,null,null,null,false)
+ THEN RAISE EXCEPTION 'Committed watch no-op postcondition was not verified'; END IF;
+
+ IF NOT public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','OLDWATCH','resolve_quantitative',
+  '16161616-1616-4616-8616-161616161616','REJECT',
+  null,null,null,null,null,null,null,null,false)
+ THEN RAISE EXCEPTION 'Committed watch resolution postcondition was not verified'; END IF;
+
+ IF NOT public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'committee_watch','CWATCH','supersede_committee',
+  '17171717-1717-4717-8717-171717171717','REJECT',
+  null,null,null,null,null,null,null,null,false)
+ THEN RAISE EXCEPTION 'Committed Committee supersession postcondition was not verified'; END IF;
+
+ -- Same ledger identity with altered frozen payload must not verify.
+ IF public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','NEWWATCH','upsert_watch',null,null,'New Co',0.72,
+  'Altered thesis',ARRAY['Question'],'medium',ARRAY['Invalidation'],
+  'model','v1',false)
+ THEN RAISE EXCEPTION 'Altered frozen payload verified against committed ledger'; END IF;
+END $agtest$;
+
+-- Verification is owner-scoped even though it is read-only.
+SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false);
+DO $agtest$ BEGIN
+ IF public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','NEWSTOP','resolve_research',null,'STOP',
+  null,null,null,null,null,null,null,null,false)
+ THEN RAISE EXCEPTION 'Cross-owner postcondition verification succeeded'; END IF;
+END $agtest$;
+SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+
+-- A committed ledger row alone is insufficient: actual target-row tampering
+-- after commit must make recovery fail closed.
+UPDATE public.ag_research_watchlist SET thesis='tampered after commit'
+WHERE ticker='NEWWATCH' AND resolved_at IS NULL;
+DO $agtest$ BEGIN
+ IF public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','NEWWATCH','upsert_watch',null,null,'New Co',0.72,
+  'New watch thesis',ARRAY['Question'],'medium',ARRAY['Invalidation'],
+  'model','v1',false)
+ THEN RAISE EXCEPTION 'Tampered target row passed postcondition verification'; END IF;
+END $agtest$;
