@@ -11,6 +11,7 @@ import {createAuthenticatedAgSymbolCheckpointIo} from "./symbol-checkpoint-supab
 import {runNextAgSymbolWork} from "./symbol-checkpoint-orchestrator";
 import {deriveAgExecutionEvidence} from "./execution-evidence";
 import {captureAgCommitteeIntent} from "./immutable-intent-capture";
+import {validateAgStageEnvelope} from "./stage-checkpoint-contract";
 
 export async function resumeAgDeepResearchFanout(input:{cycleId:string;parentClaim:{checkpointId:string;claimToken:string};rpc:AgStageCheckpointRpc;maxCandidates?:number}){
  const env=await readAuthenticatedAgCompletedStageOutput({cycleId:input.cycleId,stage:"discovery"});
@@ -23,7 +24,7 @@ export async function resumeAgDeepResearchFanout(input:{cycleId:string;parentCla
  const result=aggregateAgDeepSymbolOutputs({selectedSymbols:expected,outputs:step.outputs as any,
   quantitativeWatchResolutions:plan.quantitativeWatchResolutions,committeeWatchResolutions:plan.committeeWatchResolutions});
  const payload=buildAgCatalystDeepStagePayload({cycleId:input.cycleId,result});
- await input.rpc.complete(input.parentClaim.checkpointId,input.parentClaim.claimToken,{payload});
+ await input.rpc.complete(input.parentClaim.checkpointId,input.parentClaim.claimToken,validateAgStageEnvelope({version:1,cycleId:input.cycleId,stage:"catalyst_deep_research",completedAt:new Date().toISOString(),payload},{cycleId:input.cycleId,stage:"catalyst_deep_research"}));
  return {completed:true,step};
 }
 
@@ -41,6 +42,6 @@ export async function resumeAgCommitteeFanout(input:{cycleId:string;parentClaim:
  const discovery=parseAgDiscoveryStagePayload(discoveryEnv.payload);
  const evidenceByTicker=Object.fromEntries(result.eligibleSymbols.map(t=>{const frozen=discovery.discovery.executionEvidenceInputs[t];if(!frozen)throw new Error(`Missing frozen AG execution evidence for ${t}`);return[t,deriveAgExecutionEvidence(frozen)];}));
  const payload=captureAgCommitteeIntent({cycleId:input.cycleId,claimToken:input.parentClaim.claimToken,eligibleSymbols:result.eligibleSymbols,decisions:result.decisions,failedCount:0,errors:[],evidenceByTicker});
- await input.rpc.complete(input.parentClaim.checkpointId,input.parentClaim.claimToken,{payload,result});
+ await input.rpc.complete(input.parentClaim.checkpointId,input.parentClaim.claimToken,validateAgStageEnvelope({version:1,cycleId:input.cycleId,stage:"committee",completedAt:new Date().toISOString(),payload},{cycleId:input.cycleId,stage:"committee"}));
  return {completed:true,step};
 }
