@@ -33,6 +33,13 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
 ) VALUES (
  'cccccccc-cccc-4ccc-8ccc-cccccccccccc','11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+ 'catalyst_deep_research','completed','{"watchlist_intents":[]}'::jsonb
+);
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'cccccccc-cccc-4ccc-8ccc-cccccccccccc','11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
  'committee','completed',jsonb_build_object(
   'persistence_tickers',jsonb_build_array('SUCCESS'),
   'decision_payloads',jsonb_build_array(jsonb_build_object(
@@ -90,6 +97,13 @@ INSERT INTO public.ag_daily_cycles VALUES
  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
   '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
   current_date+4,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+ 'catalyst_deep_research','completed','{"watchlist_intents":[]}'::jsonb
+);
 INSERT INTO public.ag_cycle_stage_checkpoints(
  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
 ) VALUES (
