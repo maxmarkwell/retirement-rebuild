@@ -99,6 +99,21 @@ BEGIN
     RAISE EXCEPTION 'Committee ticker absent from completed persistence manifest';
   END IF;
 
+  -- Holding reviews require independently completed holding-stage intent too.
+  -- This is a ticker membership fence, not yet full payload provenance.
+  IF p_kind = 'holding_review' AND NOT EXISTS (
+    SELECT 1 FROM public.ag_cycle_stage_checkpoints holding
+    WHERE holding.cycle_id=p_cycle_id AND holding.stage='holding_review'
+      AND holding.status='completed'
+      AND holding.user_id=v_cycle.user_id
+      AND holding.portfolio_id=v_cycle.portfolio_id
+      AND holding.strategy_era_id=v_cycle.strategy_era_id
+      AND jsonb_typeof(holding.output->'persistence_tickers')='array'
+      AND (holding.output->'persistence_tickers') ? p_ticker
+  ) THEN
+    RAISE EXCEPTION 'Holding ticker absent from completed persistence manifest';
+  END IF;
+
   INSERT INTO public.ag_cycle_decision_writes
     (cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash)
   VALUES
@@ -198,7 +213,7 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
   uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
 ) TO authenticated;
 
--- The Committee ticker-membership gate is implemented, but the manifest
+-- Committee and holding ticker-membership gates are implemented, but the manifests
 -- must still be independently derived from complete upstream intent and
 -- verified against full payloads. Holding-review intent needs its own
 -- immutable manifest and combined batch coverage before activation.
