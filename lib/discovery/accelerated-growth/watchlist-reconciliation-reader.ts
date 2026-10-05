@@ -21,11 +21,14 @@ export async function selectAgWatchLedgerRows(query:{
   const {data:{user},error:authError}=await supabase.auth.getUser();
   if(authError||!user||user.id.toLowerCase()!==query.userId.toLowerCase())
     throw new Error("AG watch verification requires the authenticated cycle owner.");
-  const {data,error}=await supabase.from("ag_cycle_watch_writes")
-    .select("cycle_id,stream,ticker,action,source_row_id,payload_hash,status,effect,affected_row_id")
-    .eq("cycle_id",query.cycleId).eq("user_id",query.userId)
-    .eq("portfolio_id",query.portfolioId).eq("strategy_era_id",query.strategyEraId);
+  const {data,error}=await supabase.rpc("ag_read_cycle_watch_ledger",{
+    p_cycle_id:query.cycleId,
+  });
   if(error||!data)throw new Error("Unable to read AG watch operation ledger.");
+  if(data.some((row)=>row.user_id?.toLowerCase()!==query.userId.toLowerCase()||
+    row.portfolio_id?.toLowerCase()!==query.portfolioId.toLowerCase()||
+    row.strategy_era_id?.toLowerCase()!==query.strategyEraId.toLowerCase()))
+    throw new Error("AG watch ledger scope mismatch.");
   return data.map((row)=>({
     cycle_id:row.cycle_id,stream:row.stream as AgWatchIntent["stream"],
     symbol:row.ticker,action:row.action as AgWatchIntent["action"],
