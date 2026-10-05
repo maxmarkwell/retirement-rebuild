@@ -48,6 +48,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
       - name: Validate recovery SQL against audited actual-schema fixture
