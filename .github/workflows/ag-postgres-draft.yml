@@ -53,3 +53,4 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-persistence-completion.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-committee-payload.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-holding-payload.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-mixed-completion.sql
