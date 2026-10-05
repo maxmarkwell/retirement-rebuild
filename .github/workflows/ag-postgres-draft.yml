@@ -88,6 +88,17 @@ jobs:
           actual="$(git hash-object supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql)"
           test "$actual" = "$expected" || { echo "AG migration candidate content digest mismatch" >&2; exit 1; }
 
+      - name: Verify AG migration review artifacts
+        run: |
+          set -euo pipefail
+          digest="$(tr -d '\\n' < supabase/migration-candidates/20261005_ag_recovery_review_candidate.gitblob)"
+          grep -F "$digest" docs/ag-production-migration-runbook.md
+          grep -F "$digest" docs/ag-production-migration-review-record.md
+          grep -F "investment_decisions_notes_exists" docs/ag-production-migration-verification.sql
+          grep -F "ag_protect_completed_checkpoint" docs/ag-production-migration-verification.sql
+          grep -F "role_table_grants" docs/ag-production-migration-verification.sql
+          grep -F "supabase_migrations.schema_migrations" docs/ag-production-migration-verification.sql
+
       - name: Verify migration candidate rolls back atomically on failure
         run: |
           set -euo pipefail
