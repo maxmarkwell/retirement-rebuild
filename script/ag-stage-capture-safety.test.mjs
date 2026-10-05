@@ -99,3 +99,9 @@ assert.ok(deepStageWork.includes("for(const candidate of plan.selected)"));
 assert.ok(committeeStageWork.includes("for(const r of eligible)"));
 // Until multi-symbol stages are split into one-symbol durable work units, active runner wiring is forbidden.
 assert.ok(!runner.includes("resumable-daily-cycle-adapter"));
+
+assert.ok(deepStageWork.includes("runAgCatalystDeepSymbolWork"));
+assert.ok(committeeStageWork.includes("runAgCommitteeSymbolWork"));
+const symbolAggregation=fs.readFileSync(root+"symbol-stage-aggregation.ts","utf8");
+assert.ok(symbolAggregation.includes("Incomplete AG deep symbol output manifest"));
+assert.ok(symbolAggregation.includes("Incomplete AG Committee symbol output manifest"));
