@@ -17,13 +17,16 @@ export async function selectAgCommittedLedgerRows(query: {
   if (authError || !user || user.id.toLowerCase() !== query.userId.toLowerCase()) {
     throw new Error("AG ledger verification requires the authenticated cycle owner.");
   }
-  const { data, error } = await supabase
-    .from("ag_cycle_decision_writes")
-    .select("cycle_id,ticker,status,investment_decision_id,payload_hash,decision_kind,user_id,portfolio_id,strategy_era_id")
-    .eq("cycle_id", query.cycleId)
-    .eq("user_id", query.userId)
-    .eq("portfolio_id", query.portfolioId)
-    .eq("strategy_era_id", query.strategyEraId);
+  const { data, error } = await supabase.rpc("ag_read_cycle_decision_ledger", {
+    p_cycle_id: query.cycleId,
+  });
   if (error || !data) throw new Error("Unable to verify AG committed decision ledger.");
-  return data as AgCommittedLedgerRow[];
+  const rows = data as AgCommittedLedgerRow[];
+  if (rows.some((row) =>
+    row.user_id?.toLowerCase() !== query.userId.toLowerCase() ||
+    row.portfolio_id?.toLowerCase() !== query.portfolioId.toLowerCase() ||
+    row.strategy_era_id?.toLowerCase() !== query.strategyEraId.toLowerCase())) {
+    throw new Error("AG decision ledger scope mismatch.");
+  }
+  return rows;
 }
