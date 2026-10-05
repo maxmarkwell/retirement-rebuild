@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgResearchDailyCycle } from "@/lib/discovery/accelerated-growth/daily-cycle-work";
+import { runNextAgResumableCycleStep } from "@/lib/discovery/accelerated-growth/resumable-cycle-orchestrator";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,6 +20,19 @@ export async function POST(request: NextRequest) {
   try {
     const requested = Number(request.nextUrl.searchParams.get("max") ?? "5");
     const maxCandidates = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 5)) : 5;
+
+    // Recovery runner is a separate, OFF-by-default authority. It advances at
+    // most one durable research unit and cannot persist decisions or transact.
+    if (process.env.AG_RESUMABLE_RESEARCH_RUNNER_ENABLED === "true") {
+      const step = await runNextAgResumableCycleStep({ maxCandidates });
+      return NextResponse.json({
+        ...step,
+        resumableResearch: true,
+        executionEnabled: false,
+        transactionsWritten: false,
+      }, { status: step.action === "manual_review" ? 409 : 200 });
+    }
+
     const retryFailed = request.nextUrl.searchParams.get("retryFailed") === "true";
 
     // V1 production entry point intentionally cannot execute transactions.
