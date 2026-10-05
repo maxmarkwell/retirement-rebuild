@@ -4,7 +4,7 @@ INSERT INTO public.portfolios VALUES ('22222222-2222-4222-8222-222222222222','11
 INSERT INTO public.portfolio_strategy_eras VALUES ('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','accelerated_growth','paper',null,now()-interval '1 day');
 INSERT INTO public.ag_daily_cycles VALUES ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',current_date,'running');
 INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output)
-VALUES ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','committee','completed','{"persistence_tickers":["TEST","SNAP","ROLL","BATCHA","BATCHB","RACE","ROLECHECK"]}'::jsonb);
+VALUES ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','committee','completed','{"persistence_tickers":["TEST","SNAP","ROLL","BATCHA","BATCHB","RACE","ROLECHECK","PREERA"]}'::jsonb);
 INSERT INTO public.ag_cycle_stage_checkpoints(
  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
 ) VALUES (
@@ -80,6 +80,31 @@ BEGIN
   IF SQLERRM = 'Conflicting retry unexpectedly accepted' THEN RAISE; END IF;
  END;
 END $$;
+-- Live uniqueness is cross-era. A pre-era active AI decision must be surfaced
+-- for manual reconciliation rather than silently superseded or failing at INSERT.
+INSERT INTO public.investment_decisions
+ (user_id,portfolio_id,ticker,decision_type,source,status,thesis,created_at)
+VALUES
+ ('11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  'PREERA','watch','ai_committee','active','Historical era thesis',now()-interval '2 days');
+DO $agtest$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision(
+   '44444444-4444-4444-8444-444444444444',
+   '55555555-5555-4555-8555-555555555555',
+   'PREERA','committee','watch','Current era thesis',80,'long',null,null,null,null,null);
+  RAISE EXCEPTION 'Pre-era active AI decision unexpectedly superseded';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Pre-era active AI decision unexpectedly superseded' THEN RAISE; END IF;
+  IF SQLERRM<>'Pre-era active AI decision requires manual reconciliation' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='PREERA')
+ THEN RAISE EXCEPTION 'Pre-era conflict left ledger evidence'; END IF;
+ IF (SELECT status FROM public.investment_decisions WHERE ticker='PREERA')<>'active'
+ THEN RAISE EXCEPTION 'Pre-era decision was mutated'; END IF;
+END $agtest$;
+
 -- A later cycle with the same decision type but different thesis must snapshot
 -- new content, not attach a new payload hash to the previous decision row.
 INSERT INTO public.investment_decisions
