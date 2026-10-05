@@ -71,3 +71,52 @@ BEGIN
  IF n<>0 THEN RAISE EXCEPTION 'Watch-ledger RPC leaked cross-owner rows'; END IF;
 END $$;
 RESET ROLE;
+
+-- Exact audited-schema atomic watch round trip.
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'dddddddd-dddd-4ddd-8ddd-dddddddddddd','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+ 'catalyst_deep_research','completed',
+ '{"watchlist_intents":[{"stream":"research_watch","symbol":"ROUNDTRIP","action":"upsert_watch","source_row_id":null,"outcome":{"symbol":"ROUNDTRIP","researchStatus":"WATCH","companyName":"Round Trip Inc","confidence":0.75,"thesis":"Frozen watch thesis","unresolvedQuestions":["Question A"],"thesisClock":"medium","invalidation":["Invalidator A"],"model":"fixture-model","promptVersion":"fixture-v1","priorWatchReassessed":false,"priorWatchRowId":null}}]}'::jsonb
+);
+
+DO $$
+DECLARE ledger_id uuid; affected uuid; verified boolean; tampered boolean;
+BEGIN
+ ledger_id := public.ag_commit_watch_operation(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'research_watch','ROUNDTRIP','upsert_watch',NULL,NULL,'Round Trip Inc',0.75,
+  'Frozen watch thesis',ARRAY['Question A'],'medium',ARRAY['Invalidator A'],
+  'fixture-model','fixture-v1',false
+ );
+ IF ledger_id IS NULL THEN RAISE EXCEPTION 'Audited watch round trip returned null ledger'; END IF;
+
+ SELECT affected_row_id INTO affected FROM public.ag_cycle_watch_writes WHERE id=ledger_id;
+ IF affected IS NULL OR NOT EXISTS (
+  SELECT 1 FROM public.ag_research_watchlist
+  WHERE id=affected AND ticker='ROUNDTRIP' AND resolved_at IS NULL
+   AND research_status='WATCH' AND confidence=0.75
+   AND thesis='Frozen watch thesis'
+   AND unresolved_questions=ARRAY['Question A']::text[]
+   AND thesis_clock='medium' AND invalidation=ARRAY['Invalidator A']::text[]
+   AND model='fixture-model' AND prompt_version='fixture-v1'
+ ) THEN RAISE EXCEPTION 'Audited watch round trip target row mismatch'; END IF;
+
+ verified := public.ag_verify_watch_operation_postcondition(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','research_watch','ROUNDTRIP','upsert_watch',
+  NULL,NULL,'Round Trip Inc',0.75,'Frozen watch thesis',ARRAY['Question A'],'medium',
+  ARRAY['Invalidator A'],'fixture-model','fixture-v1',false
+ );
+ IF verified IS DISTINCT FROM true THEN RAISE EXCEPTION 'Exact watch postcondition was not verified'; END IF;
+
+ tampered := public.ag_verify_watch_operation_postcondition(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','research_watch','ROUNDTRIP','upsert_watch',
+  NULL,NULL,'Round Trip Inc',0.76,'Frozen watch thesis',ARRAY['Question A'],'medium',
+  ARRAY['Invalidator A'],'fixture-model','fixture-v1',false
+ );
+ IF tampered IS DISTINCT FROM false THEN RAISE EXCEPTION 'Tampered watch payload verified unexpectedly'; END IF;
+END $$;
