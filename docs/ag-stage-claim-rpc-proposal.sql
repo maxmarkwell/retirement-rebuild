@@ -93,6 +93,17 @@ BEGIN
   IF auth.uid() IS NULL OR p_output IS NULL THEN
     RAISE EXCEPTION 'Authenticated caller and non-null output required';
   END IF;
+  -- Authenticate and fence the claim before inspecting caller-provided stage
+  -- output. Stale or wrong-token workers return false rather than receiving
+  -- validation errors that could reveal checkpoint state.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.ag_cycle_stage_checkpoints c
+    JOIN public.ag_daily_cycles d ON d.id=c.cycle_id
+    WHERE c.id=p_checkpoint_id AND c.user_id=auth.uid()
+      AND c.status='running' AND c.claim_token=p_claim_token
+      AND c.lease_expires_at IS NOT NULL AND c.lease_expires_at>now()
+      AND d.user_id=auth.uid() AND d.status='running'
+  ) THEN RETURN false; END IF;
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
              WHERE id=p_checkpoint_id AND stage='committee') THEN
     IF jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array'
