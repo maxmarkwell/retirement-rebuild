@@ -253,3 +253,30 @@ BEGIN
  ok:=public.ag_complete_cycle_stage(cp,token,payload);
  IF NOT ok THEN RAISE EXCEPTION 'Valid frozen watchlist manifest rejected'; END IF;
 END $agtest$;
+
+
+-- A clean research stage with no watch mutations is a valid explicit no-op,
+-- but the empty manifest must still be present and counted.
+INSERT INTO public.ag_daily_cycles VALUES
+ ('25252525-2525-4525-8525-252525252525',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ current_date+16,'running');
+DO $agtest$
+DECLARE cp uuid; token uuid:='26262626-2626-4626-8626-262626262626'; ok boolean;
+BEGIN
+ INSERT INTO public.ag_cycle_stage_checkpoints(
+  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,
+  attempt_count,claim_token,lease_expires_at)
+ VALUES (
+  '25252525-2525-4525-8525-252525252525',
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  '33333333-3333-4333-8333-333333333333',
+  'catalyst_deep_research','running',1,token,now()+interval '5 minutes')
+ RETURNING id INTO cp;
+ ok:=public.ag_complete_cycle_stage(cp,token,
+   '{"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
+ IF NOT ok THEN RAISE EXCEPTION 'Explicit empty watchlist manifest rejected'; END IF;
+END $agtest$;
