@@ -81,6 +81,21 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
 
+      - name: Verify migration candidate rolls back atomically on failure
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_migration_rollback;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_migration_rollback;'
+          export PGDATABASE=ag_migration_rollback
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -c 'CREATE TABLE public.ag_cycle_stage_checkpoints(id uuid);'
+          if psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql; then
+            echo 'candidate unexpectedly succeeded despite deliberate object conflict' >&2
+            exit 1
+          fi
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-migration-rollback.sql
+
       - name: Validate packaged recovery migration candidate
         run: |
           set -euo pipefail
