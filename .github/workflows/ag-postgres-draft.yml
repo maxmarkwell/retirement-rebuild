@@ -49,6 +49,28 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
+      - name: Validate recovery SQL against audited actual-schema fixture
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_actual_schema;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_actual_schema;'
+          export PGDATABASE=ag_actual_schema
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;'
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-schema-compatibility-proposal.sql
+          python3 -c "from pathlib import Path; t=Path('docs/ag-resumable-cycle-checkpoint-design.md').read_text(); Path('/tmp/ag-checkpoints-actual.sql').write_text(t.split(chr(96)*3+'sql',1)[1].split(chr(96)*3,1)[0])"
+          psql -v ON_ERROR_STOP=1 -f /tmp/ag-checkpoints-actual.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-stage-claim-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-cycle-decision-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-recovery-read-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-watchlist-rpc-draft.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
+
       - name: Run isolated transactional smoke tests
         run: |
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
