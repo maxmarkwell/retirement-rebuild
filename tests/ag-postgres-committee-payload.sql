@@ -42,7 +42,7 @@ BEGIN
  IF public.ag_verify_committee_payload_manifest(
    'abababab-abab-4bab-8bab-abababababab')
  THEN RAISE EXCEPTION 'Mismatched ledger digest verified'; END IF;
- UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(public.digest(
+ UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(extensions.digest(
    convert_to(jsonb_build_array(
     'abababab-abab-4bab-8bab-abababababab'::uuid,
     'PAYLOAD','committee','watch','Frozen payload thesis',75::numeric,
