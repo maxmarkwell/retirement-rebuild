@@ -13,8 +13,8 @@ test("legacy AG persistence cannot be enabled through environment configuration"
 });
 
 test("atomic watchlist adapter remains isolated from active runner", () => {
-  const adapter = read("lib/discovery/accelerated-growth/watchlist-persistence-adapter.ts");
-  const runner = read("lib/discovery/accelerated-growth/daily-cycle-work.ts");
+  const adapter = readFileSync("lib/discovery/accelerated-growth/watchlist-persistence-adapter.ts", "utf8");
+  const runner = readFileSync("lib/discovery/accelerated-growth/daily-cycle-work.ts", "utf8");
   assert.match(adapter, /AgAmbiguousWatchWriteError/);
   assert.doesNotMatch(adapter, /createClient|supabase|fetch\(/);
   assert.doesNotMatch(runner, /watchlist-persistence-adapter/);
