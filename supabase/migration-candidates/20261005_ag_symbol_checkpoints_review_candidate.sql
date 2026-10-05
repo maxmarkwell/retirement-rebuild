@@ -41,6 +41,10 @@ BEGIN
  IF NOT FOUND THEN RAISE EXCEPTION 'Cycle unavailable or not running'; END IF;
  SELECT * INTO v_parent FROM public.ag_cycle_stage_checkpoints WHERE cycle_id=p_cycle_id AND stage=p_parent_stage AND status='running' FOR UPDATE;
  IF NOT FOUND OR v_parent.user_id<>auth.uid() OR v_parent.lease_expires_at IS NULL OR v_parent.lease_expires_at<=now() THEN RAISE EXCEPTION 'Valid running parent AG stage claim required'; END IF;
+ -- Each bounded child request renews the still-valid parent lease. This permits
+ -- multi-request fan-out without allowing an expired/stale parent to revive.
+ UPDATE public.ag_cycle_stage_checkpoints SET lease_expires_at=now()+interval '6 minutes',updated_at=now()
+ WHERE id=v_parent.id AND status='running' AND lease_expires_at>now();
  SELECT * INTO v_row FROM public.ag_cycle_symbol_checkpoints WHERE cycle_id=p_cycle_id AND parent_stage=p_parent_stage AND symbol=p_symbol FOR UPDATE;
  IF FOUND AND v_row.status<>'pending' THEN RAISE EXCEPTION 'AG symbol work already claimed, completed or requires review'; END IF;
  IF FOUND THEN
