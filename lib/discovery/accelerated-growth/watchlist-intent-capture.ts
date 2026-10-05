@@ -75,7 +75,7 @@ export function captureAgWatchlistIntent(input:{
   for(const outcome of input.outcomes){
     if(!["PROCEED","WATCH","STOP"].includes(outcome.researchStatus) ||
        !Number.isFinite(outcome.confidence) || outcome.confidence<0 ||
-       outcome.confidence>100 || typeof outcome.thesis!=="string" ||
+       outcome.confidence>1 || typeof outcome.thesis!=="string" ||
        typeof outcome.thesisClock!=="string" ||
        !Array.isArray(outcome.unresolvedQuestions) ||
        !Array.isArray(outcome.invalidation) ||
