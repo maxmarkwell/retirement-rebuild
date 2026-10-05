@@ -1,6 +1,6 @@
 # AG live schema audit — 2026-10-05
 
-Status: **read-only production catalog audit completed. No DDL or data writes were executed.**
+Status: **production catalog audit completed; migration-history reconciliation and BUY-authorization privilege hardening were subsequently completed and verified. Recovery DDL remains unapplied.**
 
 ## Confirmed live compatibility facts
 
@@ -43,18 +43,9 @@ Status: **read-only production catalog audit completed. No DDL or data writes we
   live. No public `ag_*` recovery functions are installed. This confirms the
   diagnostics/recovery design has not been accidentally deployed.
 
-## Migration-history drift
+## Migration-history reconciliation
 
-Supabase's migration history currently ends at
-`20260917120000_accelerated_growth_strategy_eras`, while the live catalog
-contains objects/constraints corresponding to later repository migrations,
-including the research watchlist, daily cycles, and quantitative watch
-resolution support. The repository contains migration files dated Sep. 21–24
-that are absent from Supabase's recorded migration history.
-
-Treat this as a deployment-history reconciliation blocker. Do not assume that
-replaying repository migrations is safe merely because they are absent from
-the migration-history table.
+The Sep. 21–24 repository migrations were reconciled against the live catalog and recorded as applied without replaying their SQL bodies. Remote migration history now includes the complete audited chain through `20260924190000_ag_quantitative_watch_resolutions`. A subsequent least-privilege migration, `20261005151442_harden_ag_buy_authorization_table_privileges`, was applied and its repository timestamp aligned with production. The BUY authorization table now revokes direct `anon`/`authenticated` privileges while retaining RLS and service-role access.
 
 ## Required follow-up before any activation
 
@@ -65,8 +56,7 @@ the migration-history table.
 3. Use `extensions.digest` in every recovery function and mirror that schema
    in disposable PostgreSQL tests.
 4. Fence pre-era active AI decisions explicitly before atomic insertion.
-5. Reconcile Sep. 21–24 repository migrations with the actual production
-   catalog before generating or applying any new migration.
+5. Preserve the now-reconciled migration history; do not replay the Sep. 21–24 migration bodies. Keep future repository migration timestamps aligned with production history.
 6. The disposable fixture now mirrors the live cross-era uniqueness index,
    pgcrypto schema and decision supersession trigger. Continue closing the
    remaining actual-schema differences (notably the intentionally proposed
