@@ -183,3 +183,73 @@ BEGIN
  ok:=public.ag_complete_cycle_stage(cp,token,payload);
  IF NOT ok THEN RAISE EXCEPTION 'Valid nonempty holding checkpoint rejected'; END IF;
 END $agtest$;
+
+
+-- Deep-research checkpoint freezes structurally complete watchlist intent.
+INSERT INTO public.ag_daily_cycles VALUES
+ ('23232323-2323-4323-8323-232323232323',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ current_date+15,'running');
+DO $agtest$
+DECLARE cp uuid; token uuid:='24242424-2424-4424-8424-242424242424';
+DECLARE ok boolean; payload jsonb;
+BEGIN
+ INSERT INTO public.ag_cycle_stage_checkpoints(
+  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,
+  attempt_count,claim_token,lease_expires_at)
+ VALUES (
+  '23232323-2323-4323-8323-232323232323',
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  '33333333-3333-4333-8333-333333333333',
+  'catalyst_deep_research','running',1,token,now()+interval '5 minutes')
+ RETURNING id INTO cp;
+ payload:=jsonb_build_object(
+  'watchlist_intent_count',1,
+  'watchlist_intents',jsonb_build_array(jsonb_build_object(
+   'stream','research_watch','symbol','FROZEN','source_row_id',null,
+   'action','upsert_watch','outcome',jsonb_build_object(
+    'symbol','FROZEN','companyName','Frozen Co','researchStatus','WATCH',
+    'confidence',0.75,'thesis','Frozen thesis',
+    'unresolvedQuestions',jsonb_build_array('Question'),
+    'thesisClock','medium','invalidation',jsonb_build_array('Invalidation'),
+    'model','model','promptVersion','v1','priorWatchReassessed',false,
+    'priorWatchRowId',null))));
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,
+    jsonb_set(payload,'{watchlist_intent_count}','2'::jsonb));
+  RAISE EXCEPTION 'Mismatched watch intent count accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Mismatched watch intent count accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Valid frozen watchlist intent manifest required' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,
+    jsonb_set(payload,'{watchlist_intents,0,outcome,confidence}','1.5'::jsonb));
+  RAISE EXCEPTION 'Out-of-range watch confidence accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Out-of-range watch confidence accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Valid frozen watchlist intent manifest required' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,
+    jsonb_set(payload,'{watchlist_intents,0,outcome,priorWatchReassessed}','true'::jsonb));
+  RAISE EXCEPTION 'Watch source/reassessment mismatch accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Watch source/reassessment mismatch accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Valid frozen watchlist intent manifest required' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,jsonb_build_object(
+   'watchlist_intent_count',2,'watchlist_intents',
+   (payload->'watchlist_intents')||(payload->'watchlist_intents')));
+  RAISE EXCEPTION 'Duplicate watch operation identity accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Duplicate watch operation identity accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Valid frozen watchlist intent manifest required' THEN RAISE; END IF;
+ END;
+ ok:=public.ag_complete_cycle_stage(cp,token,payload);
+ IF NOT ok THEN RAISE EXCEPTION 'Valid frozen watchlist manifest rejected'; END IF;
+END $agtest$;
