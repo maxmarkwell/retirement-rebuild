@@ -1,10 +1,10 @@
 -- PROPOSAL ONLY. Apply only after stage, ledger and decision drafts have been
 -- approved and the live schema has been independently verified.
--- Persistence completion is atomic with an exact committed-ledger count.
--- Caller supplies expected ticker list. Completion independently verifies
--- canonical payload identity from frozen Committee stage output while holding
--- the persistence checkpoint row lock. Full upstream manifest provenance and
--- holding-review coverage are still mandatory release blockers.
+-- Persistence completion is atomic with exact combined committed-ledger
+-- coverage. Caller supplies the expected union; completion verifies both
+-- frozen Committee and holding payload hashes and linked decision fields
+-- while holding the persistence checkpoint lock. Upstream provenance and
+-- watchlist recovery remain mandatory release blockers.
 -- RELEASE BLOCKER: Committee checkpoint output must be independently validated
 -- and immutable after completion. Matching its manifest is necessary but not
 -- sufficient to prove the Committee planned the complete decision batch.
@@ -44,9 +44,9 @@ BEGIN
      AND e.portfolio_id=p.id AND e.ended_at IS NULL
      AND e.strategy_key='accelerated_growth' AND e.execution_mode='paper'
  ) THEN RETURN false; END IF;
- -- Require the expected set to match the completed Committee checkpoint.
- -- The Committee manifest must itself be validated and frozen at completion;
- -- this comparison alone is not proof that upstream Committee output is sound.
+ -- The expected union must include every completed Committee ticker.
+ -- The source manifests must be validated and frozen at stage completion;
+ -- membership alone is not proof that upstream output is complete.
  SELECT c.output->'persistence_tickers' INTO v_manifest
  FROM public.ag_cycle_stage_checkpoints c
  WHERE c.cycle_id=v_checkpoint.cycle_id AND c.stage='committee'
@@ -110,8 +110,8 @@ BEGIN
               )
           ))
  ) THEN RETURN false; END IF;
- -- The verifier checks full frozen Committee argument arrays against the
- -- server-derived ledger digest and rejects unexpected ledger entries.
+ -- Both verifiers check full frozen typed argument arrays against the
+ -- server-derived ledger digests and their linked decision content.
  -- All decision RPCs acquire this same persistence checkpoint FOR UPDATE,
  -- preventing writes from racing between verification and completion.
  IF NOT public.ag_verify_committee_payload_manifest(v_checkpoint.cycle_id)
