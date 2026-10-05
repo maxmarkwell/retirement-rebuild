@@ -25,7 +25,7 @@ function canonical(value:unknown):string {
      (typeof value==="number" && !Number.isFinite(value))){
     throw new Error("Invalid AG watch payload");
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) as string;
 }
 export function canonicalAgWatchOperation(intent:AgWatchIntent):string {
   return canonical(intent);
