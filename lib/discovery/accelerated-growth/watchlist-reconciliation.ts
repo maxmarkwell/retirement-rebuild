@@ -7,7 +7,7 @@ import type { AgWatchIntent } from "./watchlist-intent-capture";
 export type AgWatchLedgerRow = {
   cycle_id:string; stream:AgWatchIntent["stream"]; symbol:string;
   action:AgWatchIntent["action"]; payload_json:string;
-  status:"pending"|"committed"; affected_row_id:string|null;
+  status:"pending"|"committed"; effect:"applied"|"noop"; affected_row_id:string|null;
 };
 export type AgWatchReconciliation = {
   status:"VERIFIED_RECORDED_REQUIRES_DB_POSTCONDITIONS"|"REQUIRES_MANUAL_RECONCILIATION";
@@ -47,8 +47,9 @@ export function reconcileAgWatchlistIntent(input:{
     if(seen.has(k)) {conflicting.push(k);continue;}
     seen.add(k);
     if(row.cycle_id!==input.cycleId || !expected.has(k) ||
-       !UUID.test(row.affected_row_id??"") ||
        row.status!=="committed" ||
+       (row.effect==="applied" ? !UUID.test(row.affected_row_id??"") : row.affected_row_id!==null) ||
+       !["applied","noop"].includes(row.effect) ||
        row.action!==input.intents.find(x=>key(x)===k)?.action ||
        row.payload_json!==expected.get(k)){
       conflicting.push(k);continue;
