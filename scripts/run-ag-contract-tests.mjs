@@ -81,3 +81,16 @@ await import(toDataUrl(
   watchAdapterTests.replace('"./watchlist-persistence-adapter"', JSON.stringify(watchAdapterUrl)),
   "watchlist-persistence-adapter.test.ts"
 ));
+
+const stageCaptureSource = await readFile(resolve(directory, "stage-checkpoint-capture.ts"), "utf8");
+const stageContractSource = await readFile(resolve(directory, "stage-checkpoint-contract.ts"), "utf8");
+const stageContractUrl = toDataUrl(stageContractSource, "stage-checkpoint-contract.ts");
+const stageCaptureUrl = toDataUrl(
+  stageCaptureSource.replace('"./stage-checkpoint-contract"', JSON.stringify(stageContractUrl)),
+  "stage-checkpoint-capture.ts"
+);
+const stageCaptureTests = await readFile(resolve(directory, "stage-checkpoint-capture.test.ts"), "utf8");
+await import(toDataUrl(
+  stageCaptureTests.replace('"./stage-checkpoint-capture"', JSON.stringify(stageCaptureUrl)),
+  "stage-checkpoint-capture.test.ts"
+));
