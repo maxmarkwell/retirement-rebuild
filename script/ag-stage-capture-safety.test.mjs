@@ -14,8 +14,10 @@ const committeeWork=fs.readFileSync(root+"committee-stage-work.ts","utf8");
 const researchStages=fs.readFileSync(root+"resumable-research-stages.ts","utf8");
 const persistencePlan=fs.readFileSync(root+"persistence-stage-plan.ts","utf8");
 const resumableAdapter=fs.readFileSync(root+"resumable-daily-cycle-adapter.ts","utf8");
+const persistenceExecutor=fs.readFileSync(root+"persistence-stage-executor.ts","utf8");
+const persistenceWatchManifest=fs.readFileSync(root+"persistence-watch-manifest.ts","utf8");
 const runner=fs.readFileSync(root+"daily-cycle-work.ts","utf8");
-for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork],["researchStages",researchStages],["persistencePlan",persistencePlan],["resumableAdapter",resumableAdapter]]){
+for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork],["researchStages",researchStages],["persistencePlan",persistencePlan],["resumableAdapter",resumableAdapter],["persistenceWatchManifest",persistenceWatchManifest]]){
  assert.ok(!text.includes("ag_commit_cycle_decision"),name+" must not persist decisions");
  assert.ok(!text.includes("ag_commit_watch_operation"),name+" must not persist watchlist");
  assert.ok(!text.includes("executeAgDailyCycleTransactions"),name+" must not execute transactions");
@@ -61,6 +63,15 @@ assert.ok(resumableAdapter.includes("executeAgCommitteeResearchStage"));
 assert.ok(!resumableAdapter.includes("ag_commit_cycle_decision"));
 assert.ok(!resumableAdapter.includes("ag_commit_watch_operation"));
 assert.ok(!resumableAdapter.includes("executeAgDailyCycleTransactions"));
+assert.ok(!runner.includes("persistence-stage-executor"));
+assert.ok(!persistenceExecutor.includes("supabase"));
+assert.ok(!persistenceExecutor.includes("daily-cycle-work"));
+assert.ok(!persistenceExecutor.includes("executeAgDailyCycleTransactions"));
+assert.ok(persistenceExecutor.includes("prepareAgPersistenceDecisionCalls"));
+assert.ok(persistenceExecutor.includes("prepareAgWatchRpcBatch"));
+assert.ok(persistenceExecutor.indexOf("input.io.read") < persistenceExecutor.indexOf("input.io.claim"));
+assert.ok(persistenceExecutor.indexOf("verifyDecisionManifest") < persistenceExecutor.indexOf("input.io.complete"));
+assert.ok(persistenceExecutor.indexOf("verifyWatchManifest") < persistenceExecutor.indexOf("input.io.complete"));
 assert.ok(persistencePlan.includes("p_claim_token:claimToken"));
 assert.ok(!persistencePlan.includes("supabase"));
 assert.ok(!persistencePlan.includes("commitPreparedAgBatch"));
