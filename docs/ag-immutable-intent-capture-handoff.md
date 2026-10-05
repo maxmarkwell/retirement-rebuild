@@ -33,9 +33,8 @@ The pure `immutable-intent-capture.ts` now builds both manifests from existing d
 1. Persist source identities, source result count, output decision count,
    failure count and the full typed decisions together in the checkpoint.
    Require exact set equality between eligible input identities and output
-   identities, not merely equal counts. For a legitimate empty batch, use an
-   explicit empty-batch representation with a reviewed no-op completion path;
-   do not invent a decision to satisfy the current nonempty Committee gate.
+   identities, not merely equal counts. For a legitimate empty batch, preserve an explicit empty-batch representation;
+   do not invent a decision merely to make persistence nonempty.
 2. Convert each validated Committee decision to the exact 16-element typed
    `ag_commit_cycle_decision` argument array. Build
    `persistence_tickers` from those same validated decisions, never from a
@@ -61,8 +60,7 @@ The pure `immutable-intent-capture.ts` now builds both manifests from existing d
 5. Before enabling persistence completion, validate the disjoint union of
    frozen holding and Committee manifests and require exact committed-ledger
    coverage for **both** kinds. The draft completion now verifies both payload kinds and the exact disjoint
-   mixed batch in disposable PostgreSQL tests. Watchlist changes remain
-   separate mutation streams needing independently idempotent, reconciled persistence.
+   mixed batch in disposable PostgreSQL tests. Watchlist changes remain separate mutation streams, but persistence completion must not be considered safe until their frozen deep-research manifest has exact committed-ledger coverage and verified row postconditions.
 
 ## Transaction and recovery boundary
 
@@ -84,8 +82,13 @@ authorized by this design.
 
 ## Outstanding capture integration risk
 
-The existing Committee writer derives BUY execution evidence by fetching the dynamic discovery universe **at persistence time**. A resumable implementation must freeze the same evidence at Committee completion (or an explicitly versioned prior research checkpoint), then pass that exact evidence to the isolated capture builder. Never re-fetch a changed universe after a retry and silently change the persisted BUY evidence. Capture the original stage result and derived evidence together; a syntactically correct client-provided evidence map is not upstream provenance. The holding stage claim token and Committee stage claim token are distinct from the later persistence claim token: frozen argument arrays deliberately exclude claim tokens and persistence RPC calls must be prepared again under the current persistence claim.
+The existing Committee writer derives BUY execution evidence by fetching the dynamic discovery universe **at persistence time**. A resumable implementation must freeze the same evidence at Committee completion (or an explicitly versioned prior research checkpoint), then pass that exact evidence to the isolated capture builder. Never re-fetch a changed universe after a retry and silently change the persisted BUY evidence. Capture the original stage result and derived evidence together; a syntactically correct client-provided evidence map is not upstream provenance. The holding stage claim token and Committee stage claim token are distinct from the later persistence claim token: frozen argument arrays deliberately exclude claim tokens. `persistence-stage-plan.ts` now reconstructs decision RPC calls from those frozen canonical arrays under the current persistence claim, and its isolation contract forbids Supabase access or write execution.
 
 ## Watchlist intent boundary
 
 The isolated `watchlist-intent-capture.ts` now snapshots all three legacy watchlist mutation streams after a clean upstream research result, without any database writes. Its tests cover distinct streams, duplicate/conflicting ticker operations, incomplete research, immutable output and the normalized 0–1 confidence scale. The live research-watchlist constraint audit confirmed the `QUANTITATIVE_*` resolution strings used by the legacy writer are allowed. Deep-research outcomes now preserve `priorWatchRowId` through `committee-pipeline.ts`, so reassessed WATCH intent retains the exact source row identity. See `ag-watchlist-recovery-gate.md` for durable replay requirements. Do not infer that a passing pure planner proves the watchlist can be persisted or safely resumed.
+
+
+## Persistence reconciliation status
+
+The draft watchlist SQL now includes `ag_verify_cycle_watch_manifest`, a read-only aggregate verifier that requires exact ledger cardinality and rechecks every frozen watch operation through the existing postcondition verifier. The decision completion proposal now accepts an explicit zero-decision expected set. **Remaining blocker:** the final persistence completion authority still needs to require the aggregate watch verifier at the same database completion boundary, and the Committee SQL validator/verifier still needs an explicitly tested zero-decision completion path. Until those are resolved, no resumable runner wiring is authorized.
