@@ -156,8 +156,26 @@ BEGIN
     RAISE EXCEPTION 'Newer AG cycle already committed this ticker; manual reconciliation required';
   END IF;
 
+  -- The live schema has a unique partial index allowing only one active
+  -- ai_committee decision per user/portfolio/ticker across all eras. Never
+  -- discover a pre-era conflict only at INSERT, and never silently supersede
+  -- a decision outside this cycle's strategy era.
+  IF EXISTS (
+    SELECT 1 FROM public.investment_decisions
+    WHERE user_id = v_cycle.user_id
+      AND portfolio_id = v_cycle.portfolio_id AND ticker = p_ticker
+      AND source = 'ai_committee' AND status = 'active'
+      AND created_at < (
+        SELECT inception_at FROM public.portfolio_strategy_eras
+        WHERE id = v_cycle.strategy_era_id
+      )
+  ) THEN
+    RAISE EXCEPTION 'Pre-era active AI decision requires manual reconciliation';
+  END IF;
+
   SELECT count(*) INTO v_existing_count FROM public.investment_decisions
-  WHERE portfolio_id = v_cycle.portfolio_id AND ticker = p_ticker
+  WHERE user_id = v_cycle.user_id
+    AND portfolio_id = v_cycle.portfolio_id AND ticker = p_ticker
     AND source = 'ai_committee' AND status = 'active'
     AND created_at >= (
       SELECT inception_at FROM public.portfolio_strategy_eras
@@ -218,14 +236,14 @@ GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
 -- verified against full payloads. Holding-review intent needs its own
 -- immutable manifest and combined batch coverage before activation.
 -- BLOCKERS BEFORE APPROVAL:
--- * Assumes pgcrypto digest() is installed in public; confirm extension schema.
+-- * Live audit confirmed pgcrypto is installed in extensions; use extensions.digest().
 -- * Hashes are computed server-side; test digest availability and deterministic
 --   serialization using an isolated PostgreSQL instance.
 -- * CRITICAL SCHEMA DRIFT: the committed create_investment_decisions migration
 --   does NOT define investment_decisions.notes, although the current holding
 --   pipeline and this draft INSERT use it. Inspect the isolated/live catalog
 --   read-only; locate any later/manual ALTER before testing or approving.
---   Do not silently drop holding-review provenance or assume notes exists.
+--   Live audit confirmed notes is absent. See ag-decision-provenance-schema-proposal.sql;\n--   do not silently drop holding-review provenance.
 -- * Confirm actual decision_type enum/constraints and confidence scale.
 -- * Verify committee ag_* field semantics and lifecycle parity against live
 --   schema and tests, including new-cycle same-type replacement and same-cycle retry reuse.
