@@ -41,8 +41,7 @@ CREATE TABLE public.ag_cycle_watch_writes (
 CREATE INDEX ag_cycle_watch_writes_portfolio_idx
   ON public.ag_cycle_watch_writes(portfolio_id,created_at DESC);
 ALTER TABLE public.ag_cycle_watch_writes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY ag_cycle_watch_writes_owner_read
-  ON public.ag_cycle_watch_writes FOR SELECT TO authenticated
-  USING (user_id=(SELECT auth.uid()));
--- No direct authenticated INSERT/UPDATE/DELETE policies. A reviewed
--- SECURITY DEFINER RPC is the only intended mutation path.
+REVOKE ALL ON TABLE public.ag_cycle_watch_writes FROM anon, authenticated;
+GRANT ALL ON TABLE public.ag_cycle_watch_writes TO service_role;
+-- No direct authenticated table access. Reviewed SECURITY DEFINER RPCs are the
+-- only authenticated read/write boundary for recovery evidence.
