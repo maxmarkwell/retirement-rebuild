@@ -139,3 +139,29 @@ DO $$ DECLARE first_id uuid; retry_id uuid; second_id uuid; BEGIN
  IF (SELECT count(*) FROM public.ag_cycle_decision_writes WHERE cycle_id='a1818181-1818-4818-8818-181818181818' AND ticker IN ('ABATCHA','ABATCHB') AND status='committed')<>2 THEN RAISE EXCEPTION 'Audited interrupted batch ledger incomplete'; END IF;
  IF (SELECT count(*) FROM public.investment_decisions WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' AND ticker IN ('ABATCHA','ABATCHB') AND status='active')<>2 THEN RAISE EXCEPTION 'Audited interrupted batch produced duplicate or missing decisions'; END IF;
 END $$;
+
+
+-- Completed stage output is readable only through the owner-scoped RPC.
+RESET ROLE;
+GRANT USAGE ON SCHEMA public, auth TO authenticated;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+DO $$
+DECLARE n integer; payload jsonb;
+BEGIN
+ SELECT count(*),max(output) INTO n,payload
+ FROM public.ag_read_completed_stage_output('dddddddd-dddd-4ddd-8ddd-dddddddddddd','committee');
+ IF n<>1 OR payload IS NULL THEN RAISE EXCEPTION 'Owner completed-output RPC failed'; END IF;
+ SELECT count(*) INTO n
+ FROM public.ag_read_completed_stage_output('dddddddd-dddd-4ddd-8ddd-dddddddddddd','persistence');
+ IF n<>0 THEN RAISE EXCEPTION 'Running stage leaked through completed-output RPC'; END IF;
+END $$;
+SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false);
+DO $$
+DECLARE n integer;
+BEGIN
+ SELECT count(*) INTO n
+ FROM public.ag_read_completed_stage_output('dddddddd-dddd-4ddd-8ddd-dddddddddddd','committee');
+ IF n<>0 THEN RAISE EXCEPTION 'Cross-owner completed-output RPC leaked evidence'; END IF;
+END $$;
+RESET ROLE;
