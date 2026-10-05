@@ -41,6 +41,17 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
     'SUCCESS','committee','watch','Success-path thesis',75::numeric,
     'short',null,null,null,null,null,null,null,null,null))))
 );
+-- Committee-only decisions still require an explicit completed empty holding stage.
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ 'holding_review','completed',
+ '{"persistence_tickers":[],"decision_payloads":[]}'::jsonb
+);
 DO $$
 DECLARE cp uuid; token uuid; v_decision_id uuid; ok boolean;
 BEGIN
@@ -95,6 +106,16 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
     'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
     'BETA','committee','watch','Beta thesis',75::numeric,
     'short',null,null,null,null,null,null,null,null,null))))
+);
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ 'holding_review','completed',
+ '{"persistence_tickers":[],"decision_payloads":[]}'::jsonb
 );
 DO $$
 DECLARE cp uuid; token uuid; ok boolean;
