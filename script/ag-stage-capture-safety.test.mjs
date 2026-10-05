@@ -11,8 +11,9 @@ const outputReader=fs.readFileSync(root+"stage-output-reader.ts","utf8");
 const discoveryWork=fs.readFileSync(root+"discovery-stage-work.ts","utf8");
 const deepWork=fs.readFileSync(root+"catalyst-deep-stage-work.ts","utf8");
 const committeeWork=fs.readFileSync(root+"committee-stage-work.ts","utf8");
+const researchStages=fs.readFileSync(root+"resumable-research-stages.ts","utf8");
 const runner=fs.readFileSync(root+"daily-cycle-work.ts","utf8");
-for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork]]){
+for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork],["researchStages",researchStages]]){
  assert.ok(!text.includes("ag_commit_cycle_decision"),name+" must not persist decisions");
  assert.ok(!text.includes("ag_commit_watch_operation"),name+" must not persist watchlist");
  assert.ok(!text.includes("executeAgDailyCycleTransactions"),name+" must not execute transactions");
@@ -46,5 +47,10 @@ assert.ok(deepWork.includes("researchAgCatalyst")&&deepWork.includes("researchAg
 assert.ok(!deepWork.includes("runAcceleratedGrowthDiscovery"));
 assert.ok(committeeWork.includes("runAgCommittee"));
 assert.ok(!committeeWork.includes("runAgDeepResearchPipeline"));
+assert.ok(!runner.includes("resumable-research-stages"));
+assert.ok(researchStages.includes('stage:"discovery"')&&researchStages.includes('stage:"catalyst_deep_research"')&&researchStages.includes('stage:"committee"'));
+assert.ok(researchStages.includes("readAuthenticatedAgCompletedStageOutput"));
+assert.ok(researchStages.includes("deriveAgExecutionEvidence(frozen)"));
+assert.ok(!researchStages.includes("getDynamicDiscoveryUniverse"));
 assert.ok(runner.includes("assertAgLegacyPersistenceDisabled();"));
 console.log("AG stage-capture isolation contract passed");
