@@ -59,10 +59,11 @@ jobs:
           export PGDATABASE=ag_actual_schema
           # Roles are cluster-wide and were created by the isolated-schema step.
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
-          # Audited live schema intentionally lacks investment_decisions.notes.
-          # Apply only the isolated draft provenance ALTER inside this disposable DB
-          # before loading recovery functions that reference the column.
+          # Executable deployment-order contract: audited live schema must start
+          # without notes; the isolated provenance proposal must add it.
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='investment_decisions' AND column_name='notes') THEN RAISE EXCEPTION 'Audited pre-provenance fixture unexpectedly contains notes'; END IF; END \$\$;"
           psql -v ON_ERROR_STOP=1 -f docs/ag-decision-provenance-schema-proposal.sql
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='investment_decisions' AND column_name='notes') THEN RAISE EXCEPTION 'Provenance proposal failed to add notes'; END IF; END \$\$;"
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-schema-compatibility-proposal.sql
           python3 -c "from pathlib import Path; t=Path('docs/ag-resumable-cycle-checkpoint-design.md').read_text(); Path('/tmp/ag-checkpoints-actual.sql').write_text(t.split(chr(96)*3+'sql',1)[1].split(chr(96)*3,1)[0])"
