@@ -50,7 +50,8 @@ const fixture: AgDeepResearch = {
   confidence: 76,
   model: "fixture",
   promptVersion: "ag-deep-research-fixture-v1",
-  priorWatchReassessed: false
+  priorWatchReassessed: false,
+  priorWatchRowId: null
 };
 
 export async function GET() {
