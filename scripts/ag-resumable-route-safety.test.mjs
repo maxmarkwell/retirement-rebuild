@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 
 test("resumable AG route stays double-gated and research-only",async()=>{
  const route=await readFile("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
- assert.match(route,/AG_DAILY_CYCLE_ENABLED/);
+ assert.match(route,/AG_DAILY_CYCLE_RUNS_ENABLED/);
  assert.match(route,/AG_RESUMABLE_RESEARCH_RUNNER_ENABLED/);
  assert.match(route,/runNextAgResumableCycleStep/);
  assert.doesNotMatch(route,/persistence-stage-executor|persistence-stage-supabase/);
