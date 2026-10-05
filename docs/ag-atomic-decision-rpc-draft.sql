@@ -41,7 +41,7 @@ BEGIN
   -- Compute retry identity exclusively from validated RPC arguments inside
   -- PostgreSQL. The caller cannot spoof a digest or disagree on JSON encoding.
   -- Exact argument values (including optional NULLs) are immutable per key.
-  v_payload_hash := encode(public.digest(
+  v_payload_hash := encode(extensions.digest(
     convert_to(jsonb_build_array(p_cycle_id,p_ticker,p_kind,p_decision_type,
       p_thesis,p_confidence,p_thesis_clock,p_bull_case,p_bear_case,
       p_monitoring,p_invalidation,p_notes,p_ag_thesis_valid,
