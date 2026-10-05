@@ -27,7 +27,10 @@ that upstream normalization when freezing or replaying watch operations.
 - A successful upstream research stage must freeze its full original
   outcomes, quantitative resolutions, Committee watch resolutions, source
   identities, failure count and discovery completeness alongside the pure
-  watchlist intent. No downstream re-fetch may alter frozen decisions.
+  watchlist intent. Stage completion now structurally validates the frozen
+  watch operation manifest, and the atomic RPC requires exact frozen payload
+  equality before mutation (`919fcb7d`). No downstream re-fetch may alter
+  frozen decisions.
 - The two watch tables are **different mutation streams**: a research
   watchlist row and an active Committee WATCH decision may share a ticker.
   The planner permits this, but rejects conflicting research outcome and
