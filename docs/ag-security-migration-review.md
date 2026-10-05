@@ -61,3 +61,11 @@ The migration-candidate privilege test now also asserts the exact authenticated 
 Each authenticated recovery SECURITY DEFINER endpoint was reviewed for caller and ownership fencing. Stage claim/completion and atomic decision/watch writers require `auth.uid()`; writers additionally bind the cycle to the caller, paper AG portfolio/active era, and live claim/lease. Owner-scoped recovery readers join the requested cycle and require both checkpoint/ledger and cycle ownership to match `auth.uid()`. Committee/holding/watch verifiers similarly fail closed outside the owning cycle. Persistence completion combines caller ownership, active paper-era checks, the live persistence claim/lease, and exact decision/watch evidence.
 
 Restricted-role CI now exercises cross-owner denial not only for decision writes/ledger reads, but also checkpoint-status reads, watch-ledger reads, completed-stage output, and the aggregate Committee/holding/watch verifiers. The first edit exposed a test-block delimiter error rather than a security defect; after correcting the fixture, PostgreSQL CI and contract/type CI passed at `ad8dda3`.
+
+## Operator dry-run package
+
+The reviewed candidate is now pinned by Git content digest `105d32e85078df1e5eb9b953c983ca6732e679d4`; CI fails if the candidate bytes no longer hash to that Git blob identity. `ag-production-migration-runbook.md` defines STOP conditions, ambiguous-response handling, postflight evidence, and the separation between DDL, runner deployment, paper activation, and transaction authorization. `ag-production-migration-verification.sql` contains read-only catalog/evidence queries only.
+
+A fresh read-only production preflight after creating the runbook still reports PostgreSQL 17.6, pgcrypto in `extensions`, all three API roles, both required historical watchlist migrations, no `investment_decisions.notes`, zero recovery tables, and zero core recovery RPCs. Baseline counts captured for later comparison are 10 AG daily cycles, 4 research-watchlist rows, 70 investment decisions, and 15 transactions. These counts are evidence snapshots, not invariants; they must be freshly recaptured immediately before any separately authorized migration.
+
+At `632800e`, both PostgreSQL candidate/rollback/security CI and AG contract/type CI passed with the digest gate enabled.
