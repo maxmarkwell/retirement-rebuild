@@ -40,3 +40,8 @@
 Production recovery DDL and the anon-RPC privilege follow-up are now installed, but AG remains OFF. A new isolated `resumable-daily-cycle-adapter.ts` composes authenticated checkpoint-status reading, resume planning, and exactly one research-stage execution for holding review, Discovery, catalyst/deep research, or Committee. It explicitly stops when persistence is the next stage and has no decision/watch persistence or transaction-execution imports. The active `daily-cycle-work.ts` and route do **not** import this adapter yet; the legacy persistence hard stop remains intact. This creates a testable integration seam without activating the new runner.
 
 **Still blocked:** contract/type CI for the new seam, direct adapter behavior tests with injected dependencies, a separately reviewed persistence-stage runner/reconciliation boundary, deliberate active-route wiring, deployment, and paper activation authorization. Transaction execution remains a later independent gate.
+
+
+## Interrupted persistence recovery contract
+
+A pure `persistence-recovery-contract.ts` now classifies interrupted persistence evidence without any write capability. Its only outcomes are `ALREADY_COMPLETE`, `COMPLETE_ONLY`, or `MANUAL_RECONCILIATION`; there is deliberately no automatic decision/watch replay outcome. `COMPLETE_ONLY` requires a still-running checkpoint plus independently verified decision and watch manifests, and permits only persistence completion under the original valid claim. Failed, missing, manual-review, inconsistent, or partially verified states fail closed. Safety tests also assert the executor/transport contain no retry/timer path and that the recovery classifier cannot call decision/watch commit RPCs. Contract/type CI is green at `1047eda`.
