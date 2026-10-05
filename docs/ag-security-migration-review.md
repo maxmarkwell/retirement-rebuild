@@ -69,3 +69,9 @@ The reviewed candidate is now pinned by Git content digest `105d32e85078df1e5eb9
 A fresh read-only production preflight after creating the runbook still reports PostgreSQL 17.6, pgcrypto in `extensions`, all three API roles, both required historical watchlist migrations, no `investment_decisions.notes`, zero recovery tables, and zero core recovery RPCs. Baseline counts captured for later comparison are 10 AG daily cycles, 4 research-watchlist rows, 70 investment decisions, and 15 transactions. These counts are evidence snapshots, not invariants; they must be freshly recaptured immediately before any separately authorized migration.
 
 At `632800e`, both PostgreSQL candidate/rollback/security CI and AG contract/type CI passed with the digest gate enabled.
+
+## Mechanically checked review boundary
+
+The production review package now includes `ag-production-migration-review-record.md`, which records the exact pinned artifact, independent review checklist, decision field, and later execution-evidence fields without itself authorizing a change. PostgreSQL CI verifies that the pinned digest appears in both the runbook and review record and that the read-only verification SQL retains migration-history, notes-column, trigger-helper, and table-grant checks.
+
+A fresh read-only live prerequisite query reconfirmed `pgcrypto` in `extensions`, all three API roles, migrations `20260922100000` and `20260924190000`, the full quantitative watchlist resolution constraint, and absence of `investment_decisions.notes`. At `830f17e`, the complete PostgreSQL candidate/rollback/security/smoke suite and AG contract/type suite passed with the review-artifact checks enabled.
