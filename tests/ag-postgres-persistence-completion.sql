@@ -232,3 +232,34 @@ BEGIN
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['ALPHA','BETA']);
  IF NOT ok THEN RAISE EXCEPTION 'Exact two-decision ledger rejected'; END IF;
 END $$;
+
+
+-- Full zero-decision / zero-watch cycle must complete without inventing work.
+INSERT INTO public.ag_daily_cycles VALUES (
+ 'dededede-dede-4ede-8ede-dededededede',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',current_date+12,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES
+ ('dededede-dede-4ede-8ede-dededededede','11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+  'holding_review','completed','{"persistence_tickers":[],"decision_payloads":[]}'::jsonb),
+ ('dededede-dede-4ede-8ede-dededededede','11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+  'committee','completed','{"persistence_tickers":[],"decision_payloads":[]}'::jsonb),
+ ('dededede-dede-4ede-8ede-dededededede','11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+  'catalyst_deep_research','completed','{"watchlist_intents":[]}'::jsonb);
+DO $agemptycompletion$
+DECLARE cp uuid; token uuid; ok boolean;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token FROM
+ public.ag_claim_cycle_stage('dededede-dede-4ede-8ede-dededededede','persistence');
+ ok:=public.ag_complete_persistence_stage(cp,token,ARRAY[]::text[]);
+ IF NOT ok THEN RAISE EXCEPTION 'Explicit empty persistence cycle failed completion'; END IF;
+ IF (SELECT output->>'watch_postconditions_verified'
+     FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'true'
+ THEN RAISE EXCEPTION 'Empty completion did not record watch verification'; END IF;
+END $agemptycompletion$;
