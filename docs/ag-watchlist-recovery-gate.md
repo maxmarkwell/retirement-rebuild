@@ -36,8 +36,11 @@ that upstream normalization when freezing or replaying watch operations.
   new one; `resolve_research` and `resolve_quantitative` only mutate an
   existing unresolved research row. `supersede_committee` targets only
   active era-scoped Committee WATCH decisions, never unrelated decisions.
-- A retry after a response timeout must compare the **frozen operation
-  identity, typed payload, affected row identity and postcondition** with
+- The research pipeline now freezes the exact prior `ag_research_watchlist.id`
+  or active Committee `investment_decisions.id` observed during reassessment;
+  row IDs are not sent to the research model prompt. A retry after a response
+  timeout must compare the **frozen operation identity, typed payload, affected
+  row identity and postcondition** with
   a durable write ledger before taking any action. A missing open watch
   after resolution is not sufficient proof: it might have been changed by
   another cycle or an operator. Freeze the original row identity when
@@ -72,10 +75,13 @@ own identical canonical encoding, never trust a supplied hash.
    `investment_decisions` schema. Resolve any checked-in/live mismatch.
 2. Freeze source-derived watchlist intent at a versioned stage boundary
    and validate the source confidence scale.
-3. Propose a scoped atomic watchlist RPC and operation ledger that
-   handles initial apply, same-cycle identical retry, conflicting retry,
-   later-cycle fencing, cross-owner denial, forced rollback and ambiguous
-   responses. Preserve Committee WATCH supersession separately.
+3. The isolated draft now has a source-row-fenced operation ledger and atomic
+   RPC covering research upsert/resolution/no-op and Committee WATCH
+   supersession. Disposable PostgreSQL tests at `c41c1096` cover initial apply,
+   identical retry, conflicting retry, frozen-manifest membership, detailed
+   quantitative resolution provenance and exact Committee source identity.
+   **Still add** cross-owner, forced rollback, later-cycle and timeout-after-
+   commit reconciliation tests before considering this gate satisfied.
 4. Test against a disposable fixture reconstructed from the audited
    actual schema; require exact watch-operation coverage before marking
    the full cycle finalized.
