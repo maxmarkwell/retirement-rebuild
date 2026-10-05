@@ -34,8 +34,7 @@ export function buildAgDeepResearchCheckpointPayload(input:{
  const upstream=input.result.upstream;
  const watch=captureAgWatchlistIntent({
   cycleId:input.cycleId,
-  outcomes:upstream.deepResearchOutcomes.map(x=>({...x,priorWatchRowId:
-    (x as typeof x & {priorWatchRowId?:string|null}).priorWatchRowId??null})),
+  outcomes:upstream.deepResearchOutcomes,
   quantitativeResolutions:upstream.quantitativeWatchResolutions,
   committeeResolutions:upstream.committeeWatchResolutions,
   upstreamErrors:input.result.errors.filter(x=>x.stage==="UPSTREAM"),
