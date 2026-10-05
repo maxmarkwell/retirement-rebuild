@@ -4,7 +4,7 @@
 -- coverage. Caller supplies the expected union; completion verifies both
 -- frozen Committee and holding payload hashes and linked decision fields
 -- while holding the persistence checkpoint lock. Upstream provenance and
--- watchlist recovery remain mandatory release blockers.
+-- watchlist recovery is verified from the frozen deep-research manifest before completion.
 -- RELEASE BLOCKER: Committee checkpoint output must be independently validated
 -- and immutable after completion. Matching its manifest is necessary but not
 -- sufficient to prove the Committee planned the complete decision batch.
@@ -115,12 +115,14 @@ BEGIN
  -- preventing writes from racing between verification and completion.
  IF NOT public.ag_verify_committee_payload_manifest(v_checkpoint.cycle_id)
     OR NOT public.ag_verify_holding_payload_manifest(v_checkpoint.cycle_id)
+    OR NOT public.ag_verify_cycle_watch_manifest(v_checkpoint.cycle_id)
  THEN RETURN false; END IF;
  UPDATE public.ag_cycle_stage_checkpoints SET status='completed',
    claim_token=NULL, lease_expires_at=NULL, completed_at=now(),
    output=jsonb_build_object('ledger_coverage_verified',true,
       'committee_payload_hashes_verified',true,
       'holding_payload_hashes_verified',true,
+      'watch_postconditions_verified',true,
       'expected_tickers',to_jsonb(p_expected_tickers)),
    updated_at=now() WHERE id=v_checkpoint.id;
  RETURN true;
@@ -129,6 +131,5 @@ $$;
 REVOKE ALL ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ag_complete_persistence_stage(uuid,uuid,text[]) TO authenticated;
 -- The combined manifest check covers both decision kinds and an explicit
--- empty holding stage. It does NOT prove upstream model provenance, watchlist
--- persistence, or actual-schema compatibility. Do not enable
+-- empty holding stage. It does NOT prove upstream model provenance or actual-schema compatibility. Do not enable
 -- automatic recovery or active daily-runner integration on this basis.
