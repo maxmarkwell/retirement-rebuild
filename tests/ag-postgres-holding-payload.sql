@@ -51,7 +51,7 @@ BEGIN
  WHERE cycle_id='12121212-1212-4212-8212-121212121212';
  IF public.ag_verify_holding_payload_manifest('12121212-1212-4212-8212-121212121212')
  THEN RAISE EXCEPTION 'Tampered holding digest verified'; END IF;
- UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(public.digest(
+ UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(extensions.digest(
   convert_to(jsonb_build_array(
    '12121212-1212-4212-8212-121212121212'::uuid,
    'HVERIFY','holding_review','hold','Holding evidence',72::numeric,
