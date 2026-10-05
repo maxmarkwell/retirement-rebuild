@@ -199,3 +199,31 @@ BEGIN
    AND output->'watch_context'->'research'='{}'::jsonb;
  IF n<>1 THEN RAISE EXCEPTION 'Completed Discovery output did not round-trip through authenticated RPC'; END IF;
 END $agdiscovery$;
+
+
+-- Deep-research checkpoint uses the same ordered claim -> complete -> owner read path.
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+INSERT INTO public.ag_cycle_stage_checkpoints(id,cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output,claim_token,lease_expires_at) VALUES
+ ('a2333333-3333-4333-8333-333333333333','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','catalyst_deep_research','pending',NULL,NULL,NULL);
+DO $agdeep$
+DECLARE ok boolean; cp uuid; token uuid; n integer;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token
+ FROM public.ag_claim_cycle_stage('a2020202-2020-4020-8020-202020202020'::uuid,'catalyst_deep_research');
+ IF cp IS DISTINCT FROM 'a2333333-3333-4333-8333-333333333333'::uuid OR token IS NULL
+ THEN RAISE EXCEPTION 'Deep-research stage claim identity invalid'; END IF;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,'{"watchlist_intents":[]}'::jsonb);
+  RAISE EXCEPTION 'Incomplete deep-research handoff accepted';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM='Incomplete deep-research handoff accepted' THEN RAISE; END IF; END;
+ ok:=public.ag_complete_cycle_stage(cp,token,
+  '{"selected_symbols":[],"catalysts":[],"deep_research_results":[],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
+ IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'Valid deep-research handoff did not complete'; END IF;
+ SELECT count(*) INTO n FROM public.ag_read_completed_stage_output(
+  'a2020202-2020-4020-8020-202020202020'::uuid,'catalyst_deep_research')
+ WHERE stage='catalyst_deep_research'
+   AND output->>'watchlist_intent_count'='0'
+   AND output->'deep_research_results'='[]'::jsonb;
+ IF n<>1 THEN RAISE EXCEPTION 'Completed deep-research output did not round-trip through authenticated RPC'; END IF;
+END $agdeep$;
