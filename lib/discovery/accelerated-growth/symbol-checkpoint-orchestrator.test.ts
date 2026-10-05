@@ -24,3 +24,19 @@ test("rejected completion never retries or advances",async()=>{
  await assert.rejects(()=>runNextAgSymbolWork({cycleId:"c",parentStage:"committee",expectedSymbols:["AAA"],io,work:async()=>({symbol:"AAA"})}),/reconcile durable state/);
  assert.equal(completeCalls,1);
 });
+test("three-symbol work progresses across requests without recomputing completed symbols",async()=>{
+ const rows:AgSymbolCheckpointRow[]=[];const workCalls:string[]=[];const claimCalls:string[]=[];
+ const io={
+  read:async()=>structuredClone(rows),
+  claim:async(_c:string,_p:any,s:string)=>{claimCalls.push(s);rows.push({symbol:s,status:"running",output:null});return{checkpointId:s,claimToken:"token-"+s}},
+  complete:async(id:string,_token:string,output:unknown)=>{const row=rows.find(x=>x.symbol===id)!;row.status="completed";row.output=output;return true},
+ };
+ const invoke=()=>runNextAgSymbolWork({cycleId:"cycle",parentStage:"committee",expectedSymbols:["AAA","BBB","CCC"],io,work:async symbol=>{workCalls.push(symbol);return{symbol}}});
+ assert.deepEqual(await invoke(),{action:"SYMBOL_COMPLETED",symbol:"AAA"});
+ assert.deepEqual(await invoke(),{action:"SYMBOL_COMPLETED",symbol:"BBB"});
+ // Simulated request interruption: durable rows survive; no in-memory orchestration state is required.
+ assert.deepEqual(await invoke(),{action:"SYMBOL_COMPLETED",symbol:"CCC"});
+ const final=await invoke();assert.equal(final.action,"AGGREGATE");
+ assert.deepEqual(workCalls,["AAA","BBB","CCC"]);assert.deepEqual(claimCalls,["AAA","BBB","CCC"]);
+ if(final.action==="AGGREGATE")assert.deepEqual(final.outputs.map((x:any)=>x.symbol),["AAA","BBB","CCC"]);
+});
