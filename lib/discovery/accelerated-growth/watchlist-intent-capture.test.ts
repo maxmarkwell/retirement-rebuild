@@ -2,15 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {captureAgWatchlistIntent} from "./watchlist-intent-capture";
 const cycleId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const watchId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const committeeId="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const watch={
   symbol:"WATCH",companyName:"Example",researchStatus:"WATCH" as const,
   confidence:0.71,thesis:"Watch thesis",unresolvedQuestions:["Question"],
   thesisClock:"medium",invalidation:["Invalidation"],model:"model",
-  promptVersion:"v1",priorWatchReassessed:false,
+  promptVersion:"v1",priorWatchReassessed:false,priorWatchRowId:null,
 };
 const base=()=>({
-  cycleId,outcomes:[watch],quantitativeResolutions:[{symbol:"OLD",resolution:"REJECT" as const}],
-  committeeResolutions:[{symbol:"COMMITTEE",resolution:"REVIEW" as const}],
+  cycleId,outcomes:[watch],quantitativeResolutions:[{symbol:"OLD",sourceWatchId:watchId,resolution:"REJECT" as const}],
+  committeeResolutions:[{symbol:"COMMITTEE",sourceDecisionId:committeeId,resolution:"REVIEW" as const}],
   upstreamErrors:[],upstreamFailedCount:0,
   discoveryRateLimited:false,discoveryStoppedEarly:false,
 });
@@ -48,15 +50,17 @@ test("fails closed for partial research, duplicates and conflicting streams",()=
     {discoveryRateLimited:true},
     {discoveryStoppedEarly:true},
     {outcomes:[watch,watch]},
-    {quantitativeResolutions:[{symbol:"WATCH",resolution:"REJECT"}]},
-    {committeeResolutions:[{symbol:"COMMITTEE",resolution:"REVIEW"},
-      {symbol:"COMMITTEE",resolution:"REJECT"}]},
+    {quantitativeResolutions:[{symbol:"WATCH",sourceWatchId:watchId,resolution:"REJECT"}]},
+    {committeeResolutions:[{symbol:"COMMITTEE",sourceDecisionId:committeeId,resolution:"REVIEW"},
+      {symbol:"COMMITTEE",sourceDecisionId:committeeId,resolution:"REJECT"}]},
     {outcomes:[{...watch,symbol:"lowercase"}]},
     {outcomes:[{...watch,confidence:71}]},
+    {outcomes:[{...watch,priorWatchReassessed:true,priorWatchRowId:null}]},
+    {quantitativeResolutions:[{symbol:"OLD",sourceWatchId:"not-a-uuid",resolution:"REJECT"}]},
   ]) assert.throws(()=>captureAgWatchlistIntent({...base(),...patch} as never));
 });
 test("same ticker across distinct research and Committee watch tables remains separate",()=>{
   const result=captureAgWatchlistIntent({...base(),
-    committeeResolutions:[{symbol:"WATCH",resolution:"REVIEW"}]});
+    committeeResolutions:[{symbol:"WATCH",sourceDecisionId:committeeId,resolution:"REVIEW"}]});
   assert.equal(result.intents.filter(x=>x.symbol==="WATCH").length,2);
 });
