@@ -51,6 +51,8 @@ assert.ok(!runner.includes("resumable-research-stages"));
 assert.ok(researchStages.includes('stage:"discovery"')&&researchStages.includes('stage:"catalyst_deep_research"')&&researchStages.includes('stage:"committee"'));
 assert.ok(researchStages.includes("readAuthenticatedAgCompletedStageOutput"));
 assert.ok(researchStages.includes("deriveAgExecutionEvidence(frozen)"));
+assert.ok(researchStages.includes("parseAgDiscoveryStagePayload"));
+assert.ok(researchStages.includes("parseAgDeepResearchResults"));
 assert.ok(!researchStages.includes("getDynamicDiscoveryUniverse"));
 assert.ok(runner.includes("assertAgLegacyPersistenceDisabled();"));
 console.log("AG stage-capture isolation contract passed");
