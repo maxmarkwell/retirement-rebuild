@@ -88,6 +88,16 @@ jobs:
           actual="$(git hash-object supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql)"
           test "$actual" = "$expected" || { echo "AG migration candidate content digest mismatch" >&2; exit 1; }
 
+      - name: Verify symbol checkpoint candidate digest and review record
+        run: |
+          set -euo pipefail
+          expected="e39963134620ee88d91641255dd6cc007281914e"
+          actual="$(git hash-object supabase/migration-candidates/20261005_ag_symbol_checkpoints_review_candidate.sql)"
+          test "$actual" = "$expected" || { echo "AG symbol checkpoint candidate content digest mismatch" >&2; exit 1; }
+          grep -F "$expected" docs/ag-symbol-checkpoint-migration-review-record.md
+          grep -F "20261005175157_ag_recovery_revoke_anon_rpc_execute" docs/ag-symbol-checkpoint-migration-review-record.md
+          grep -F "AG OFF" docs/ag-symbol-checkpoint-migration-review-record.md
+
       - name: Verify AG migration review artifacts
         run: |
           set -euo pipefail
