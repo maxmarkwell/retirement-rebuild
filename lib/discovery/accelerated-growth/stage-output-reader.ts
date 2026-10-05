@@ -15,7 +15,9 @@ export async function readAuthenticatedAgCompletedStageOutput(input:{
  if(error) throw new Error(`Unable to read completed AG stage output: ${error.message}`);
  const row=Array.isArray(data)?data[0]:data;
  if(!row) return null;
- // Database output is the envelope submitted at completion. Revalidate cycle
- // and stage at the application boundary before downstream research consumes it.
- return validateAgStageEnvelope(row.output,{cycleId:input.cycleId,stage:input.stage});
+ // PostgreSQL stores the validated stage payload; cycle/stage/completion time
+ // are trusted checkpoint metadata. Reconstruct and revalidate the application envelope.
+ return validateAgStageEnvelope({
+  version:1,cycleId:input.cycleId,stage:row.stage,completedAt:row.completed_at,payload:row.output,
+ },{cycleId:input.cycleId,stage:input.stage});
 }
