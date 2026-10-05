@@ -518,6 +518,10 @@ $$;
 CREATE TRIGGER ag_protect_completed_checkpoint_update
 BEFORE UPDATE OR DELETE ON public.ag_cycle_stage_checkpoints
 FOR EACH ROW EXECUTE FUNCTION public.ag_protect_completed_checkpoint();
+REVOKE ALL ON FUNCTION public.ag_protect_completed_checkpoint() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.ag_protect_completed_checkpoint() FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ag_protect_completed_checkpoint() TO service_role;
+
 
 
 -- SOURCE: docs/ag-cycle-decision-ledger-proposal.sql
