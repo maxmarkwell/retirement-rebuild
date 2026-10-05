@@ -85,7 +85,7 @@ assert.ok(persistenceExecutor.indexOf("verifyWatchManifest") < persistenceExecut
 assert.ok(persistencePlan.includes("p_claim_token:claimToken"));
 assert.ok(!persistencePlan.includes("supabase"));
 assert.ok(!persistencePlan.includes("commitPreparedAgBatch"));
-assert.ok(researchStages.includes('stage:"discovery"')&&researchStages.includes('stage:"catalyst_deep_research"')&&researchStages.includes('stage:"committee"'));
+assert.ok(researchStages.includes('stage:"discovery"')&&researchStages.includes('claim(input.cycleId,"catalyst_deep_research")')&&researchStages.includes('claim(input.cycleId,"committee")'));
 assert.ok(researchStages.includes("readAuthenticatedAgCompletedStageOutput"));
 assert.ok(researchStages.includes("deriveAgExecutionEvidence(frozen)"));
 assert.ok(researchStages.includes("parseAgDiscoveryStagePayload"));
