@@ -36,8 +36,7 @@ CREATE TABLE public.investment_decisions (
  ag_thesis_valid boolean,
  ag_liquidity_eligible boolean,
  ag_evidence_version text,
- ag_theme_key text,
- notes text
+ ag_theme_key text
 );
 CREATE UNIQUE INDEX investment_decisions_one_active_ai_per_ticker
  ON public.investment_decisions(user_id,portfolio_id,ticker)
