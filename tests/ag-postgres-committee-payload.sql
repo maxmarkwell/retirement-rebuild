@@ -95,3 +95,27 @@ DO $agtest$ BEGIN
    'abababab-abab-4bab-8bab-abababababab')
  THEN RAISE EXCEPTION 'Cross-owner payload verification succeeded'; END IF;
 END $agtest$;
+
+
+-- A completed, explicit zero-decision Committee manifest is valid evidence
+-- when no Committee ledger rows exist.
+INSERT INTO public.ag_daily_cycles VALUES (
+ 'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',current_date+6,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333','committee','completed',
+ '{"persistence_tickers":[],"decision_payloads":[]}'::jsonb);
+SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+DO $agempty$
+BEGIN
+ IF NOT public.ag_verify_committee_payload_manifest(
+   'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd')
+ THEN RAISE EXCEPTION 'Explicit empty Committee manifest failed verification'; END IF;
+END $agempty$;
