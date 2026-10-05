@@ -61,3 +61,11 @@ await import(toDataUrl(
   watchTests.replace('"./watchlist-intent-capture"', JSON.stringify(watchUrl)),
   "watchlist-intent-capture.test.ts"
 ));
+
+const watchReconciliationSource = await readFile(resolve(directory, "watchlist-reconciliation.ts"), "utf8");
+const watchReconciliationUrl = toDataUrl(watchReconciliationSource, "watchlist-reconciliation.ts");
+const watchReconciliationTests = await readFile(resolve(directory, "watchlist-reconciliation.test.ts"), "utf8");
+await import(toDataUrl(
+  watchReconciliationTests.replace('"./watchlist-reconciliation"', JSON.stringify(watchReconciliationUrl)),
+  "watchlist-reconciliation.test.ts"
+));
