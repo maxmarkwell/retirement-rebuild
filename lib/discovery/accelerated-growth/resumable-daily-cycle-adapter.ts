@@ -6,7 +6,7 @@ import "server-only";
  * daily-cycle boundary one durable stage at a time without importing any
  * decision/watch write adapter or transaction executor.
  */
-import {createAuthenticatedAgStageCheckpointRpc} from "./stage-checkpoint-supabase";
+import {createAuthenticatedAgStageCheckpointRpc,reclaimAuthenticatedAgExpiredSymbolParent} from "./stage-checkpoint-supabase";
 import {readAuthenticatedAgCheckpointStatus} from "./stage-checkpoint-status-reader";
 import {planAgResume,type AgResumePlan} from "./resume-planner";
 import {executeAgHoldingReviewStage} from "./resumable-stage-work";
@@ -24,8 +24,24 @@ export async function runNextAgResumableResearchStage(input:{
  cycleId:string;maxCandidates?:number;
 }):Promise<AgResearchResumeResult>{
  const rows=await readAuthenticatedAgCheckpointStatus(input.cycleId);
- const plan=planAgResume(rows);
- if(plan.action!=="run") return {plan,executedStage:null,persistenceReady:false};
+ let plan=planAgResume(rows);
+ if(plan.action==="manual_review" && plan.reason==="stale_or_failed" &&
+    (plan.stage==="catalyst_deep_research"||plan.stage==="committee")){
+  const row=rows.find(x=>x.stage===plan.stage);
+  if(row?.status==="running" && row.leaseExpiresAt && Date.parse(row.leaseExpiresAt)<=Date.now()){
+   await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,plan.stage);
+   const refreshed=await readAuthenticatedAgCheckpointStatus(input.cycleId);
+   plan=planAgResume(refreshed);
+  }
+ }
+ if(plan.action!=="wait" && plan.action!=="run") return {plan,executedStage:null,persistenceReady:false};
+ if(plan.action==="wait"){
+  // A successful reclaim intentionally creates a fresh live lease. Continue only
+  // for the same symbol-fanout stage; all other live leases remain wait-only.
+  if(plan.stage!=="catalyst_deep_research"&&plan.stage!=="committee")
+   return {plan,executedStage:null,persistenceReady:false};
+  plan={action:"run",stage:plan.stage};
+ }
  if(plan.stage==="persistence"||plan.stage==="finalized")
   return {plan,executedStage:null,persistenceReady:plan.stage==="persistence"};
 
