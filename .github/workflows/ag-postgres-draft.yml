@@ -98,6 +98,16 @@ jobs:
           grep -F "20261005175157_ag_recovery_revoke_anon_rpc_execute" docs/ag-symbol-checkpoint-migration-review-record.md
           grep -F "AG OFF" docs/ag-symbol-checkpoint-migration-review-record.md
 
+      - name: Verify AG cycle finalization candidate digest and review record
+        run: |
+          set -euo pipefail
+          expected="1423204e0570164f855d945732b0ee59b028b4cc"
+          actual="$(git hash-object supabase/migration-candidates/20261005_ag_cycle_finalization_review_candidate.sql)"
+          test "$actual" = "$expected" || { echo "AG finalization candidate content digest mismatch" >&2; exit 1; }
+          grep -F "$expected" docs/ag-cycle-finalization-migration-review-record.md
+          grep -F "20261005190736_ag_symbol_checkpoints" docs/ag-cycle-finalization-migration-review-record.md
+          grep -F "AG OFF" docs/ag-cycle-finalization-migration-review-record.md
+
       - name: Verify AG migration review artifacts
         run: |
           set -euo pipefail
