@@ -169,7 +169,7 @@ END $$;
 RESET ROLE;
 
 
--- Discovery checkpoint completion rejects incomplete handoffs and accepts a
+-- Discovery checkpoint completion rejects incomplete handoffs (and exercises the SQL-side handoff validator) and accepts a
 -- minimal structurally complete frozen snapshot.
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
