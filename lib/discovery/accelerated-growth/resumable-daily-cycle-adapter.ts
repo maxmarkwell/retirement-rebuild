@@ -25,20 +25,21 @@ export async function runNextAgResumableResearchStage(input:{
 }):Promise<AgResearchResumeResult>{
  const rows=await readAuthenticatedAgCheckpointStatus(input.cycleId);
  let plan=planAgResume(rows);
+ let reclaimedSymbolParent=false;
  if(plan.action==="manual_review" && plan.reason==="stale_or_failed" &&
     (plan.stage==="catalyst_deep_research"||plan.stage==="committee")){
   const row=rows.find(x=>x.stage===plan.stage);
   if(row?.status==="running" && row.leaseExpiresAt && Date.parse(row.leaseExpiresAt)<=Date.now()){
    await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,plan.stage);
+   reclaimedSymbolParent=true;
    const refreshed=await readAuthenticatedAgCheckpointStatus(input.cycleId);
    plan=planAgResume(refreshed);
   }
  }
  if(plan.action!=="wait" && plan.action!=="run") return {plan,executedStage:null,persistenceReady:false};
  if(plan.action==="wait"){
-  // A successful reclaim intentionally creates a fresh live lease. Continue only
-  // for the same symbol-fanout stage; all other live leases remain wait-only.
-  if(plan.stage!=="catalyst_deep_research"&&plan.stage!=="committee")
+  // Only this request's successful reclaim may consume the fresh lease.
+  if(!reclaimedSymbolParent || (plan.stage!=="catalyst_deep_research"&&plan.stage!=="committee"))
    return {plan,executedStage:null,persistenceReady:false};
   plan={action:"run",stage:plan.stage};
  }
