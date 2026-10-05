@@ -30,11 +30,10 @@ CREATE INDEX ag_cycle_decision_writes_portfolio_idx
   ON public.ag_cycle_decision_writes(portfolio_id, created_at DESC);
 
 ALTER TABLE public.ag_cycle_decision_writes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY ag_cycle_decision_writes_owner_read
-  ON public.ag_cycle_decision_writes FOR SELECT TO authenticated
-  USING (user_id = (SELECT auth.uid()));
--- No INSERT, UPDATE or DELETE policies. Only reviewed SECURITY DEFINER
--- RPCs may modify this ledger and investment_decisions together.
+REVOKE ALL ON TABLE public.ag_cycle_decision_writes FROM anon, authenticated;
+GRANT ALL ON TABLE public.ag_cycle_decision_writes TO service_role;
+-- No direct authenticated table access. Reviewed SECURITY DEFINER RPCs are the
+-- only authenticated read/write boundary for recovery evidence.
 
 -- IMPLEMENTATION REQUIREMENTS FOR THE SEPARATE DRAFT ATOMIC RPC:
 -- 1. Authenticate auth.uid(); lock ag_daily_cycles row FOR UPDATE.
