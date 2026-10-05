@@ -48,7 +48,27 @@ BEGIN
  IF result_id IS NULL THEN RAISE EXCEPTION 'Restricted role RPC returned null'; END IF;
 END $$;
 SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false);
-DO $$
+DO $agcrossowner$
+DECLARE visible integer; b boolean;
+BEGIN
+ SELECT count(*) INTO visible FROM public.ag_read_cycle_checkpoint_status(
+   '44444444-4444-4444-8444-444444444444');
+ IF visible<>0 THEN RAISE EXCEPTION 'Checkpoint status leaked cross-owner rows'; END IF;
+ SELECT count(*) INTO visible FROM public.ag_read_cycle_watch_ledger(
+   '44444444-4444-4444-8444-444444444444');
+ IF visible<>0 THEN RAISE EXCEPTION 'Watch ledger leaked cross-owner rows'; END IF;
+ SELECT count(*) INTO visible FROM public.ag_read_completed_stage_output(
+   '44444444-4444-4444-8444-444444444444','committee');
+ IF visible<>0 THEN RAISE EXCEPTION 'Completed stage output leaked cross-owner evidence'; END IF;
+ b:=public.ag_verify_cycle_watch_manifest('44444444-4444-4444-8444-444444444444');
+ IF b THEN RAISE EXCEPTION 'Watch manifest verifier accepted cross-owner cycle'; END IF;
+ b:=public.ag_verify_committee_payload_manifest('44444444-4444-4444-8444-444444444444');
+ IF b THEN RAISE EXCEPTION 'Committee verifier accepted cross-owner cycle'; END IF;
+ b:=public.ag_verify_holding_payload_manifest('44444444-4444-4444-8444-444444444444');
+ IF b THEN RAISE EXCEPTION 'Holding verifier accepted cross-owner cycle'; END IF;
+END $agcrossowner$;
+
+DO $
 DECLARE visible integer;
 BEGIN
  SELECT count(*) INTO visible FROM public.ag_read_cycle_decision_ledger(
