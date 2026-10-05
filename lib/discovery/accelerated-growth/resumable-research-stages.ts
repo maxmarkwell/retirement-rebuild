@@ -16,13 +16,8 @@ export async function executeAgDiscoveryStage(input:{cycleId:string;rpc:AgStageC
  }});
 }
 export async function executeAgCatalystDeepStage(input:{cycleId:string;rpc:AgStageCheckpointRpc;maxCandidates?:number}){
- const prior=await readAuthenticatedAgCompletedStageOutput({cycleId:input.cycleId,stage:"discovery"});
- if(!prior) throw new Error("Completed AG Discovery checkpoint required.");
- const discovery=parseAgDiscoveryStagePayload(prior.payload);
- return executeAgClaimedStage({cycleId:input.cycleId,stage:"catalyst_deep_research",rpc:input.rpc,run:async()=>{
-  const result=await runAgCatalystDeepResearchStage({discovery,maxCandidates:input.maxCandidates});
-  return {payload:buildAgCatalystDeepStagePayload({cycleId:input.cycleId,result}),result};
- }});
+ const claim=await input.rpc.claim(input.cycleId,"catalyst_deep_research");
+ return resumeAgDeepResearchFanout({cycleId:input.cycleId,parentClaim:claim,rpc:input.rpc,maxCandidates:input.maxCandidates});
 }
 export async function executeAgCommitteeResearchStage(input:{cycleId:string;rpc:AgStageCheckpointRpc}){
  const prior=await readAuthenticatedAgCompletedStageOutput({cycleId:input.cycleId,stage:"catalyst_deep_research"});
