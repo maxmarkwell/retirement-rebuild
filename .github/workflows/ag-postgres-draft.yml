@@ -43,6 +43,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/ag-stage-claim-rpc-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-cycle-decision-ledger-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-watchlist-rpc-draft.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
@@ -58,3 +59,4 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-holding-payload.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-mixed-completion.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-watchlist-ledger.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-watchlist-atomic.sql
