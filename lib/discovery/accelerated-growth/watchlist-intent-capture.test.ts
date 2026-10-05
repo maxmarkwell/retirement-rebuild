@@ -4,7 +4,7 @@ import {captureAgWatchlistIntent} from "./watchlist-intent-capture";
 const cycleId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const watch={
   symbol:"WATCH",companyName:"Example",researchStatus:"WATCH" as const,
-  confidence:71,thesis:"Watch thesis",unresolvedQuestions:["Question"],
+  confidence:0.71,thesis:"Watch thesis",unresolvedQuestions:["Question"],
   thesisClock:"medium",invalidation:["Invalidation"],model:"model",
   promptVersion:"v1",priorWatchReassessed:false,
 };
@@ -52,6 +52,7 @@ test("fails closed for partial research, duplicates and conflicting streams",()=
     {committeeResolutions:[{symbol:"COMMITTEE",resolution:"REVIEW"},
       {symbol:"COMMITTEE",resolution:"REJECT"}]},
     {outcomes:[{...watch,symbol:"lowercase"}]},
+    {outcomes:[{...watch,confidence:71}]},
   ]) assert.throws(()=>captureAgWatchlistIntent({...base(),...patch} as never));
 });
 test("same ticker across distinct research and Committee watch tables remains separate",()=>{
