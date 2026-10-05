@@ -20,7 +20,7 @@ export async function createAuthenticatedAgStageCheckpointRpc():Promise<AgStageC
   },
   async complete(checkpointId,claimToken,output){
    const {data,error}=await supabase.rpc("ag_complete_cycle_stage",{
-    p_checkpoint_id:checkpointId,p_claim_token:claimToken,p_output:output,
+    p_checkpoint_id:checkpointId,p_claim_token:claimToken,p_output:output.payload,
    });
    if(error) throw new Error(`Unable to complete AG stage: ${error.message}`);
    if(data!==true) throw new Error("AG stage completion was rejected; reconciliation required.");
