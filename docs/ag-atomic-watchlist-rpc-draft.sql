@@ -67,14 +67,14 @@ BEGIN
  -- dedicated verifier before release.
  IF NOT EXISTS (
   SELECT 1 FROM public.ag_cycle_stage_checkpoints c,
-       LATERAL jsonb_array_elements(c.output->'watchlist_intents') i
+       LATERAL jsonb_array_elements(c.output->'watchlist_intents') AS intent(entry)
   WHERE c.cycle_id=p_cycle_id AND c.stage='catalyst_deep_research'
    AND c.status='completed' AND c.user_id=v_cycle.user_id
    AND c.portfolio_id=v_cycle.portfolio_id AND c.strategy_era_id=v_cycle.strategy_era_id
    AND jsonb_typeof(c.output->'watchlist_intents')='array'
-   AND i->>'stream'=p_stream AND i->>'symbol'=p_ticker AND i->>'action'=p_action
-   AND ((p_source_row_id IS NULL AND i->'source_row_id'='null'::jsonb)
-     OR i->>'source_row_id'=p_source_row_id::text)
+   AND entry->>'stream'=p_stream AND entry->>'symbol'=p_ticker AND entry->>'action'=p_action
+   AND ((p_source_row_id IS NULL AND entry->'source_row_id'='null'::jsonb)
+     OR entry->>'source_row_id'=p_source_row_id::text)
  ) THEN RAISE EXCEPTION 'Watch operation absent from completed research manifest'; END IF;
 
  v_payload_hash:=encode(public.digest(convert_to(jsonb_build_array(
