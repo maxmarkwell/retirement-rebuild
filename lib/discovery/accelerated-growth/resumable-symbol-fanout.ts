@@ -23,7 +23,7 @@ export async function resumeAgDeepResearchFanout(input:{cycleId:string;parentCla
  const result=aggregateAgDeepSymbolOutputs({selectedSymbols:expected,outputs:step.outputs as any,
   quantitativeWatchResolutions:plan.quantitativeWatchResolutions,committeeWatchResolutions:plan.committeeWatchResolutions});
  const payload=buildAgCatalystDeepStagePayload({cycleId:input.cycleId,result});
- await input.rpc.complete(input.parentClaim.checkpointId,input.parentClaim.claimToken,{payload,result});
+ await input.rpc.complete(input.parentClaim.checkpointId,input.parentClaim.claimToken,{payload});
  return {completed:true,step};
 }
 
