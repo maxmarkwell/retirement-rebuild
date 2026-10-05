@@ -36,7 +36,15 @@ BEGIN
  IF other IS NULL OR other=token THEN RAISE EXCEPTION 'Reclaim did not rotate token'; END IF;
  completed := public.ag_complete_cycle_stage(checkpoint,token,'{}');
  IF completed THEN RAISE EXCEPTION 'Stale worker completed reclaimed stage'; END IF;
- completed := public.ag_complete_cycle_stage(checkpoint,other,'{"verified":true}');
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,other,'{}');
+  RAISE EXCEPTION 'Missing holding intent accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Missing holding intent accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Full holding intent evidence required' THEN RAISE; END IF;
+ END;
+ completed := public.ag_complete_cycle_stage(checkpoint,other,
+  '{"persistence_tickers":[],"source_symbols":[],"source_decisions":[],"decision_payloads":[],"source_count":0,"output_count":0,"failure_count":0}');
  IF NOT completed THEN RAISE EXCEPTION 'Current claim could not complete stage'; END IF;
  -- Committee completion rejects malformed caller-supplied manifests.
  INSERT INTO public.ag_cycle_stage_checkpoints
