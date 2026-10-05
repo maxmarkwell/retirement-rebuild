@@ -6,6 +6,7 @@ on:
       - 'docs/ag-*.sql'
       - 'docs/ag-resumable-cycle-checkpoint-design.md'
       - 'tests/ag-postgres-*'
+      - 'supabase/migration-candidates/*'
       - '.github/workflows/ag-postgres-draft.yml'
   workflow_dispatch:
 jobs:
@@ -77,6 +78,19 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
+
+      - name: Validate packaged recovery migration candidate
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_migration_candidate;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_migration_candidate;'
+          export PGDATABASE=ag_migration_candidate
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-recovery-privileges.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
 
