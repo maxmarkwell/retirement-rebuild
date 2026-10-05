@@ -172,6 +172,73 @@ BEGIN
     THEN RAISE EXCEPTION 'Committee intent identities or payloads inconsistent'; END IF;
 
   END IF;
+  -- Holding reviews may legitimately have no eligible positions. Still
+  -- require an explicit complete empty source/output snapshot rather than
+  -- allowing a missing manifest or silently skipping a failed review.
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
+             WHERE id=p_checkpoint_id AND stage='holding_review') THEN
+    IF jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array'
+       OR jsonb_typeof(p_output->'source_symbols') IS DISTINCT FROM 'array'
+       OR jsonb_typeof(p_output->'source_decisions') IS DISTINCT FROM 'array'
+       OR jsonb_typeof(p_output->'decision_payloads') IS DISTINCT FROM 'array'
+       OR jsonb_typeof(p_output->'source_count') IS DISTINCT FROM 'number'
+       OR jsonb_typeof(p_output->'output_count') IS DISTINCT FROM 'number'
+       OR p_output->>'failure_count' IS DISTINCT FROM '0'
+    THEN RAISE EXCEPTION 'Full holding intent evidence required'; END IF;
+    IF jsonb_array_length(p_output->'source_symbols') <>
+         jsonb_array_length(p_output->'persistence_tickers')
+       OR jsonb_array_length(p_output->'source_decisions') <>
+         jsonb_array_length(p_output->'persistence_tickers')
+       OR jsonb_array_length(p_output->'decision_payloads') <>
+         jsonb_array_length(p_output->'persistence_tickers')
+       OR p_output->>'source_count' IS DISTINCT FROM
+          jsonb_array_length(p_output->'source_symbols')::text
+       OR p_output->>'output_count' IS DISTINCT FROM
+          jsonb_array_length(p_output->'source_decisions')::text
+       OR EXISTS (
+         SELECT 1 FROM jsonb_array_elements(p_output->'persistence_tickers') t
+         WHERE jsonb_typeof(t) IS DISTINCT FROM 'string'
+           OR (t #>> '{}') !~ '^[A-Z][A-Z0-9.-]{0,14}$'
+       )
+       OR EXISTS (
+         SELECT 1 FROM jsonb_array_elements(p_output->'decision_payloads') m
+         WHERE jsonb_typeof(m) IS DISTINCT FROM 'object'
+           OR jsonb_typeof(m->'ticker') IS DISTINCT FROM 'string'
+           OR jsonb_typeof(m->'args') IS DISTINCT FROM 'array'
+           OR jsonb_array_length(CASE WHEN jsonb_typeof(m->'args')='array'
+             THEN m->'args' ELSE '[]'::jsonb END)<>16
+           OR NOT ((p_output->'persistence_tickers') ? (m->>'ticker'))
+           OR (m->'args'->>1) IS DISTINCT FROM (m->>'ticker')
+           OR (m->'args'->>2) IS DISTINCT FROM 'holding_review'
+           OR (m->'args'->>0) IS DISTINCT FROM (
+             SELECT cycle_id::text FROM public.ag_cycle_stage_checkpoints
+             WHERE id=p_checkpoint_id)
+       )
+       OR EXISTS (
+         SELECT 1 FROM jsonb_array_elements(p_output->'source_symbols') s
+         WHERE jsonb_typeof(s) IS DISTINCT FROM 'string'
+           OR NOT ((p_output->'persistence_tickers') ? (s #>> '{}'))
+       )
+       OR EXISTS (
+         SELECT 1 FROM jsonb_array_elements(p_output->'source_decisions') d
+         WHERE jsonb_typeof(d) IS DISTINCT FROM 'object'
+           OR jsonb_typeof(d->'symbol') IS DISTINCT FROM 'string'
+           OR NOT ((p_output->'persistence_tickers') ? (d->>'symbol'))
+       )
+       OR (SELECT count(DISTINCT t #>> '{}')
+           FROM jsonb_array_elements(p_output->'persistence_tickers') t)
+          <> jsonb_array_length(p_output->'persistence_tickers')
+       OR (SELECT count(DISTINCT m->>'ticker')
+           FROM jsonb_array_elements(p_output->'decision_payloads') m)
+          <> jsonb_array_length(p_output->'decision_payloads')
+       OR (SELECT count(DISTINCT s #>> '{}')
+           FROM jsonb_array_elements(p_output->'source_symbols') s)
+          <> jsonb_array_length(p_output->'source_symbols')
+       OR (SELECT count(DISTINCT d->>'symbol')
+           FROM jsonb_array_elements(p_output->'source_decisions') d)
+          <> jsonb_array_length(p_output->'source_decisions')
+    THEN RAISE EXCEPTION 'Holding intent identities or payloads inconsistent'; END IF;
+  END IF;
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
              WHERE id=p_checkpoint_id AND stage='persistence') THEN
     RAISE EXCEPTION 'Persistence requires ledger-verified completion';
