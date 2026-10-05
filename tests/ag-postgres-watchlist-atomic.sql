@@ -30,15 +30,27 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
  '33333333-3333-4333-8333-333333333333','catalyst_deep_research','completed',
  jsonb_build_object('watchlist_intents',jsonb_build_array(
   jsonb_build_object('stream','research_watch','symbol','NEWWATCH',
-    'source_row_id',null,'action','upsert_watch'),
+    'source_row_id',null,'action','upsert_watch','outcome',jsonb_build_object(
+      'symbol','NEWWATCH','companyName','New Co','researchStatus','WATCH',
+      'confidence',0.72,'thesis','New watch thesis',
+      'unresolvedQuestions',jsonb_build_array('Question'),'thesisClock','medium',
+      'invalidation',jsonb_build_array('Invalidation'),'model','model',
+      'promptVersion','v1','priorWatchReassessed',false,'priorWatchRowId',null)),
   jsonb_build_object('stream','research_watch','symbol','NEWSTOP',
-    'source_row_id',null,'action','resolve_research'),
+    'source_row_id',null,'action','resolve_research','resolution','STOP'),
   jsonb_build_object('stream','research_watch','symbol','OLDWATCH',
-    'source_row_id','16161616-1616-4616-8616-161616161616','action','resolve_quantitative'),
+    'source_row_id','16161616-1616-4616-8616-161616161616','action','resolve_quantitative',
+    'resolution','REJECT'),
   jsonb_build_object('stream','committee_watch','symbol','CWATCH',
-    'source_row_id','17171717-1717-4717-8717-171717171717','action','supersede_committee'),
+    'source_row_id','17171717-1717-4717-8717-171717171717','action','supersede_committee',
+    'resolution','REJECT'),
   jsonb_build_object('stream','research_watch','symbol','ROLLBACK',
-    'source_row_id',null,'action','upsert_watch')
+    'source_row_id',null,'action','upsert_watch','outcome',jsonb_build_object(
+      'symbol','ROLLBACK','companyName','Rollback Co','researchStatus','WATCH',
+      'confidence',0.5,'thesis','Rollback thesis',
+      'unresolvedQuestions',jsonb_build_array('Q'),'thesisClock','short',
+      'invalidation',jsonb_build_array('I'),'model','model','promptVersion','v1',
+      'priorWatchReassessed',false,'priorWatchRowId',null))
   )));
 INSERT INTO public.ag_cycle_stage_checkpoints(
  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at
@@ -109,7 +121,7 @@ BEGIN
   RAISE EXCEPTION 'Operation absent from frozen manifest accepted';
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Operation absent from frozen manifest accepted' THEN RAISE; END IF;
-  IF SQLERRM<>'Watch operation absent from completed research manifest' THEN RAISE; END IF;
+  IF SQLERRM<>'Watch operation or frozen payload absent from completed research manifest' THEN RAISE; END IF;
  END;
 END $agtest$;
 
@@ -177,7 +189,7 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
  '11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222',
  '33333333-3333-4333-8333-333333333333','catalyst_deep_research','completed',
- '{"watchlist_intents":[{"stream":"research_watch","symbol":"FENCED","source_row_id":null,"action":"resolve_research"}]}'::jsonb);
+ '{"watchlist_intents":[{"stream":"research_watch","symbol":"FENCED","source_row_id":null,"action":"resolve_research","resolution":"STOP"}]}'::jsonb);
 INSERT INTO public.ag_cycle_stage_checkpoints(
  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at
 ) VALUES (
