@@ -31,9 +31,7 @@ The required read-only audit is complete. See
 Confirmed: `notes` is absent; `pgcrypto` is installed in `extensions`;
 the live quantitative watchlist constraint accepts the legacy
 `QUANTITATIVE_*` values; recovery checkpoint/ledger tables and recovery RPCs
-are absent; and the active-AI uniqueness index is cross-era. Supabase migration
-history stops at Sep. 17 despite later AG schema being present, so migration
-history must be reconciled before any DDL is applied.
+are absent; and the active-AI uniqueness index is cross-era. Supabase migration history was subsequently reconciled through the audited Sep. 24 migration chain without replaying migration bodies. Repository and production history are aligned again, including the later BUY-authorization privilege-hardening migration.
 
 The draft SQL now targets `extensions.digest` and explicitly fails closed on
 a pre-era active AI decision. The disposable fixture also mirrors the live
@@ -43,7 +41,7 @@ in `ag-decision-provenance-schema-proposal.sql` but has **not** been applied.
 
 ## Release gate
 
-1. Obtain read-only live schema evidence and reconcile it with committed migrations.
+1. Preserve the completed live-schema and migration-history reconciliation; independently review and approve the provenance/recovery migrations before application.
 2. Run a disposable integration fixture matching that confirmed schema, including RLS/roles and relevant uniqueness constraints.
 3. Prove that a batch interrupted after an individual decision commit can resume using the ledger without duplicating or omitting writes.
 4. Wire stage claiming, per-decision RPC, watchlist persistence and stage completion with explicit recovery semantics; never mark a stage complete based solely on an application response.
