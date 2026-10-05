@@ -94,3 +94,14 @@ await import(toDataUrl(
   stageCaptureTests.replace('"./stage-checkpoint-capture"', JSON.stringify(stageCaptureUrl)),
   "stage-checkpoint-capture.test.ts"
 ));
+
+const executorSource = await readFile(resolve(directory, "resumable-stage-executor.ts"), "utf8");
+const executorUrl = toDataUrl(
+  executorSource.replace('"./stage-checkpoint-contract"', JSON.stringify(stageContractUrl)),
+  "resumable-stage-executor.ts"
+);
+const executorTests = await readFile(resolve(directory, "resumable-stage-executor.test.ts"), "utf8");
+await import(toDataUrl(
+  executorTests.replace('"./resumable-stage-executor"', JSON.stringify(executorUrl)),
+  "resumable-stage-executor.test.ts"
+));
