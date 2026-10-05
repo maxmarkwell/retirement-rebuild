@@ -11,3 +11,12 @@ test("legacy AG persistence cannot be enabled through environment configuration"
   const firstWrite = source.indexOf("await persistAgResearchWatchlist(");
   assert.ok(guard >= 0 && firstWrite > guard, "guard must precede the first legacy write");
 });
+
+test("atomic watchlist adapter remains isolated from active runner", () => {
+  const adapter = read("lib/discovery/accelerated-growth/watchlist-persistence-adapter.ts");
+  const runner = read("lib/discovery/accelerated-growth/daily-cycle-work.ts");
+  assert.match(adapter, /AgAmbiguousWatchWriteError/);
+  assert.doesNotMatch(adapter, /createClient|supabase|fetch\(/);
+  assert.doesNotMatch(runner, /watchlist-persistence-adapter/);
+  assert.match(runner, /assertAgLegacyPersistenceDisabled\(\);/);
+});
