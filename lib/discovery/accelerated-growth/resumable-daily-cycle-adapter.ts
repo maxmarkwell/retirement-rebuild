@@ -26,11 +26,12 @@ export async function runNextAgResumableResearchStage(input:{
  const rows=await readAuthenticatedAgCheckpointStatus(input.cycleId);
  let plan=planAgResume(rows);
  let reclaimedSymbolParent=false;
+ let reclaimedClaim:Awaited<ReturnType<typeof reclaimAuthenticatedAgExpiredSymbolParent>>|null=null;
  if(plan.action==="manual_review" && plan.reason==="stale_or_failed" &&
     (plan.stage==="catalyst_deep_research"||plan.stage==="committee")){
   const row=rows.find(x=>x.stage===plan.stage);
   if(row?.status==="running" && row.leaseExpiresAt && Date.parse(row.leaseExpiresAt)<=Date.now()){
-   await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,plan.stage);
+   reclaimedClaim=await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,plan.stage);
    reclaimedSymbolParent=true;
    const refreshed=await readAuthenticatedAgCheckpointStatus(input.cycleId);
    plan=planAgResume(refreshed);
@@ -46,7 +47,8 @@ export async function runNextAgResumableResearchStage(input:{
  if(plan.stage==="persistence"||plan.stage==="finalized")
   return {plan,executedStage:null,persistenceReady:plan.stage==="persistence"};
 
- const rpc=await createAuthenticatedAgStageCheckpointRpc();
+ const baseRpc=await createAuthenticatedAgStageCheckpointRpc();
+ const rpc=reclaimedClaim?{...baseRpc,claim:async(_cycleId:string,stage:any)=>stage===reclaimedClaim!.stage?reclaimedClaim!:baseRpc.claim(_cycleId,stage)}:baseRpc;
  switch(plan.stage){
   case "holding_review":
    await executeAgHoldingReviewStage({cycleId:input.cycleId,rpc});break;
