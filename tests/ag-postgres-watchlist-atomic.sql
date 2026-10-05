@@ -264,6 +264,26 @@ DO $agtest$ BEGIN
 END $agtest$;
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 
+-- A later cycle's committed evidence makes an older timeout result stale even
+-- when the older ledger and its original no-op are otherwise internally valid.
+INSERT INTO public.ag_cycle_watch_writes(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stream,ticker,action,
+ payload_hash,status,effect,affected_row_id,committed_at
+) VALUES (
+ '20202020-2020-4020-8020-202020202020',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ 'research_watch','NEWSTOP','resolve_research',repeat('f',64),
+ 'committed','noop',null,now());
+DO $agtest$ BEGIN
+ IF public.ag_verify_watch_operation_postcondition(
+  '15151515-1515-4515-8515-151515151515',
+  'research_watch','NEWSTOP','resolve_research',null,'STOP',
+  null,null,null,null,null,null,null,null,false)
+ THEN RAISE EXCEPTION 'Older timeout evidence verified after newer cycle commit'; END IF;
+END $agtest$;
+
 -- A committed ledger row alone is insufficient: actual target-row tampering
 -- after commit must make recovery fail closed.
 UPDATE public.ag_research_watchlist SET thesis='tampered after commit'
