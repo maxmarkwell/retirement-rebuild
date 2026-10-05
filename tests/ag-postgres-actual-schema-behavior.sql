@@ -96,3 +96,48 @@ BEGIN
   WHERE cycle_id='a1212121-1212-4212-8212-121212121212' AND ticker='AFENCE'
  ) THEN RAISE EXCEPTION 'Audited stale cycle left decision-ledger evidence'; END IF;
 END $$;
+
+-- Audited-schema atomic rollback: a failed INSERT must roll back supersession
+-- and the pending ledger row as one transaction.
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+UPDATE public.ag_cycle_stage_checkpoints
+SET output=jsonb_set(COALESCE(output,'{}'::jsonb),'{persistence_tickers}',
+  COALESCE(output->'persistence_tickers','[]'::jsonb) || '"AROLL"'::jsonb)
+WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND stage='committee';
+INSERT INTO public.investment_decisions(
+ user_id,portfolio_id,ticker,decision_type,source,status,thesis,created_at
+) VALUES (
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+ 'AROLL','hold','ai_committee','active','Audited existing decision',now()
+);
+ALTER TABLE public.investment_decisions
+ ADD CONSTRAINT ag_actual_reject_rollback_thesis CHECK (thesis <> 'Audited forced rollback');
+DO $$
+BEGIN
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision(
+   'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   'AROLL','committee','watch','Audited forced rollback',75,'short',NULL,NULL,NULL,NULL,NULL
+  );
+  RAISE EXCEPTION 'Audited failed INSERT unexpectedly committed';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Audited failed INSERT unexpectedly committed' THEN RAISE; END IF;
+ END;
+ IF (SELECT count(*) FROM public.investment_decisions
+     WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+       AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+       AND ticker='AROLL' AND status='active')<>1
+ THEN RAISE EXCEPTION 'Audited rollback did not preserve prior active decision'; END IF;
+ IF EXISTS (
+  SELECT 1 FROM public.investment_decisions
+  WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    AND ticker='AROLL' AND status='superseded'
+ ) THEN RAISE EXCEPTION 'Audited rollback left superseded state'; END IF;
+ IF EXISTS (
+  SELECT 1 FROM public.ag_cycle_decision_writes
+  WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND ticker='AROLL'
+ ) THEN RAISE EXCEPTION 'Audited rollback left decision-ledger evidence'; END IF;
+END $$;
+ALTER TABLE public.investment_decisions DROP CONSTRAINT ag_actual_reject_rollback_thesis;
