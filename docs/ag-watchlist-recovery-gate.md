@@ -17,10 +17,10 @@ it was updated by an undocumented change. This may explain failures in
 that path, but no live failure has been attributed to it.
 
 The same migration constrains `confidence numeric(5,4)` to 0–1.
-Confirm the upstream deep-research confidence scale before attempting
-new watch writes. The isolated planner currently accepts 0–100 to avoid
-silently changing source semantics, but the database contract must use
-the actual source scale and explicit normalization if necessary.
+The existing `deep-research.ts` applies `normalizeAgConfidence`, which
+normalizes source 0–100 model scores to the persisted 0–1 scale. The pure
+watchlist intent planner now rejects values outside 0–1; do not bypass
+that upstream normalization when freezing or replaying watch operations.
 
 ## Frozen intent and replay boundaries
 
