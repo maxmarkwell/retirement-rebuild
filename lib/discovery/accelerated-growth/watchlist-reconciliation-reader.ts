@@ -6,6 +6,12 @@ import {
 } from "./watchlist-reconciliation";
 import type { AgWatchIntent } from "./watchlist-intent-capture";
 
+type AgWatchLedgerRpcRow={
+  cycle_id:string;stream:string;ticker:string;action:string;source_row_id:string|null;
+  payload_hash:string;status:string;effect:string|null;affected_row_id:string|null;
+  user_id:string;portfolio_id:string;strategy_era_id:string;
+};
+
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Isolated read-only recovery boundary. Requires reviewed/deployed draft
@@ -25,11 +31,12 @@ export async function selectAgWatchLedgerRows(query:{
     p_cycle_id:query.cycleId,
   });
   if(error||!data)throw new Error("Unable to read AG watch operation ledger.");
-  if(data.some((row)=>row.user_id?.toLowerCase()!==query.userId.toLowerCase()||
+  const rows=data as AgWatchLedgerRpcRow[];
+  if(rows.some((row)=>row.user_id?.toLowerCase()!==query.userId.toLowerCase()||
     row.portfolio_id?.toLowerCase()!==query.portfolioId.toLowerCase()||
     row.strategy_era_id?.toLowerCase()!==query.strategyEraId.toLowerCase()))
     throw new Error("AG watch ledger scope mismatch.");
-  return data.map((row)=>({
+  return rows.map((row)=>({
     cycle_id:row.cycle_id,stream:row.stream as AgWatchIntent["stream"],
     symbol:row.ticker,action:row.action as AgWatchIntent["action"],
     source_row_id:row.source_row_id,payload_hash:row.payload_hash,
