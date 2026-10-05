@@ -141,3 +141,49 @@ BEGIN
  ) THEN RAISE EXCEPTION 'Audited rollback left decision-ledger evidence'; END IF;
 END $$;
 ALTER TABLE public.investment_decisions DROP CONSTRAINT ag_actual_reject_rollback_thesis;
+
+-- Audited-schema interrupted batch resume: first item commits, an independent
+-- retry reuses its immutable ledger link, then the second item commits once.
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+UPDATE public.ag_cycle_stage_checkpoints
+SET output=jsonb_set(COALESCE(output,'{}'::jsonb),'{persistence_tickers}',
+  COALESCE(output->'persistence_tickers','[]'::jsonb) || '["ABATCHA","ABATCHB"]'::jsonb)
+WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND stage='committee';
+
+DO $$
+DECLARE first_id uuid;
+BEGIN
+ first_id := public.ag_commit_cycle_decision(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'ABATCHA','committee','watch','Audited first batch item',70,'short',NULL,NULL,NULL,NULL,NULL
+ );
+ IF first_id IS NULL THEN RAISE EXCEPTION 'Audited first batch item missing'; END IF;
+END $$;
+
+DO $$
+DECLARE first_id uuid; retry_id uuid; second_id uuid;
+BEGIN
+ SELECT investment_decision_id INTO first_id
+ FROM public.ag_cycle_decision_writes
+ WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND ticker='ABATCHA';
+ retry_id := public.ag_commit_cycle_decision(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'ABATCHA','committee','watch','Audited first batch item',70,'short',NULL,NULL,NULL,NULL,NULL
+ );
+ second_id := public.ag_commit_cycle_decision(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'ABATCHB','committee','watch','Audited second batch item',70,'short',NULL,NULL,NULL,NULL,NULL
+ );
+ IF retry_id IS DISTINCT FROM first_id OR second_id IS NULL
+ THEN RAISE EXCEPTION 'Audited interrupted batch resume failed'; END IF;
+ IF (SELECT count(*) FROM public.ag_cycle_decision_writes
+     WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+       AND ticker IN ('ABATCHA','ABATCHB') AND status='committed')<>2
+ THEN RAISE EXCEPTION 'Audited interrupted batch ledger incomplete'; END IF;
+ IF (SELECT count(*) FROM public.investment_decisions
+     WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+       AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+       AND ticker IN ('ABATCHA','ABATCHB') AND status='active')<>2
+ THEN RAISE EXCEPTION 'Audited interrupted batch produced duplicate or missing decisions'; END IF;
+END $$;
