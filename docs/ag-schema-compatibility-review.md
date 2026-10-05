@@ -21,7 +21,7 @@ SELECT to_regclass('public.ag_cycle_stage_checkpoints') AS checkpoint_table,
        to_regclass('public.ag_cycle_decision_writes') AS ledger_table;
 ```
 
-Record whether `notes` was introduced outside version-controlled migrations, and compare **all** proposed RPC INSERT columns and constraints against the live schema. Verify `public.digest` is available in the target database's actual extension schema. If `notes` is absent, propose a separately reviewed migration or a documented provenance-preserving alternate mapping. Do not silently remove the field.
+Record whether `notes` was introduced outside version-controlled migrations, and compare **all** proposed RPC INSERT columns and constraints against the live schema. Verify `digest` is available in the target database's actual extension schema; the live audit confirmed that schema is `extensions`, so recovery SQL must use `extensions.digest`. If `notes` is absent, propose a separately reviewed migration or a documented provenance-preserving alternate mapping. Do not silently remove the field.
 
 ## Live audit result — 2026-10-05
 
@@ -36,7 +36,9 @@ history stops at Sep. 17 despite later AG schema being present, so migration
 history must be reconciled before any DDL is applied.
 
 The draft SQL now targets `extensions.digest` and explicitly fails closed on
-a pre-era active AI decision. A nullable `notes text` addition is documented
+a pre-era active AI decision. The disposable fixture also mirrors the live
+cross-era BEFORE INSERT supersession trigger, so this ordering is exercised
+rather than assumed. A nullable `notes text` addition is documented
 in `ag-decision-provenance-schema-proposal.sql` but has **not** been applied.
 
 ## Release gate
