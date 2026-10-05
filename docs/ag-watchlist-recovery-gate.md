@@ -52,6 +52,19 @@ that upstream normalization when freezing or replaying watch operations.
   protocol, with a distinct operation ledger. Do not treat a zero-row
   retry as proof of prior success.
 
+## Isolated read-only reconciliation
+
+`watchlist-reconciliation.ts` now compares frozen typed operations with
+scoped durable ledger rows, including stream, ticker, action, canonical
+payload, committed status and affected row identity. It detects missing,
+extra, pending, altered, duplicate and cross-cycle rows; every uncertain
+case requires manual reconciliation. Even an exact ledger match is labeled
+`VERIFIED_RECORDED_REQUIRES_DB_POSTCONDITIONS`: the actual affected watch
+or Committee decision must still be verified read-only, and no automatic
+retry is authorized. The proposed canonical serializer is an application
+comparison contract; the eventual database RPC must derive and test its
+own identical canonical encoding, never trust a supplied hash.
+
 ## Acceptance sequence
 
 1. Read-only live catalog audit of `ag_research_watchlist` columns,
