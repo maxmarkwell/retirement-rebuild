@@ -24,6 +24,7 @@ export type AgDiscoveryResult = {
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
+  executionEvidenceInputs: Record<string,{volume:number|null;dollarVolume:number|null;sector:string|null}>;
 };
 
 type Preselected = { stock: DynamicUniverseStock; selectorScore: number };
@@ -94,6 +95,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     selectedSymbols.add(symbol);
   }
 
+  const executionEvidenceInputs = Object.fromEntries(selected.map(({stock}) => [stock.ticker.toUpperCase(), {volume:stock.volume,dollarVolume:stock.dollarVolume,sector:stock.sector}]));
   const candidates: AgDiscoveryCandidate[] = [];
   const errors: Array<{ symbol: string; error: string }> = [];
   let rateLimited = false;
@@ -127,6 +129,6 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     rejectCount: candidates.filter((c) => c.score.status === "REJECT").length,
     insufficientDataCount: candidates.filter((c) => c.score.status === "INSUFFICIENT_DATA").length,
     rateLimited, stoppedEarly: budgetExhausted || rateLimited || candidates.length + errors.length < selected.length,
-    bucketSelectionCounts, candidates, errors,
+    bucketSelectionCounts, candidates, errors, executionEvidenceInputs,
   };
 }
