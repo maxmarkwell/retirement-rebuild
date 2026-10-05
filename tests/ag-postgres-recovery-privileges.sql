@@ -68,3 +68,24 @@ BEGIN
  IF has_function_privilege('authenticated','public.ag_protect_completed_checkpoint()','EXECUTE')
  THEN RAISE EXCEPTION 'Trigger-only checkpoint guard is authenticated-executable'; END IF;
 END $agapisurface$;
+
+
+DO $aganonrpc$
+DECLARE bad_count integer;
+BEGIN
+ SELECT count(*) INTO bad_count
+ FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ WHERE n.nspname='public'
+   AND p.proname IN (
+    'ag_claim_cycle_stage','ag_complete_cycle_stage',
+    'ag_read_cycle_decision_ledger','ag_read_cycle_checkpoint_status',
+    'ag_read_cycle_watch_ledger','ag_read_completed_stage_output',
+    'ag_commit_cycle_decision','ag_commit_watch_operation',
+    'ag_verify_watch_operation_postcondition','ag_verify_cycle_watch_manifest',
+    'ag_verify_committee_payload_manifest','ag_verify_holding_payload_manifest',
+    'ag_complete_persistence_stage')
+   AND has_function_privilege('anon',p.oid,'EXECUTE');
+ IF bad_count<>0 THEN
+   RAISE EXCEPTION 'Anonymous role can execute % AG recovery RPCs',bad_count;
+ END IF;
+END $aganonrpc$;
