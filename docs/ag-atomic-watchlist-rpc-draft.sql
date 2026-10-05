@@ -343,3 +343,49 @@ REVOKE ALL ON FUNCTION public.ag_verify_watch_operation_postcondition(
 GRANT EXECUTE ON FUNCTION public.ag_verify_watch_operation_postcondition(
  uuid,text,text,text,uuid,text,text,numeric,text,text[],text,text[],text,text,boolean
 ) TO authenticated;
+
+
+-- Aggregate persistence-stage verifier. Reads only the completed frozen
+-- deep-research manifest and committed watch ledger; it never replays writes.
+CREATE OR REPLACE FUNCTION public.ag_verify_cycle_watch_manifest(p_cycle_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=''
+AS $agwatchmanifest$
+DECLARE v_manifest jsonb; v_item jsonb; v_count integer;
+BEGIN
+ IF auth.uid() IS NULL THEN RETURN false; END IF;
+ SELECT c.output->'watchlist_intents' INTO v_manifest
+ FROM public.ag_cycle_stage_checkpoints c
+ JOIN public.ag_daily_cycles d ON d.id=c.cycle_id
+ WHERE c.cycle_id=p_cycle_id AND c.stage='catalyst_deep_research'
+   AND c.status='completed' AND c.user_id=auth.uid() AND d.user_id=auth.uid();
+ IF jsonb_typeof(v_manifest) IS DISTINCT FROM 'array' THEN RETURN false; END IF;
+ SELECT count(*) INTO v_count FROM public.ag_cycle_watch_writes
+ WHERE cycle_id=p_cycle_id;
+ IF v_count<>jsonb_array_length(v_manifest) THEN RETURN false; END IF;
+ FOR v_item IN SELECT value FROM jsonb_array_elements(v_manifest)
+ LOOP
+  IF NOT public.ag_verify_watch_operation_postcondition(
+   p_cycle_id,v_item->>'stream',v_item->>'symbol',v_item->>'action',
+   CASE WHEN jsonb_typeof(v_item->'source_row_id')='string'
+     THEN (v_item->>'source_row_id')::uuid ELSE NULL END,
+   v_item->>'resolution',v_item->'outcome'->>'companyName',
+   CASE WHEN jsonb_typeof(v_item->'outcome'->'confidence')='number'
+     THEN (v_item->'outcome'->>'confidence')::numeric ELSE NULL END,
+   v_item->'outcome'->>'thesis',
+   CASE WHEN jsonb_typeof(v_item->'outcome'->'unresolvedQuestions')='array'
+     THEN ARRAY(SELECT jsonb_array_elements_text(v_item->'outcome'->'unresolvedQuestions')) ELSE NULL END,
+   v_item->'outcome'->>'thesisClock',
+   CASE WHEN jsonb_typeof(v_item->'outcome'->'invalidation')='array'
+     THEN ARRAY(SELECT jsonb_array_elements_text(v_item->'outcome'->'invalidation')) ELSE NULL END,
+   v_item->'outcome'->>'model',v_item->'outcome'->>'promptVersion',
+   CASE WHEN jsonb_typeof(v_item->'outcome'->'priorWatchReassessed')='boolean'
+     THEN (v_item->'outcome'->>'priorWatchReassessed')::boolean
+     ELSE false END
+  ) THEN RETURN false; END IF;
+ END LOOP;
+ RETURN true;
+END;
+$agwatchmanifest$;
+REVOKE ALL ON FUNCTION public.ag_verify_cycle_watch_manifest(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ag_verify_cycle_watch_manifest(uuid) TO authenticated;
