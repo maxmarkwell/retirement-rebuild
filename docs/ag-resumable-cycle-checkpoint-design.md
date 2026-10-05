@@ -41,11 +41,11 @@ CREATE INDEX ag_cycle_stage_checkpoints_portfolio_idx
   ON public.ag_cycle_stage_checkpoints(portfolio_id, cycle_id);
 
 ALTER TABLE public.ag_cycle_stage_checkpoints ENABLE ROW LEVEL SECURITY;
-CREATE POLICY ag_cycle_stage_checkpoints_select_own
-  ON public.ag_cycle_stage_checkpoints FOR SELECT TO authenticated
-  USING (user_id = (SELECT auth.uid()));
--- Intentionally no client INSERT/UPDATE/DELETE policy. Implement stage claims
--- using a narrowly scoped SECURITY DEFINER RPC after security review.
+REVOKE ALL ON TABLE public.ag_cycle_stage_checkpoints FROM anon, authenticated;
+GRANT ALL ON TABLE public.ag_cycle_stage_checkpoints TO service_role;
+-- No direct authenticated table access: checkpoint output contains internal
+-- recovery evidence. Expose only narrowly scoped SECURITY DEFINER claim,
+-- completion, status and reconciliation RPCs after security review.
 ```
 
 ## Before activation
