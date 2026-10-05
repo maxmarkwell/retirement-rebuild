@@ -23,6 +23,12 @@ Status: **read-only production catalog audit completed. No DDL or data writes we
   `ai_committee` row for a user/portfolio/ticker. It is not era-scoped.
   Draft persistence must explicitly fence any active row predating the
   current strategy era rather than discovering the conflict only at INSERT.
+- Live `investment_decisions` also has a SECURITY DEFINER BEFORE INSERT trigger,
+  `supersede_prior_active_ai_decisions_before_insert`, which supersedes every
+  active `ai_committee` row for the same user/portfolio/ticker without an era
+  predicate. The draft's pre-era fence must therefore execute before INSERT;
+  the disposable fixture now mirrors this trigger so a regression would mutate
+  historical state and fail CI.
 - `public.ag_research_watchlist` exists with RLS enabled and the expected
   source-row/timestamp fields. Its live resolution constraint includes
   `QUANTITATIVE_REVIEW`, `QUANTITATIVE_REJECT`, and
@@ -61,8 +67,11 @@ the migration-history table.
 4. Fence pre-era active AI decisions explicitly before atomic insertion.
 5. Reconcile Sep. 21–24 repository migrations with the actual production
    catalog before generating or applying any new migration.
-6. Build the next disposable fixture from these confirmed live constraints,
-   then rerun role/RLS, retry, ambiguity, mixed-batch and watchlist tests.
+6. The disposable fixture now mirrors the live cross-era uniqueness index,
+   pgcrypto schema and decision supersession trigger. Continue closing the
+   remaining actual-schema differences (notably the intentionally proposed
+   `notes` column and full RLS/role surface), then rerun role/RLS, retry,
+   ambiguity, mixed-batch and watchlist tests.
 7. Security-review all SECURITY DEFINER functions and grants independently
    before deployment.
 
