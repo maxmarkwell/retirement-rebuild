@@ -19,15 +19,15 @@ const frozen=(ticker:string,kind:"holding_review"|"committee",type:string)=>({
   assert.ok(!calls.some(x=>x.p_claim_token===oldClaim));
  });
  test("supports an explicit zero-decision cycle",()=>{
-  expect(prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
-   holding:{decision_payloads:[]},committee:{decision_payloads:[]}})).toEqual([]);
+  assert.deepEqual(prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
+   holding:{decision_payloads:[]},committee:{decision_payloads:[]}}),[]);
  });
  test("fails closed on overlap or mutated canonical identity",()=>{
-  expect(()=>prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
+  assert.throws(()=>prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
    holding:frozen("SAME","holding_review","hold"),
-   committee:frozen("SAME","committee","watch")})).toThrow(/overlap/);
+   committee:frozen("SAME","committee","watch")}),/overlap/);
   const bad=frozen("BAD","committee","watch");
   (bad.decision_payloads[0].args as unknown[])[0]="99999999-9999-4999-8999-999999999999";
-  expect(()=>prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
-   holding:{decision_payloads:[]},committee:bad})).toThrow(/payload/);
+  assert.throws(()=>prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
+   holding:{decision_payloads:[]},committee:bad}),/payload/);
  });
