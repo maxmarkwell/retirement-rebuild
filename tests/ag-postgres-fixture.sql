@@ -22,4 +22,23 @@ CREATE TABLE public.investment_decisions (
 CREATE UNIQUE INDEX investment_decisions_one_active_ai_per_ticker
  ON public.investment_decisions(user_id,portfolio_id,ticker)
  WHERE source='ai_committee' AND status='active';
+-- Mirror the live BEFORE INSERT lifecycle trigger. The atomic RPC must reject
+-- pre-era active rows before INSERT, otherwise this trigger would supersede
+-- historical state across strategy eras.
+CREATE OR REPLACE FUNCTION public.supersede_prior_active_ai_decisions()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $agfixture$
+BEGIN
+  IF NEW.source='ai_committee' THEN
+    UPDATE public.investment_decisions
+    SET status='superseded'
+    WHERE user_id=NEW.user_id AND portfolio_id=NEW.portfolio_id
+      AND ticker=NEW.ticker AND source='ai_committee' AND status='active';
+  END IF;
+  RETURN NEW;
+END
+$agfixture$;
+CREATE TRIGGER supersede_prior_active_ai_decisions_before_insert
+BEFORE INSERT ON public.investment_decisions
+FOR EACH ROW EXECUTE FUNCTION public.supersede_prior_active_ai_decisions();
 -- This fixture deliberately supplies notes; the production catalog must be checked independently.
