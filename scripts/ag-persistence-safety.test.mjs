@@ -31,3 +31,15 @@ test("resumable persistence transport has no automatic replay path",()=>{
  assert.match(recovery,/COMPLETE_ONLY/);
  assert.match(recovery,/MANUAL_RECONCILIATION/);
 });
+
+test("symbol checkpoint transport remains isolated from active runner",()=>{
+ const runner=readFileSync("lib/discovery/accelerated-growth/daily-cycle-work.ts","utf8");
+ const adapter=readFileSync("lib/discovery/accelerated-growth/resumable-daily-cycle-adapter.ts","utf8");
+ const transport=readFileSync("lib/discovery/accelerated-growth/symbol-checkpoint-supabase.ts","utf8");
+ const orchestrator=readFileSync("lib/discovery/accelerated-growth/symbol-checkpoint-orchestrator.ts","utf8");
+ assert.doesNotMatch(runner,/symbol-checkpoint|resumable-daily-cycle-adapter/);
+ assert.doesNotMatch(adapter,/symbol-checkpoint-supabase|runNextAgSymbolWork/);
+ assert.match(transport,/ag_claim_cycle_symbol/);
+ assert.match(transport,/ag_complete_cycle_symbol/);
+ assert.doesNotMatch(orchestrator,/retry|setTimeout|setInterval/i);
+});
