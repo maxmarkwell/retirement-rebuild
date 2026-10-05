@@ -1,13 +1,13 @@
 # AG immutable intent capture: implementation handoff
 
-**Design only; not wired to the active runner.** Existing `daily-cycle-work.ts`
+**Isolated capture implementation; not wired to the active runner.** Existing `daily-cycle-work.ts`
 still fails closed before legacy persistence. This handoff ties the proposed
 checkpoint manifest to the *existing* AG research and holding pipelines; it
 does not create a second research or Committee implementation.
 
 ## Implemented isolated capture boundary
 
-The pure `immutable-intent-capture.ts` now builds both manifests from existing decision types, validated upstream `eligibleSymbols`, `failedCount` **and** `errors`. Both existing pipeline result types now expose the actual eligible symbols. Its combined preflight rejects cross-stage duplicates and mixed cycles. The module is tested but **not called by the active runner**, and a successful in-memory snapshot is not durable evidence until checkpoint completion stores it atomically. It intentionally does not authorize RPC writes or completion.
+The pure `immutable-intent-capture.ts` now builds both manifests from existing decision types, validated upstream `eligibleSymbols`, `failedCount` **and** `errors`. Both existing pipeline result types now expose the actual eligible symbols. Its combined preflight rejects cross-stage duplicates and mixed cycles. The module is tested but **not called by the active runner**, and a successful in-memory snapshot is not durable evidence until checkpoint completion stores it atomically. It intentionally does not authorize persistence RPC writes. `stage-checkpoint-capture.ts` plus `stage-checkpoint-supabase.ts` now provide an isolated authenticated claim/completion boundary for making those manifests durable; CI forbids that layer from decision/watch persistence, transaction execution, direct recovery-table access, or active-runner imports.
 
 ## Existing output boundaries
 
@@ -88,4 +88,4 @@ The existing Committee writer derives BUY execution evidence by fetching the dyn
 
 ## Watchlist intent boundary
 
-The isolated `watchlist-intent-capture.ts` now snapshots all three legacy watchlist mutation streams after a clean upstream research result, without any database writes. Its tests cover distinct streams, duplicate/conflicting ticker operations, incomplete research, immutable output and the normalized 0–1 confidence scale. The checked-in research-watchlist migration does not allow the legacy writer's `QUANTITATIVE_*` resolution strings. See `ag-watchlist-recovery-gate.md` for the read-only schema audit and durable replay requirements. Do not infer that a passing pure planner proves the watchlist can be persisted or safely resumed.
+The isolated `watchlist-intent-capture.ts` now snapshots all three legacy watchlist mutation streams after a clean upstream research result, without any database writes. Its tests cover distinct streams, duplicate/conflicting ticker operations, incomplete research, immutable output and the normalized 0–1 confidence scale. The live research-watchlist constraint audit confirmed the `QUANTITATIVE_*` resolution strings used by the legacy writer are allowed. Deep-research outcomes now preserve `priorWatchRowId` through `committee-pipeline.ts`, so reassessed WATCH intent retains the exact source row identity. See `ag-watchlist-recovery-gate.md` for durable replay requirements. Do not infer that a passing pure planner proves the watchlist can be persisted or safely resumed.
