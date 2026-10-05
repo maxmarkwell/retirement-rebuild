@@ -70,7 +70,7 @@ BEGIN
  WHERE cycle_id='cccccccc-cccc-4ccc-8ccc-cccccccccccc' AND ticker='SUCCESS';
  ok := public.ag_complete_persistence_stage(cp,token,ARRAY['SUCCESS']);
  IF ok THEN RAISE EXCEPTION 'Mismatched Committee digest completed persistence'; END IF;
- UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(public.digest(
+ UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(extensions.digest(
   convert_to(jsonb_build_array(
    'cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid,
    'SUCCESS','committee','watch','Success-path thesis',75::numeric,
