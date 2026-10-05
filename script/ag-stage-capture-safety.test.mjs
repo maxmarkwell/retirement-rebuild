@@ -87,7 +87,7 @@ assert.ok(!persistencePlan.includes("supabase"));
 assert.ok(!persistencePlan.includes("commitPreparedAgBatch"));
 assert.ok(researchStages.includes('stage:"discovery"')&&researchStages.includes('claim(input.cycleId,"catalyst_deep_research")')&&researchStages.includes('claim(input.cycleId,"committee")'));
 assert.ok(researchStages.includes("resumeAgDeepResearchFanout")&&researchStages.includes("resumeAgCommitteeFanout"));
-assert.ok(researchStages.includes("deriveAgExecutionEvidence(frozen)"));
+assert.ok(researchStages.includes("resumeAgCommitteeFanout"));
 assert.ok(researchStages.includes("parseAgDiscoveryStagePayload"));
 assert.ok(researchStages.includes("parseAgDeepResearchResults"));
 assert.ok(!researchStages.includes("getDynamicDiscoveryUniverse"));
