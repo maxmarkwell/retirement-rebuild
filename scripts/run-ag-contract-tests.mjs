@@ -69,3 +69,15 @@ await import(toDataUrl(
   watchReconciliationTests.replace('"./watchlist-reconciliation"', JSON.stringify(watchReconciliationUrl)),
   "watchlist-reconciliation.test.ts"
 ));
+
+
+const watchAdapterSource = await readFile(resolve(directory, "watchlist-persistence-adapter.ts"), "utf8");
+const watchAdapterUrl = toDataUrl(
+  watchAdapterSource.replace('"./watchlist-reconciliation"', JSON.stringify(watchReconciliationUrl)),
+  "watchlist-persistence-adapter.ts"
+);
+const watchAdapterTests = await readFile(resolve(directory, "watchlist-persistence-adapter.test.ts"), "utf8");
+await import(toDataUrl(
+  watchAdapterTests.replace('"./watchlist-persistence-adapter"', JSON.stringify(watchAdapterUrl)),
+  "watchlist-persistence-adapter.test.ts"
+));
