@@ -37,7 +37,7 @@ test("AG finalization candidate is authenticated, CAS-like, and paper-only",asyn
  assert.doesNotMatch(sql,/transactions/i);
 });
 
-test("research route cannot import finalization transport",async()=>{
+test("route cannot directly import finalization transport or RPC",async()=>{
  const route=await readFile("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
  assert.doesNotMatch(route,/cycle-finalization-supabase|ag_finalize_daily_cycle/);
 });
