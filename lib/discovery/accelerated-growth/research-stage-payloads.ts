@@ -1,4 +1,4 @@
-import type {AgDiscoveryHandoff} from "./research-stage-handoff";
+import {freezeAgDiscoveryHandoff,type AgDiscoveryHandoff} from "./research-stage-handoff";
 import type {AgDeepStageResult} from "./catalyst-deep-stage-work";
 import {captureAgWatchlistIntent} from "./watchlist-intent-capture";
 
@@ -6,8 +6,12 @@ export function buildAgDiscoveryStagePayload(h:AgDiscoveryHandoff):Record<string
  return {discovery:h.discovery,watch_context:h.watchContext};
 }
 export function parseAgDiscoveryStagePayload(p:Record<string,unknown>):AgDiscoveryHandoff{
- if(!p||typeof p.discovery!=="object"||typeof p.watch_context!=="object") throw new Error("Invalid AG Discovery checkpoint payload");
- return structuredClone({discovery:p.discovery,watchContext:p.watch_context}) as AgDiscoveryHandoff;
+ if(!p||typeof p.discovery!=="object"||p.discovery===null||
+    typeof p.watch_context!=="object"||p.watch_context===null)
+  throw new Error("Invalid AG Discovery checkpoint payload");
+ return freezeAgDiscoveryHandoff(structuredClone({
+  discovery:p.discovery,watchContext:p.watch_context,
+ }) as AgDiscoveryHandoff);
 }
 export function buildAgCatalystDeepStagePayload(input:{cycleId:string;result:AgDeepStageResult}):Record<string,unknown>{
  const watch=captureAgWatchlistIntent({
@@ -23,5 +27,17 @@ export function buildAgCatalystDeepStagePayload(input:{cycleId:string;result:AgD
 }
 export function parseAgDeepResearchResults(p:Record<string,unknown>):AgDeepStageResult["results"]{
  if(!Array.isArray(p.deep_research_results)) throw new Error("Missing AG deep research checkpoint results");
- return structuredClone(p.deep_research_results) as AgDeepStageResult["results"];
+ const results=structuredClone(p.deep_research_results) as AgDeepStageResult["results"];
+ const seen=new Set<string>();
+ for(const r of results){
+  if(!r||typeof r.symbol!=="string"||!/^[A-Z][A-Z0-9.-]{0,14}$/.test(r.symbol)||
+     seen.has(r.symbol)||!["PROCEED","WATCH","STOP"].includes(r.researchStatus)||
+     !Number.isFinite(r.confidence)||r.confidence<0||r.confidence>1||
+     typeof r.thesis!=="string"||!r.thesis.trim()||
+     typeof r.model!=="string"||!r.model.trim()||
+     typeof r.promptVersion!=="string"||!r.promptVersion.trim())
+   throw new Error("Invalid AG deep research checkpoint result");
+  seen.add(r.symbol);
+ }
+ return results;
 }
