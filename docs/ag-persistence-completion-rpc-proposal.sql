@@ -21,7 +21,6 @@ DECLARE v_checkpoint public.ag_cycle_stage_checkpoints%ROWTYPE;
         v_holding_count integer;
 BEGIN
  IF auth.uid() IS NULL OR p_expected_tickers IS NULL OR
-    cardinality(p_expected_tickers) = 0 OR
     EXISTS (SELECT 1 FROM unnest(p_expected_tickers) t
             WHERE t IS NULL OR t !~ '^[A-Z][A-Z0-9.-]{0,14}$') OR
     cardinality(p_expected_tickers) <>
