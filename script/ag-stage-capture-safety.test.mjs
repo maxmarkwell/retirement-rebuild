@@ -17,6 +17,7 @@ for(const [name,text] of [["transport",transport],["capture",capture],["builders
 }
 assert.ok(transport.includes('supabase.rpc("ag_claim_cycle_stage"'));
 assert.ok(transport.includes('supabase.rpc("ag_complete_cycle_stage"'));
+assert.ok(transport.includes("p_output:output.payload"));
 assert.ok(transport.includes("supabase.auth.getUser()"));
 assert.ok(executor.indexOf("rpc.claim") < executor.indexOf("input.run"));
 assert.ok(executor.indexOf("input.run") < executor.indexOf("rpc.complete"));
