@@ -30,6 +30,7 @@ export type AgCommitteePipelineResult = {
       model: string;
       promptVersion: string;
       priorWatchReassessed: boolean;
+      priorWatchRowId: string | null;
     }>;
     quantitativeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["quantitativeWatchResolutions"];
     committeeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["committeeWatchResolutions"];
@@ -64,6 +65,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
       model: result.model,
       promptVersion: result.promptVersion,
       priorWatchReassessed: result.priorWatchReassessed,
+      priorWatchRowId: result.priorWatchRowId,
     })),
     quantitativeWatchResolutions: upstream.quantitativeWatchResolutions,
     committeeWatchResolutions: upstream.committeeWatchResolutions,
