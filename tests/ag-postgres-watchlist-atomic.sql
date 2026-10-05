@@ -87,7 +87,7 @@ BEGIN
   RAISE EXCEPTION 'Conflicting watch retry accepted';
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Conflicting watch retry accepted' THEN RAISE; END IF;
-  IF SQLERRM<>'Conflicting payload for AG watch operation' THEN RAISE; END IF;
+  IF SQLERRM<>'Watch operation or frozen payload absent from completed research manifest' THEN RAISE; END IF;
  END;
  noop_ledger:=public.ag_commit_watch_operation(
   '15151515-1515-4515-8515-151515151515','18181818-1818-4818-8818-181818181818',
