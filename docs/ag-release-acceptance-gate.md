@@ -33,3 +33,10 @@
 **STOP** if any schema assumption is unverified, the durable Committee intent or holding/watchlist coverage is incomplete, a ledger hash cannot be compared to immutable source payloads, or any stage has ambiguous writes. No amount of green mock-schema CI overrides these conditions.
 
 **GO for review only** when branch tests are green and every open item has an owner and explicit evidence. **GO for production** requires all blockers closed and a separate explicit authorization; do not conflate a merged diagnostics branch with enabled AG.
+
+
+## Runner integration seam after production recovery DDL
+
+Production recovery DDL and the anon-RPC privilege follow-up are now installed, but AG remains OFF. A new isolated `resumable-daily-cycle-adapter.ts` composes authenticated checkpoint-status reading, resume planning, and exactly one research-stage execution for holding review, Discovery, catalyst/deep research, or Committee. It explicitly stops when persistence is the next stage and has no decision/watch persistence or transaction-execution imports. The active `daily-cycle-work.ts` and route do **not** import this adapter yet; the legacy persistence hard stop remains intact. This creates a testable integration seam without activating the new runner.
+
+**Still blocked:** contract/type CI for the new seam, direct adapter behavior tests with injected dependencies, a separately reviewed persistence-stage runner/reconciliation boundary, deliberate active-route wiring, deployment, and paper activation authorization. Transaction execution remains a later independent gate.
