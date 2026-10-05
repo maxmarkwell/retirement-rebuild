@@ -214,7 +214,7 @@ BEGIN
  IF cp IS DISTINCT FROM 'a2333333-3333-4333-8333-333333333333'::uuid OR token IS NULL
  THEN RAISE EXCEPTION 'Deep-research stage claim identity invalid'; END IF;
  BEGIN
-  PERFORM public.ag_complete_cycle_stage(cp,token,'{"selected_symbols":[],"deep_research_results":[],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
+  PERFORM public.ag_complete_cycle_stage(cp,token,'{"selected_symbols":["BAD"],"deep_research_results":[{"symbol":"BAD","researchStatus":"PROCEED","confidence":0.7,"thesis":"Missing provenance"}],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
   RAISE EXCEPTION 'Incomplete deep-research handoff accepted';
  EXCEPTION WHEN OTHERS THEN IF SQLERRM='Incomplete deep-research handoff accepted' THEN RAISE; END IF; END;
  ok:=public.ag_complete_cycle_stage(cp,token,
