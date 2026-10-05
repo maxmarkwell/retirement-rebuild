@@ -228,3 +228,33 @@ BEGIN
    AND output->'deep_research_results'->0->>'symbol'='DEEP';
  IF n<>1 THEN RAISE EXCEPTION 'Completed deep-research output did not round-trip through authenticated RPC'; END IF;
 END $agdeep$;
+
+
+-- Committee checkpoint: ordered claim, immutable intent completion, owner read-back.
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+INSERT INTO public.ag_cycle_stage_checkpoints(id,cycle_id,user_id,portfolio_id,strategy_era_id,stage,status)
+VALUES ('a2444444-4444-4444-8444-444444444444','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','pending');
+DO $agcommittee$
+DECLARE ok boolean; cp uuid; token uuid; n integer; payload jsonb;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token
+ FROM public.ag_claim_cycle_stage('a2020202-2020-4020-8020-202020202020'::uuid,'committee');
+ IF cp IS DISTINCT FROM 'a2444444-4444-4444-8444-444444444444'::uuid OR token IS NULL
+ THEN RAISE EXCEPTION 'Committee stage claim identity invalid'; END IF;
+ payload:=jsonb_build_object(
+  'source_symbols',jsonb_build_array('DEEP'),'source_count',1,'output_count',1,'failure_count',0,
+  'source_decisions',jsonb_build_array(jsonb_build_object('symbol','DEEP','decision','WATCH')),
+  'persistence_tickers',jsonb_build_array('DEEP'),
+  'decision_payloads',jsonb_build_array(jsonb_build_object('ticker','DEEP','args',
+    jsonb_build_array('a2020202-2020-4020-8020-202020202020','DEEP','committee','watch',
+      'Committee thesis',80,'medium','Evidence','Counter','Monitor','Invalidate',
+      NULL,false,true,'evidence-v1',NULL))));
+ ok:=public.ag_complete_cycle_stage(cp,token,payload);
+ IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'Valid Committee handoff did not complete'; END IF;
+ SELECT count(*) INTO n FROM public.ag_read_completed_stage_output(
+  'a2020202-2020-4020-8020-202020202020'::uuid,'committee')
+ WHERE stage='committee' AND output->>'source_count'='1'
+   AND output->'persistence_tickers'='["DEEP"]'::jsonb;
+ IF n<>1 THEN RAISE EXCEPTION 'Completed Committee output did not round-trip'; END IF;
+END $agcommittee$;
