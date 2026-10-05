@@ -81,6 +81,13 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
 
+      - name: Verify reviewed migration candidate digest
+        run: |
+          set -euo pipefail
+          expected="$(cat supabase/migration-candidates/20261005_ag_recovery_review_candidate.sha256)"
+          actual="$(sha256sum supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql | awk '{print $1}')"
+          test "$actual" = "$expected" || { echo "AG migration candidate digest mismatch" >&2; exit 1; }
+
       - name: Verify migration candidate rolls back atomically on failure
         run: |
           set -euo pipefail
