@@ -322,7 +322,6 @@ BEGIN
   END IF;
 
   -- Deep-research completion must freeze the exact watchlist mutation plan,
-  -- Deep-research completion must freeze the exact watchlist mutation plan,
   -- including source row identities and full WATCH upsert payloads. This is a
   -- structural provenance boundary; it does not prove model authenticity.
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
