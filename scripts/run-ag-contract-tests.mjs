@@ -147,3 +147,13 @@ const runtimeBudgetSource=await readFile(resolve(directory,"stage-runtime-budget
 const runtimeBudgetUrl=toDataUrl(runtimeBudgetSource,"stage-runtime-budget.ts");
 const runtimeBudgetTests=await readFile(resolve(directory,"stage-runtime-budget.test.ts"),"utf8");
 await import(toDataUrl(runtimeBudgetTests.replace('"./stage-runtime-budget"',JSON.stringify(runtimeBudgetUrl)),"stage-runtime-budget.test.ts"));
+
+const symbolAggregationSource=await readFile(resolve(directory,"symbol-stage-aggregation.ts"),"utf8");
+const committeeTypesSource=await readFile(resolve(directory,"committee.ts"),"utf8");
+const deepTypesSource=await readFile(resolve(directory,"catalyst-deep-stage-work.ts"),"utf8");
+const symbolAggregationRunnable=symbolAggregationSource
+ .replace('import type {AgDeepStageResult} from "./catalyst-deep-stage-work";',"")
+ .replace('import type {AgCommitteeDecision} from "./committee";',"");
+const symbolAggregationUrl=toDataUrl(symbolAggregationRunnable,"symbol-stage-aggregation.ts");
+const symbolAggregationTests=await readFile(resolve(directory,"symbol-stage-aggregation.test.ts"),"utf8");
+await import(toDataUrl(symbolAggregationTests.replace('"./symbol-stage-aggregation"',JSON.stringify(symbolAggregationUrl)),"symbol-stage-aggregation.test.ts"));
