@@ -20,3 +20,14 @@ test("atomic watchlist adapter remains isolated from active runner", () => {
   assert.doesNotMatch(runner, /watchlist-persistence-adapter/);
   assert.match(runner, /assertAgLegacyPersistenceDisabled\(\);/);
 });
+
+test("resumable persistence transport has no automatic replay path",()=>{
+ const executor=readFileSync("lib/discovery/accelerated-growth/persistence-stage-executor.ts","utf8");
+ const transport=readFileSync("lib/discovery/accelerated-growth/persistence-stage-supabase.ts","utf8");
+ const recovery=readFileSync("lib/discovery/accelerated-growth/persistence-recovery-contract.ts","utf8");
+ assert.doesNotMatch(executor,/retry|setTimeout|setInterval/i);
+ assert.doesNotMatch(transport,/retry|setTimeout|setInterval/i);
+ assert.doesNotMatch(recovery,/commitDecision|commitWatch|ag_commit_cycle_decision|ag_commit_watch_operation/);
+ assert.match(recovery,/COMPLETE_ONLY/);
+ assert.match(recovery,/MANUAL_RECONCILIATION/);
+});
