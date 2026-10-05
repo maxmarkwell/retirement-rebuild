@@ -3,8 +3,8 @@ import "server-only";
 import type {AgStageCheckpointRpc} from "./stage-checkpoint-capture";
 import {executeAgClaimedStage} from "./resumable-stage-executor";
 import {runAgDiscoveryStageWork} from "./discovery-stage-work";
-import {runAgCatalystDeepResearchStage} from "./catalyst-deep-stage-work";
-import {runAgCommitteeStage} from "./committee-stage-work";
+import {resumeAgDeepResearchFanout,resumeAgCommitteeFanout} from "./resumable-symbol-fanout";
+
 import {buildAgDiscoveryStagePayload,buildAgCatalystDeepStagePayload,parseAgDiscoveryStagePayload,parseAgDeepResearchResults} from "./research-stage-payloads";
 import {readAuthenticatedAgCompletedStageOutput} from "./stage-output-reader";
 import {deriveAgExecutionEvidence} from "./execution-evidence";
