@@ -16,6 +16,8 @@
 
 - [x] Isolated pure watchlist-intent capture now records research upserts/resolutions, quantitative resolutions and Committee WATCH supersessions from a clean upstream research result; contract tests cover duplicate/conflicting instructions, normalized confidence, incomplete research and frozen snapshots. **No watchlist database writes or replay are implemented.** The checked-in research-watchlist migration's resolution constraint excludes the legacy writer's `QUANTITATIVE_*` values; verify the actual live constraint before proposing a fix. See `ag-watchlist-recovery-gate.md`.
 
+- [x] Isolated read-only watchlist ledger reconciliation now classifies exact recorded operations separately from missing, conflicting, pending, duplicate and cross-cycle evidence. Exact matches **still require actual database postcondition checks** and do not authorize replay; no atomic watchlist RPC or operation ledger exists yet. See `ag-watchlist-recovery-gate.md`.
+
 ## Mandatory unresolved release blockers
 
 1. **Read-only live schema audit.** Verify `investment_decisions.notes` and every inserted column, decision constraints, actual `pgcrypto` schema, permissions, checkpoint/ledger existence, and deployed migration history. The disposable fixture deliberately includes `notes`; do not infer live compatibility. See `ag-schema-compatibility-review.md`.
