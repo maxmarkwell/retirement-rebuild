@@ -34,3 +34,20 @@ test("durability coordinator is paper-only and cannot execute transactions",asyn
  assert.match(source,/transactionsWritten:false/);
  assert.doesNotMatch(source,/executeAgDailyCycleTransactions|daily-cycle-execution|ag_execution_authorizations|ag_sell_execution_authorizations/);
 });
+
+
+test("expired symbol-parent recovery stays narrow and cannot bypass active leases",async()=>{
+ const adapter=await readFile("lib/discovery/accelerated-growth/resumable-daily-cycle-adapter.ts","utf8");
+ const transport=await readFile("lib/discovery/accelerated-growth/stage-checkpoint-supabase.ts","utf8");
+ const migration=await readFile("supabase/migration-candidates/20261005_ag_symbol_parent_reclaim_review_candidate.sql","utf8");
+ assert.match(adapter,/reclaimAuthenticatedAgExpiredSymbolParent/);
+ assert.match(adapter,/reclaimedSymbolParent/);
+ assert.match(adapter,/!reclaimedSymbolParent/);
+ assert.match(transport,/ag_reclaim_expired_symbol_parent_stage/);
+ assert.match(migration,/p_stage NOT IN \('catalyst_deep_research','committee'\)/);
+ assert.match(migration,/lease_expires_at>=now\(\)/);
+ assert.match(migration,/status IN \('running','failed','needs_manual_review'\)/);
+ assert.match(migration,/p\.is_real_money=false/);
+ assert.match(migration,/e\.execution_mode='paper'/);
+ assert.doesNotMatch(adapter,/executeAgDailyCycleTransactions|daily-cycle-execution/);
+});
