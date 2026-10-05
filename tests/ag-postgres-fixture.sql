@@ -19,4 +19,7 @@ CREATE TABLE public.investment_decisions (
  ag_liquidity_eligible boolean, ag_evidence_version text, ag_theme_key text,
  created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE UNIQUE INDEX investment_decisions_one_active_ai_per_ticker
+ ON public.investment_decisions(user_id,portfolio_id,ticker)
+ WHERE source='ai_committee' AND status='active';
 -- This fixture deliberately supplies notes; the production catalog must be checked independently.
