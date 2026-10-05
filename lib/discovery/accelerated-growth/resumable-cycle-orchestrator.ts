@@ -57,15 +57,17 @@ export async function runNextAgResumableCycleStep(input?:{maxCandidates?:number;
   if(error||!created)throw new Error(`Unable to create resumable AG cycle: ${error?.message??"unknown error"}`);
   cycleId=created.id;
  }
+ if(!cycleId)throw new Error("AG resumable cycle identity was not established.");
+ const authoritativeCycleId=cycleId;
 
- const step=await runNextAgResumableResearchStage({cycleId,maxCandidates});
+ const step=await runNextAgResumableResearchStage({cycleId:authoritativeCycleId,maxCandidates});
  if(step.plan.action==="manual_review")
-  return {cycleId,cycleDate,status:"running",action:"manual_review",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"manual_review",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
  if(step.plan.action==="wait")
-  return {cycleId,cycleDate,status:"running",action:"wait",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"wait",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
  if(step.plan.action==="complete")
-  return {cycleId,cycleDate,status:"running",action:"research_complete",stage:null,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"research_complete",stage:null,persistenceReady:false,transactionsWritten:false};
  if(step.persistenceReady)
-  return {cycleId,cycleDate,status:"running",action:"persistence_ready",stage:"persistence",persistenceReady:true,transactionsWritten:false};
- return {cycleId,cycleDate,status:"running",action:"stage_step",stage:step.executedStage,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"persistence_ready",stage:"persistence",persistenceReady:true,transactionsWritten:false};
+ return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"stage_step",stage:step.executedStage,persistenceReady:false,transactionsWritten:false};
 }
