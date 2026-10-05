@@ -18,3 +18,26 @@ test("research-only coordinator cannot finalize the authoritative cycle",async()
  assert.doesNotMatch(source,/status:"completed"/);
  assert.doesNotMatch(source,/completed_at/);
 });
+
+test("AG finalization candidate is authenticated, CAS-like, and paper-only",async()=>{
+ const sql=await readFile("supabase/migration-candidates/20261005_ag_cycle_finalization_review_candidate.sql","utf8");
+ assert.match(sql,/security definer/i);
+ assert.match(sql,/set search_path = ''/i);
+ assert.match(sql,/auth\.uid\(\) is null/i);
+ assert.match(sql,/stage='finalized'/);
+ assert.match(sql,/lease_expires_at > now\(\)/);
+ assert.match(sql,/stage='persistence' and status='completed'/);
+ assert.match(sql,/p\.type='paper_active' and p\.is_real_money=false/);
+ assert.match(sql,/ag_verify_committee_payload_manifest/);
+ assert.match(sql,/ag_verify_holding_payload_manifest/);
+ assert.match(sql,/ag_verify_cycle_watch_manifest/);
+ assert.match(sql,/where id=v_cycle\.id and user_id=auth\.uid\(\) and status='running'/);
+ assert.match(sql,/revoke all on function public\.ag_finalize_daily_cycle\(uuid,uuid\) from public/i);
+ assert.match(sql,/revoke all on function public\.ag_finalize_daily_cycle\(uuid,uuid\) from anon/i);
+ assert.doesNotMatch(sql,/transactions/i);
+});
+
+test("research route cannot import finalization transport",async()=>{
+ const route=await readFile("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
+ assert.doesNotMatch(route,/cycle-finalization-supabase|ag_finalize_daily_cycle/);
+});
