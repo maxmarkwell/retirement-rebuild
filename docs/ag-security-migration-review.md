@@ -55,3 +55,9 @@ That last finding removed redundant watchlist constraint DDL from the packaged r
 The review found one additional hardening issue: `ag_protect_completed_checkpoint()` is a trigger-only helper and should never be a client RPC, but PostgreSQL's default function privileges could otherwise leave it executable through PUBLIC. The proposal and packaged candidate now explicitly revoke PUBLIC/anon/authenticated execution and grant it only to `service_role`.
 
 The migration-candidate privilege test now also asserts the exact authenticated SECURITY DEFINER function-name set. Any future recovery edit that accidentally exposes an additional privileged `ag_*` function to `authenticated` will fail CI. At `d2b027a`, PostgreSQL migration/rollback/behavior/smoke coverage and the AG contract/type suites are green with this hardening.
+
+## Authenticated privileged-RPC ownership review
+
+Each authenticated recovery SECURITY DEFINER endpoint was reviewed for caller and ownership fencing. Stage claim/completion and atomic decision/watch writers require `auth.uid()`; writers additionally bind the cycle to the caller, paper AG portfolio/active era, and live claim/lease. Owner-scoped recovery readers join the requested cycle and require both checkpoint/ledger and cycle ownership to match `auth.uid()`. Committee/holding/watch verifiers similarly fail closed outside the owning cycle. Persistence completion combines caller ownership, active paper-era checks, the live persistence claim/lease, and exact decision/watch evidence.
+
+Restricted-role CI now exercises cross-owner denial not only for decision writes/ledger reads, but also checkpoint-status reads, watch-ledger reads, completed-stage output, and the aggregate Committee/holding/watch verifiers. The first edit exposed a test-block delimiter error rather than a security defect; after correcting the fixture, PostgreSQL CI and contract/type CI passed at `ad8dda3`.
