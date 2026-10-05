@@ -25,7 +25,7 @@ BEGIN
  -- manifest must remain incomplete.
  IF public.ag_verify_cycle_watch_manifest('44444444-4444-4444-8444-444444444444')
  THEN RAISE EXCEPTION 'Missing watch manifest verified unexpectedly'; END IF;
-END $;
+END $agmissingwatch$;
 
 -- Fresh isolated cycle with exactly one committed decision: success path.
 INSERT INTO public.ag_daily_cycles VALUES
