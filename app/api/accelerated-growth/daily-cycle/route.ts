@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgResearchDailyCycle } from "@/lib/discovery/accelerated-growth/daily-cycle-work";
 import { runNextAgResumableCycleStep } from "@/lib/discovery/accelerated-growth/resumable-cycle-orchestrator";
+import { runNextAgDurabilityStep } from "@/lib/discovery/accelerated-growth/resumable-durability-orchestrator";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,6 +26,10 @@ export async function POST(request: NextRequest) {
     // most one durable research unit and cannot persist decisions or transact.
     if (process.env.AG_RESUMABLE_RESEARCH_RUNNER_ENABLED === "true") {
       const step = await runNextAgResumableCycleStep({ maxCandidates });
+      if ((step.persistenceReady || step.action === "research_complete") && process.env.AG_RESUMABLE_DURABILITY_ENABLED === "true") {
+        const durable = await runNextAgDurabilityStep({ cycleId: step.cycleId });
+        return NextResponse.json({ ...durable, resumableResearch: true, durabilityEnabled: true, executionEnabled: false, transactionsWritten: false });
+      }
       return NextResponse.json({
         ...step,
         resumableResearch: true,
