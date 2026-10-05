@@ -60,26 +60,26 @@ RESET ROLE;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
 INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle_date,status) VALUES
- ('12121212-1212-4212-8212-121212121212','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date-interval '2 days','running'),
- ('13131313-1313-4313-8313-131313131313','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date-interval '1 day','running');
+ ('a1212121-1212-4212-8212-121212121212','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date-interval '2 days','running'),
+ ('a1313131-1313-4313-8313-131313131313','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date-interval '1 day','running');
 INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output) VALUES
- ('12121212-1212-4212-8212-121212121212','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','completed','{"persistence_tickers":["AFENCE"]}'),
- ('13131313-1313-4313-8313-131313131313','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','completed','{"persistence_tickers":["AFENCE"]}');
+ ('a1212121-1212-4212-8212-121212121212','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','completed','{"persistence_tickers":["AFENCE"]}'),
+ ('a1313131-1313-4313-8313-131313131313','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','completed','{"persistence_tickers":["AFENCE"]}');
 INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at) VALUES
- ('12121212-1212-4212-8212-121212121212','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence','running','14141414-1414-4414-8414-141414141414',now()+interval '10 minutes'),
- ('13131313-1313-4313-8313-131313131313','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence','running','15151515-1515-4515-8515-151515151515',now()+interval '10 minutes');
+ ('a1212121-1212-4212-8212-121212121212','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence','running','a1414141-1414-4414-8414-141414141414',now()+interval '10 minutes'),
+ ('a1313131-1313-4313-8313-131313131313','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence','running','a1515151-1515-4515-8515-151515151515',now()+interval '10 minutes');
 
 DO $$
 DECLARE newer_id uuid;
 BEGIN
  newer_id := public.ag_commit_cycle_decision(
-  '13131313-1313-4313-8313-131313131313','15151515-1515-4515-8515-151515151515',
+  'a1313131-1313-4313-8313-131313131313','a1515151-1515-4515-8515-151515151515',
   'AFENCE','committee','watch','Audited newer thesis',75,'short',NULL,NULL,NULL,NULL,NULL
  );
  IF newer_id IS NULL THEN RAISE EXCEPTION 'Audited newer-cycle decision failed'; END IF;
  BEGIN
   PERFORM public.ag_commit_cycle_decision(
-   '12121212-1212-4212-8212-121212121212','14141414-1414-4414-8414-141414141414',
+   'a1212121-1212-4212-8212-121212121212','a1414141-1414-4414-8414-141414141414',
    'AFENCE','committee','avoid','Audited stale thesis',75,'short',NULL,NULL,NULL,NULL,NULL
   );
   RAISE EXCEPTION 'Audited older cycle unexpectedly committed';
@@ -93,6 +93,6 @@ BEGIN
  ) THEN RAISE EXCEPTION 'Audited newer-cycle decision was altered'; END IF;
  IF EXISTS (
   SELECT 1 FROM public.ag_cycle_decision_writes
-  WHERE cycle_id='12121212-1212-4212-8212-121212121212' AND ticker='AFENCE'
+  WHERE cycle_id='a1212121-1212-4212-8212-121212121212' AND ticker='AFENCE'
  ) THEN RAISE EXCEPTION 'Audited stale cycle left decision-ledger evidence'; END IF;
 END $$;
