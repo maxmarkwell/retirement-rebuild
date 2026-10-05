@@ -207,6 +207,10 @@ BEGIN
   'catalyst_deep_research','running',1,token,now()+interval '5 minutes')
  RETURNING id INTO cp;
  payload:=jsonb_build_object(
+  'selected_symbols',jsonb_build_array('FROZEN'),
+  'deep_research_results',jsonb_build_array(jsonb_build_object(
+    'symbol','FROZEN','researchStatus','WATCH','confidence',0.75,
+    'thesis','Frozen thesis','model','model','promptVersion','v1')),
   'watchlist_intent_count',1,
   'watchlist_intents',jsonb_build_array(jsonb_build_object(
    'stream','research_watch','symbol','FROZEN','source_row_id',null,
@@ -277,6 +281,6 @@ BEGIN
   'catalyst_deep_research','running',1,token,now()+interval '5 minutes')
  RETURNING id INTO cp;
  ok:=public.ag_complete_cycle_stage(cp,token,
-   '{"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
+   '{"selected_symbols":[],"deep_research_results":[],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
  IF NOT ok THEN RAISE EXCEPTION 'Explicit empty watchlist manifest rejected'; END IF;
 END $agtest$;
