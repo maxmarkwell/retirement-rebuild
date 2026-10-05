@@ -246,9 +246,9 @@ BEGIN
   IF SQLERRM<>'Valid frozen watchlist intent manifest required' THEN RAISE; END IF;
  END;
  BEGIN
-  PERFORM public.ag_complete_cycle_stage(cp,token,jsonb_build_object(
-   'watchlist_intent_count',2,'watchlist_intents',
-   (payload->'watchlist_intents')||(payload->'watchlist_intents')));
+  PERFORM public.ag_complete_cycle_stage(cp,token,
+   jsonb_set(jsonb_set(payload,'{watchlist_intent_count}','2'::jsonb),
+     '{watchlist_intents}',(payload->'watchlist_intents')||(payload->'watchlist_intents')));
   RAISE EXCEPTION 'Duplicate watch operation identity accepted';
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Duplicate watch operation identity accepted' THEN RAISE; END IF;
