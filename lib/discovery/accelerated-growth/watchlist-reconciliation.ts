@@ -55,6 +55,41 @@ export function reconcileAgWatchlistIntent(input:{
  * read-only database postcondition verifier with the exact frozen operation.
  * Any false/throw is manual reconciliation; this function never retries writes.
  */
+export type AgWatchPostconditionArgs = {
+  p_cycle_id:string;p_stream:AgWatchIntent["stream"];p_ticker:string;
+  p_action:AgWatchIntent["action"];p_source_row_id:string|null;
+  p_resolution:string|null;p_company_name:string|null;p_confidence:number|null;
+  p_thesis:string|null;p_unresolved_questions:string[]|null;p_thesis_clock:string|null;
+  p_invalidation:string[]|null;p_model:string|null;p_prompt_version:string|null;
+  p_prior_watch_reassessed:boolean;
+};
+/** Marshal one frozen operation to the exact read-only SQL verifier contract.
+ * No claim token is used because verification never writes or replays.
+ */
+export function prepareAgWatchPostconditionArgs(
+  cycleId:string,intent:AgWatchIntent,
+):AgWatchPostconditionArgs{
+  if(!UUID.test(cycleId))throw new Error("Invalid AG watch cycle identity");
+  if(intent.action==="upsert_watch"){
+    return {p_cycle_id:cycleId,p_stream:intent.stream,p_ticker:intent.symbol,
+      p_action:intent.action,p_source_row_id:intent.source_row_id,p_resolution:null,
+      p_company_name:intent.outcome.companyName,p_confidence:intent.outcome.confidence,
+      p_thesis:intent.outcome.thesis,
+      p_unresolved_questions:[...intent.outcome.unresolvedQuestions],
+      p_thesis_clock:intent.outcome.thesisClock,
+      p_invalidation:[...intent.outcome.invalidation],p_model:intent.outcome.model,
+      p_prompt_version:intent.outcome.promptVersion,
+      p_prior_watch_reassessed:intent.outcome.priorWatchReassessed};
+  }
+  return {p_cycle_id:cycleId,p_stream:intent.stream,p_ticker:intent.symbol,
+    p_action:intent.action,p_source_row_id:intent.source_row_id,
+    p_resolution:intent.resolution,p_company_name:null,p_confidence:null,
+    p_thesis:null,p_unresolved_questions:null,p_thesis_clock:null,
+    p_invalidation:null,p_model:null,p_prompt_version:null,
+    p_prior_watch_reassessed:intent.action==="resolve_research"
+      ? intent.source_row_id!==null:false};
+}
+
 export async function verifyAgWatchlistAfterAmbiguousWrite(input:{
   cycleId:string;intents:readonly AgWatchIntent[];ledger:readonly AgWatchLedgerRow[];
 },verifyPostcondition:(cycleId:string,intent:AgWatchIntent)=>Promise<boolean>):
