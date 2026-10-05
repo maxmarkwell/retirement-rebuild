@@ -1,6 +1,6 @@
 -- PROPOSAL ONLY. Read-only, server-side comparison of a frozen Committee
 -- payload manifest against committed per-ticker ledger digests.
--- NOT WIRED TO COMPLETION OR THE ACTIVE RUNNER. A matching digest does not
+-- WIRED TO DRAFT COMPLETION; NOT WIRED TO THE ACTIVE RUNNER. A matching digest does not
 -- prove the upstream Committee produced the manifest; independent upstream
 -- capture/validation remains a release blocker.
 --
@@ -65,7 +65,7 @@ BEGIN
   FROM jsonb_array_elements(v_manifest) AS m(entry);
   IF v_count<>jsonb_array_length(v_manifest) THEN RETURN false; END IF;
   SELECT count(*) INTO v_count FROM public.ag_cycle_decision_writes
-  WHERE cycle_id=p_cycle_id;
+  WHERE cycle_id=p_cycle_id AND decision_kind='committee';
   IF v_count<>jsonb_array_length(v_manifest) THEN RETURN false; END IF;
   IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(v_manifest) AS m(entry)
@@ -112,5 +112,4 @@ GRANT EXECUTE ON FUNCTION public.ag_verify_committee_payload_manifest(uuid)
  TO authenticated;
 -- RELEASE BLOCKERS: upstream Committee provenance and completeness,
 -- typed argument normalization, immutable manifest capture at completion,
--- actual-schema review, holding-review parity, and integration into the
--- same locked transaction as persistence completion.
+-- actual-schema review and combined holding-review parity.
