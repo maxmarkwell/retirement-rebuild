@@ -8,6 +8,13 @@ INSERT INTO public.ag_daily_cycles VALUES (
 INSERT INTO public.ag_cycle_stage_checkpoints(
  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
 ) VALUES (
+ '14141414-1414-4414-8414-141414141414','11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',
+ 'catalyst_deep_research','completed','{"watchlist_intents":[]}'::jsonb
+);
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
  '14141414-1414-4414-8414-141414141414',
  '11111111-1111-4111-8111-111111111111',
  '22222222-2222-4222-8222-222222222222',
