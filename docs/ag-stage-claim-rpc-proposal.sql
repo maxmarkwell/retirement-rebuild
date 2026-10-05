@@ -107,9 +107,6 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
              WHERE id=p_checkpoint_id AND stage='committee') THEN
     IF jsonb_typeof(p_output->'persistence_tickers') IS DISTINCT FROM 'array'
-       OR jsonb_array_length(CASE
-          WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
-          THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END)=0
        OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE
           WHEN jsonb_typeof(p_output->'persistence_tickers')='array'
           THEN p_output->'persistence_tickers' ELSE '[]'::jsonb END) AS item
