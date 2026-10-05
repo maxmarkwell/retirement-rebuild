@@ -8,8 +8,11 @@ const executor=fs.readFileSync(root+"resumable-stage-executor.ts","utf8");
 const stageWork=fs.readFileSync(root+"resumable-stage-work.ts","utf8");
 const statusReader=fs.readFileSync(root+"stage-checkpoint-status-reader.ts","utf8");
 const outputReader=fs.readFileSync(root+"stage-output-reader.ts","utf8");
+const discoveryWork=fs.readFileSync(root+"discovery-stage-work.ts","utf8");
+const deepWork=fs.readFileSync(root+"catalyst-deep-stage-work.ts","utf8");
+const committeeWork=fs.readFileSync(root+"committee-stage-work.ts","utf8");
 const runner=fs.readFileSync(root+"daily-cycle-work.ts","utf8");
-for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader]]){
+for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork]]){
  assert.ok(!text.includes("ag_commit_cycle_decision"),name+" must not persist decisions");
  assert.ok(!text.includes("ag_commit_watch_operation"),name+" must not persist watchlist");
  assert.ok(!text.includes("executeAgDailyCycleTransactions"),name+" must not execute transactions");
@@ -37,5 +40,11 @@ assert.ok(outputReader.includes('supabase.rpc("ag_read_completed_stage_output"')
 assert.ok(!outputReader.includes('.from("ag_cycle_stage_checkpoints")'));
 assert.ok(outputReader.includes("validateAgStageEnvelope"));
 assert.ok(!runner.includes("stage-output-reader"));
+for(const isolated of ["discovery-stage-work","catalyst-deep-stage-work","committee-stage-work","research-stage-payloads"]) assert.ok(!runner.includes(isolated));
+assert.ok(discoveryWork.includes("runAcceleratedGrowthDiscovery"));
+assert.ok(deepWork.includes("researchAgCatalyst")&&deepWork.includes("researchAgDeepCandidate"));
+assert.ok(!deepWork.includes("runAcceleratedGrowthDiscovery"));
+assert.ok(committeeWork.includes("runAgCommittee"));
+assert.ok(!committeeWork.includes("runAgDeepResearchPipeline"));
 assert.ok(runner.includes("assertAgLegacyPersistenceDisabled();"));
 console.log("AG stage-capture isolation contract passed");
