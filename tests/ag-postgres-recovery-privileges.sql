@@ -42,3 +42,29 @@ BEGIN
     AND has_function_privilege('public',p.oid,'EXECUTE');
   IF bad_count<>0 THEN RAISE EXCEPTION 'Recovery function remains executable by PUBLIC'; END IF;
 END $agpriv$;
+
+
+-- Enforce the exact authenticated privileged API surface. Trigger-only helpers
+-- must not become authenticated RPC endpoints.
+DO $agapisurface$
+DECLARE actual text[]; expected text[] := ARRAY[
+ 'ag_claim_cycle_stage','ag_commit_cycle_decision','ag_commit_watch_operation',
+ 'ag_complete_cycle_stage','ag_complete_persistence_stage',
+ 'ag_read_completed_stage_output','ag_read_cycle_checkpoint_status',
+ 'ag_read_cycle_decision_ledger','ag_read_cycle_watch_ledger',
+ 'ag_verify_committee_payload_manifest','ag_verify_cycle_watch_manifest',
+ 'ag_verify_holding_payload_manifest','ag_verify_watch_operation_postcondition'
+]::text[];
+BEGIN
+ SELECT array_agg(DISTINCT p.proname ORDER BY p.proname) INTO actual
+ FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ WHERE n.nspname='public' AND p.proname LIKE 'ag_%'
+   AND p.prosecdef
+   AND has_function_privilege('authenticated',p.oid,'EXECUTE');
+ SELECT array_agg(x ORDER BY x) INTO expected FROM unnest(expected) x;
+ IF actual IS DISTINCT FROM expected THEN
+   RAISE EXCEPTION 'Unexpected authenticated AG SECURITY DEFINER surface: % expected %',actual,expected;
+ END IF;
+ IF has_function_privilege('authenticated','public.ag_protect_completed_checkpoint()','EXECUTE')
+ THEN RAISE EXCEPTION 'Trigger-only checkpoint guard is authenticated-executable'; END IF;
+END $agapisurface$;
