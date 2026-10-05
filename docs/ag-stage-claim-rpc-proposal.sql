@@ -250,6 +250,72 @@ BEGIN
           <> jsonb_array_length(p_output->'source_decisions')
     THEN RAISE EXCEPTION 'Holding intent identities or payloads inconsistent'; END IF;
   END IF;
+  -- Deep-research completion must freeze the exact watchlist mutation plan,
+  -- including source row identities and full WATCH upsert payloads. This is a
+  -- structural provenance boundary; it does not prove model authenticity.
+  IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
+             WHERE id=p_checkpoint_id AND stage='catalyst_deep_research') THEN
+    IF jsonb_typeof(p_output->'watchlist_intents') IS DISTINCT FROM 'array'
+       OR jsonb_typeof(p_output->'watchlist_intent_count') IS DISTINCT FROM 'number'
+       OR p_output->>'watchlist_intent_count' IS DISTINCT FROM
+          jsonb_array_length(CASE
+            WHEN jsonb_typeof(p_output->'watchlist_intents')='array'
+            THEN p_output->'watchlist_intents' ELSE '[]'::jsonb END)::text
+       OR EXISTS (
+        SELECT 1 FROM jsonb_array_elements(CASE
+          WHEN jsonb_typeof(p_output->'watchlist_intents')='array'
+          THEN p_output->'watchlist_intents' ELSE '[]'::jsonb END) item
+        WHERE jsonb_typeof(item) IS DISTINCT FROM 'object'
+          OR item->>'stream' NOT IN ('research_watch','committee_watch')
+          OR (item->>'symbol') !~ '^[A-Z][A-Z0-9.-]{0,14}$'
+          OR item->>'action' NOT IN (
+            'upsert_watch','resolve_research','resolve_quantitative','supersede_committee')
+          OR NOT (
+            (item->>'stream'='research_watch' AND item->>'action' IN (
+              'upsert_watch','resolve_research','resolve_quantitative'))
+            OR (item->>'stream'='committee_watch'
+              AND item->>'action'='supersede_committee'))
+          OR NOT (
+            item->'source_row_id'='null'::jsonb
+            OR (jsonb_typeof(item->'source_row_id')='string'
+              AND (item->>'source_row_id') ~*
+                '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
+          OR (item->>'action' IN ('resolve_quantitative','supersede_committee')
+              AND item->'source_row_id'='null'::jsonb)
+          OR (item->>'action'='resolve_research'
+              AND item->>'resolution' NOT IN ('PROCEED','STOP'))
+          OR (item->>'action' IN ('resolve_quantitative','supersede_committee')
+              AND item->>'resolution' NOT IN ('REVIEW','REJECT','INSUFFICIENT_DATA'))
+          OR (item->>'action'='upsert_watch' AND (
+            jsonb_typeof(item->'outcome') IS DISTINCT FROM 'object'
+            OR item->'outcome'->>'symbol' IS DISTINCT FROM item->>'symbol'
+            OR item->'outcome'->>'researchStatus' IS DISTINCT FROM 'WATCH'
+            OR jsonb_typeof(item->'outcome'->'confidence') IS DISTINCT FROM 'number'
+            OR jsonb_typeof(item->'outcome'->'thesis') IS DISTINCT FROM 'string'
+            OR jsonb_typeof(item->'outcome'->'unresolvedQuestions') IS DISTINCT FROM 'array'
+            OR jsonb_typeof(item->'outcome'->'thesisClock') IS DISTINCT FROM 'string'
+            OR jsonb_typeof(item->'outcome'->'invalidation') IS DISTINCT FROM 'array'
+            OR jsonb_typeof(item->'outcome'->'model') IS DISTINCT FROM 'string'
+            OR jsonb_typeof(item->'outcome'->'promptVersion') IS DISTINCT FROM 'string'
+            OR jsonb_typeof(item->'outcome'->'priorWatchReassessed') IS DISTINCT FROM 'boolean'
+            OR NOT (
+              (item->'outcome'->'companyName'='null'::jsonb)
+              OR jsonb_typeof(item->'outcome'->'companyName')='string')
+            OR item->'outcome'->'priorWatchReassessed' IS DISTINCT FROM
+              CASE WHEN item->'source_row_id'='null'::jsonb
+                THEN 'false'::jsonb ELSE 'true'::jsonb END
+            OR item->'outcome'->'priorWatchRowId' IS DISTINCT FROM item->'source_row_id'
+          ))
+       )
+       OR (SELECT count(*) FROM jsonb_array_elements(CASE
+             WHEN jsonb_typeof(p_output->'watchlist_intents')='array'
+             THEN p_output->'watchlist_intents' ELSE '[]'::jsonb END))
+          <> (SELECT count(DISTINCT (item->>'stream')||':'||(item->>'symbol'))
+              FROM jsonb_array_elements(CASE
+                WHEN jsonb_typeof(p_output->'watchlist_intents')='array'
+                THEN p_output->'watchlist_intents' ELSE '[]'::jsonb END) item)
+    THEN RAISE EXCEPTION 'Valid frozen watchlist intent manifest required'; END IF;
+  END IF;
   IF EXISTS (SELECT 1 FROM public.ag_cycle_stage_checkpoints
              WHERE id=p_checkpoint_id AND stage='persistence') THEN
     RAISE EXCEPTION 'Persistence requires ledger-verified completion';
