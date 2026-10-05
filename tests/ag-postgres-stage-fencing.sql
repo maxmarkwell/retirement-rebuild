@@ -284,3 +284,28 @@ BEGIN
    '{"selected_symbols":[],"deep_research_results":[],"watchlist_intent_count":0,"watchlist_intents":[]}'::jsonb);
  IF NOT ok THEN RAISE EXCEPTION 'Explicit empty watchlist manifest rejected'; END IF;
 END $agtest$;
+
+
+-- Committee stage may legitimately complete with no eligible decisions, but
+-- only with a complete explicit empty manifest.
+INSERT INTO public.ag_daily_cycles VALUES (
+ 'acacacac-acac-4cac-8cac-acacacacacac',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',current_date+13,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ 'acacacac-acac-4cac-8cac-acacacacacac',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333','catalyst_deep_research','completed','{}');
+DO $agemptycommittee$
+DECLARE cp uuid; token uuid; ok boolean;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token FROM
+ public.ag_claim_cycle_stage('acacacac-acac-4cac-8cac-acacacacacac','committee');
+ ok:=public.ag_complete_cycle_stage(cp,token,
+  '{"persistence_tickers":[],"source_symbols":[],"source_decisions":[],"decision_payloads":[],"source_count":0,"output_count":0,"failure_count":0}'::jsonb);
+ IF NOT ok THEN RAISE EXCEPTION 'Explicit empty Committee checkpoint failed completion'; END IF;
+END $agemptycommittee$;
