@@ -97,93 +97,45 @@ BEGIN
  ) THEN RAISE EXCEPTION 'Audited stale cycle left decision-ledger evidence'; END IF;
 END $$;
 
--- Audited-schema atomic rollback: a failed INSERT must roll back supersession
--- and the pending ledger row as one transaction.
+-- Audited-schema atomic rollback: use a dedicated cycle with an immutable manifest.
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
-UPDATE public.ag_cycle_stage_checkpoints
-SET output=jsonb_set(COALESCE(output,'{}'::jsonb),'{persistence_tickers}',
-  COALESCE(output->'persistence_tickers','[]'::jsonb) || '"AROLL"'::jsonb)
-WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND stage='committee';
-INSERT INTO public.investment_decisions(
- user_id,portfolio_id,ticker,decision_type,source,status,thesis,created_at
-) VALUES (
- 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
- 'AROLL','hold','ai_committee','active','Audited existing decision',now()
-);
-ALTER TABLE public.investment_decisions
- ADD CONSTRAINT ag_actual_reject_rollback_thesis CHECK (thesis <> 'Audited forced rollback');
-DO $$
-BEGIN
+INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle_date,status) VALUES
+ ('a1616161-1616-4616-8616-161616161616','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date+1,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output) VALUES
+ ('a1616161-1616-4616-8616-161616161616','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','completed','{"persistence_tickers":["AROLL"]}');
+INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at) VALUES
+ ('a1616161-1616-4616-8616-161616161616','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence','running','a1717171-1717-4717-8717-171717171717',now()+interval '10 minutes');
+INSERT INTO public.investment_decisions(user_id,portfolio_id,ticker,decision_type,source,status,thesis,created_at)
+VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','AROLL','hold','ai_committee','active','Audited existing decision',now());
+ALTER TABLE public.investment_decisions ADD CONSTRAINT ag_actual_reject_rollback_thesis CHECK (thesis <> 'Audited forced rollback');
+DO $$ BEGIN
  BEGIN
-  PERFORM public.ag_commit_cycle_decision(
-   'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-   'AROLL','committee','watch','Audited forced rollback',75,'short',NULL,NULL,NULL,NULL,NULL
-  );
+  PERFORM public.ag_commit_cycle_decision('a1616161-1616-4616-8616-161616161616','a1717171-1717-4717-8717-171717171717','AROLL','committee','watch','Audited forced rollback',75,'short',NULL,NULL,NULL,NULL,NULL);
   RAISE EXCEPTION 'Audited failed INSERT unexpectedly committed';
- EXCEPTION WHEN OTHERS THEN
-  IF SQLERRM='Audited failed INSERT unexpectedly committed' THEN RAISE; END IF;
- END;
- IF (SELECT count(*) FROM public.investment_decisions
-     WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-       AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-       AND ticker='AROLL' AND status='active')<>1
- THEN RAISE EXCEPTION 'Audited rollback did not preserve prior active decision'; END IF;
- IF EXISTS (
-  SELECT 1 FROM public.investment_decisions
-  WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-    AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-    AND ticker='AROLL' AND status='superseded'
- ) THEN RAISE EXCEPTION 'Audited rollback left superseded state'; END IF;
- IF EXISTS (
-  SELECT 1 FROM public.ag_cycle_decision_writes
-  WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND ticker='AROLL'
- ) THEN RAISE EXCEPTION 'Audited rollback left decision-ledger evidence'; END IF;
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM='Audited failed INSERT unexpectedly committed' THEN RAISE; END IF; END;
+ IF (SELECT count(*) FROM public.investment_decisions WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' AND ticker='AROLL' AND status='active')<>1 THEN RAISE EXCEPTION 'Audited rollback did not preserve prior active decision'; END IF;
+ IF EXISTS (SELECT 1 FROM public.investment_decisions WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' AND ticker='AROLL' AND status='superseded') THEN RAISE EXCEPTION 'Audited rollback left superseded state'; END IF;
+ IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE cycle_id='a1616161-1616-4616-8616-161616161616' AND ticker='AROLL') THEN RAISE EXCEPTION 'Audited rollback left decision-ledger evidence'; END IF;
 END $$;
 ALTER TABLE public.investment_decisions DROP CONSTRAINT ag_actual_reject_rollback_thesis;
 
--- Audited-schema interrupted batch resume: first item commits, an independent
--- retry reuses its immutable ledger link, then the second item commits once.
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
-UPDATE public.ag_cycle_stage_checkpoints
-SET output=jsonb_set(COALESCE(output,'{}'::jsonb),'{persistence_tickers}',
-  COALESCE(output->'persistence_tickers','[]'::jsonb) || '["ABATCHA","ABATCHB"]'::jsonb)
-WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND stage='committee';
-
-DO $$
-DECLARE first_id uuid;
-BEGIN
- first_id := public.ag_commit_cycle_decision(
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  'ABATCHA','committee','watch','Audited first batch item',70,'short',NULL,NULL,NULL,NULL,NULL
- );
+-- Audited-schema interrupted batch resume with a complete immutable manifest.
+INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle_date,status) VALUES
+ ('a1818181-1818-4818-8818-181818181818','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date+2,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output) VALUES
+ ('a1818181-1818-4818-8818-181818181818','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','committee','completed','{"persistence_tickers":["ABATCHA","ABATCHB"]}');
+INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at) VALUES
+ ('a1818181-1818-4818-8818-181818181818','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','persistence','running','a1919191-1919-4919-8919-191919191919',now()+interval '10 minutes');
+DO $$ DECLARE first_id uuid; BEGIN
+ first_id:=public.ag_commit_cycle_decision('a1818181-1818-4818-8818-181818181818','a1919191-1919-4919-8919-191919191919','ABATCHA','committee','watch','Audited first batch item',70,'short',NULL,NULL,NULL,NULL,NULL);
  IF first_id IS NULL THEN RAISE EXCEPTION 'Audited first batch item missing'; END IF;
 END $$;
-
-DO $$
-DECLARE first_id uuid; retry_id uuid; second_id uuid;
-BEGIN
- SELECT investment_decision_id INTO first_id
- FROM public.ag_cycle_decision_writes
- WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd' AND ticker='ABATCHA';
- retry_id := public.ag_commit_cycle_decision(
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  'ABATCHA','committee','watch','Audited first batch item',70,'short',NULL,NULL,NULL,NULL,NULL
- );
- second_id := public.ag_commit_cycle_decision(
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  'ABATCHB','committee','watch','Audited second batch item',70,'short',NULL,NULL,NULL,NULL,NULL
- );
- IF retry_id IS DISTINCT FROM first_id OR second_id IS NULL
- THEN RAISE EXCEPTION 'Audited interrupted batch resume failed'; END IF;
- IF (SELECT count(*) FROM public.ag_cycle_decision_writes
-     WHERE cycle_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'
-       AND ticker IN ('ABATCHA','ABATCHB') AND status='committed')<>2
- THEN RAISE EXCEPTION 'Audited interrupted batch ledger incomplete'; END IF;
- IF (SELECT count(*) FROM public.investment_decisions
-     WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-       AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-       AND ticker IN ('ABATCHA','ABATCHB') AND status='active')<>2
- THEN RAISE EXCEPTION 'Audited interrupted batch produced duplicate or missing decisions'; END IF;
+DO $$ DECLARE first_id uuid; retry_id uuid; second_id uuid; BEGIN
+ SELECT investment_decision_id INTO first_id FROM public.ag_cycle_decision_writes WHERE cycle_id='a1818181-1818-4818-8818-181818181818' AND ticker='ABATCHA';
+ retry_id:=public.ag_commit_cycle_decision('a1818181-1818-4818-8818-181818181818','a1919191-1919-4919-8919-191919191919','ABATCHA','committee','watch','Audited first batch item',70,'short',NULL,NULL,NULL,NULL,NULL);
+ second_id:=public.ag_commit_cycle_decision('a1818181-1818-4818-8818-181818181818','a1919191-1919-4919-8919-191919191919','ABATCHB','committee','watch','Audited second batch item',70,'short',NULL,NULL,NULL,NULL,NULL);
+ IF retry_id IS DISTINCT FROM first_id OR second_id IS NULL THEN RAISE EXCEPTION 'Audited interrupted batch resume failed'; END IF;
+ IF (SELECT count(*) FROM public.ag_cycle_decision_writes WHERE cycle_id='a1818181-1818-4818-8818-181818181818' AND ticker IN ('ABATCHA','ABATCHB') AND status='committed')<>2 THEN RAISE EXCEPTION 'Audited interrupted batch ledger incomplete'; END IF;
+ IF (SELECT count(*) FROM public.investment_decisions WHERE user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND portfolio_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' AND ticker IN ('ABATCHA','ABATCHB') AND status='active')<>2 THEN RAISE EXCEPTION 'Audited interrupted batch produced duplicate or missing decisions'; END IF;
 END $$;
