@@ -9,18 +9,19 @@ export type AgWatchResearchOutcome = {
   confidence: number; thesis: string; unresolvedQuestions: string[];
   thesisClock: string; invalidation: string[];
   model: string; promptVersion: string; priorWatchReassessed: boolean;
+  priorWatchRowId: string | null;
 };
 export type AgWatchResolution = {
-  symbol: string; resolution: "REVIEW" | "REJECT" | "INSUFFICIENT_DATA";
+  symbol: string; sourceWatchId: string; resolution: "REVIEW" | "REJECT" | "INSUFFICIENT_DATA";
 };
 export type AgWatchIntent =
-  | { stream: "research_watch"; symbol: string; action: "upsert_watch";
+  | { stream: "research_watch"; symbol: string; source_row_id: string | null; action: "upsert_watch";
       outcome: AgWatchResearchOutcome }
-  | { stream: "research_watch"; symbol: string; action: "resolve_research";
+  | { stream: "research_watch"; symbol: string; source_row_id: string | null; action: "resolve_research";
       resolution: "PROCEED" | "STOP" }
-  | { stream: "research_watch"; symbol: string; action: "resolve_quantitative";
+  | { stream: "research_watch"; symbol: string; source_row_id: string; action: "resolve_quantitative";
       resolution: AgWatchResolution["resolution"] }
-  | { stream: "committee_watch"; symbol: string; action: "supersede_committee";
+  | { stream: "committee_watch"; symbol: string; source_row_id: string; action: "supersede_committee";
       resolution: AgWatchResolution["resolution"] };
 const SYMBOL=/^[A-Z][A-Z0-9.-]{0,14}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -42,7 +43,7 @@ export function captureAgWatchlistIntent(input:{
   cycleId:string;
   outcomes:readonly AgWatchResearchOutcome[];
   quantitativeResolutions:readonly AgWatchResolution[];
-  committeeResolutions:readonly AgWatchResolution[];
+  committeeResolutions:readonly {symbol:string;sourceDecisionId:string;resolution:AgWatchResolution["resolution"]}[];
   upstreamErrors:readonly unknown[];
   upstreamFailedCount:number;
   discoveryRateLimited:boolean;
@@ -82,28 +83,30 @@ export function captureAgWatchlistIntent(input:{
        typeof outcome.model!=="string" ||
        typeof outcome.promptVersion!=="string" ||
        typeof outcome.priorWatchReassessed!=="boolean" ||
+       (outcome.priorWatchRowId!==null && !UUID.test(outcome.priorWatchRowId)) ||
+       (outcome.priorWatchReassessed !== (outcome.priorWatchRowId!==null)) ||
        (outcome.companyName!==null && typeof outcome.companyName!=="string")){
       throw new Error(`Invalid research watch outcome: ${outcome.symbol}`);
     }
     if(outcome.researchStatus==="WATCH"){
       intents.push({stream:"research_watch",symbol:outcome.symbol,
-        action:"upsert_watch",outcome:structuredClone(outcome)});
+        source_row_id:outcome.priorWatchRowId,action:"upsert_watch",outcome:structuredClone(outcome)});
     }else{
       intents.push({stream:"research_watch",symbol:outcome.symbol,
-        action:"resolve_research",resolution:outcome.researchStatus});
+        source_row_id:outcome.priorWatchRowId,action:"resolve_research",resolution:outcome.researchStatus});
     }
   }
   for(const item of input.quantitativeResolutions){
-    if(!["REVIEW","REJECT","INSUFFICIENT_DATA"].includes(item.resolution))
+    if(!UUID.test(item.sourceWatchId) || !["REVIEW","REJECT","INSUFFICIENT_DATA"].includes(item.resolution))
       throw new Error(`Invalid quantitative resolution: ${item.symbol}`);
     intents.push({stream:"research_watch",symbol:item.symbol,
-      action:"resolve_quantitative",resolution:item.resolution});
+      source_row_id:item.sourceWatchId,action:"resolve_quantitative",resolution:item.resolution});
   }
   for(const item of input.committeeResolutions){
-    if(!["REVIEW","REJECT","INSUFFICIENT_DATA"].includes(item.resolution))
+    if(!UUID.test(item.sourceDecisionId) || !["REVIEW","REJECT","INSUFFICIENT_DATA"].includes(item.resolution))
       throw new Error(`Invalid Committee watch resolution: ${item.symbol}`);
     intents.push({stream:"committee_watch",symbol:item.symbol,
-      action:"supersede_committee",resolution:item.resolution});
+      source_row_id:item.sourceDecisionId,action:"supersede_committee",resolution:item.resolution});
   }
   return {cycle_id:input.cycleId,intent_count:intents.length,intents};
 }
