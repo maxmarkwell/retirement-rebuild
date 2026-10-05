@@ -81,6 +81,6 @@ test("draft RPC checks checkpoint and ledger ownership metadata against locked c
 
 test("AG retry hash is derived inside PostgreSQL, never supplied by caller", () => {
   assert.ok(!declaration[1].includes("p_payload_hash"));
-  assert.ok(normalize(sql).includes("v_payload_hash := encode(public.digest("));
+  assert.ok(normalize(sql).includes("v_payload_hash := encode(extensions.digest("));
   assert.ok(normalize(sql).includes("v_ledger.payload_hash is distinct from v_payload_hash"));
 });
