@@ -187,3 +187,130 @@ REVOKE ALL ON FUNCTION public.ag_commit_watch_operation(
 GRANT EXECUTE ON FUNCTION public.ag_commit_watch_operation(
  uuid,uuid,text,text,text,uuid,text,text,numeric,text,text[],text,text[],text,text,boolean
 ) TO authenticated;
+
+
+-- Read-only timeout reconciliation. This function never claims a stage and
+-- never mutates or replays an operation. It recomputes the server-side digest,
+-- verifies the committed ledger row, rejects evidence superseded by a newer
+-- cycle, and checks the actual target-row postcondition.
+CREATE OR REPLACE FUNCTION public.ag_verify_watch_operation_postcondition(
+ p_cycle_id uuid,p_stream text,p_ticker text,p_action text,
+ p_source_row_id uuid,p_resolution text,p_company_name text,p_confidence numeric,
+ p_thesis text,p_unresolved_questions text[],p_thesis_clock text,
+ p_invalidation text[],p_model text,p_prompt_version text,
+ p_prior_watch_reassessed boolean
+) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=''
+AS $$
+DECLARE
+ v_cycle public.ag_daily_cycles%ROWTYPE;
+ v_ledger public.ag_cycle_watch_writes%ROWTYPE;
+ v_watch public.ag_research_watchlist%ROWTYPE;
+ v_decision public.investment_decisions%ROWTYPE;
+ v_payload_hash text;
+BEGIN
+ IF auth.uid() IS NULL THEN RETURN false; END IF;
+ SELECT * INTO v_cycle FROM public.ag_daily_cycles
+ WHERE id=p_cycle_id AND user_id=auth.uid();
+ IF NOT FOUND THEN RETURN false; END IF;
+
+ v_payload_hash:=encode(public.digest(convert_to(jsonb_build_array(
+  p_cycle_id,p_stream,p_ticker,p_action,p_source_row_id,p_resolution,
+  p_company_name,p_confidence,p_thesis,p_unresolved_questions,p_thesis_clock,
+  p_invalidation,p_model,p_prompt_version,p_prior_watch_reassessed)::text,'UTF8'),'sha256'),'hex');
+
+ SELECT * INTO v_ledger FROM public.ag_cycle_watch_writes
+ WHERE cycle_id=p_cycle_id AND user_id=auth.uid()
+  AND portfolio_id=v_cycle.portfolio_id
+  AND strategy_era_id=v_cycle.strategy_era_id
+  AND stream=p_stream AND ticker=p_ticker;
+ IF NOT FOUND OR v_ledger.status<>'committed'
+   OR v_ledger.action IS DISTINCT FROM p_action
+   OR v_ledger.source_row_id IS DISTINCT FROM p_source_row_id
+   OR v_ledger.payload_hash IS DISTINCT FROM v_payload_hash
+   OR v_ledger.committed_at IS NULL
+ THEN RETURN false; END IF;
+
+ -- Once a newer cycle has committed the same stream/ticker, an old operation's
+ -- mutable target may no longer equal its historical postcondition. Do not use
+ -- stale evidence to authorize recovery.
+ IF EXISTS (
+  SELECT 1 FROM public.ag_cycle_watch_writes newer
+  JOIN public.ag_daily_cycles d ON d.id=newer.cycle_id
+  WHERE newer.portfolio_id=v_cycle.portfolio_id
+   AND newer.strategy_era_id=v_cycle.strategy_era_id
+   AND newer.stream=p_stream AND newer.ticker=p_ticker
+   AND newer.status='committed' AND newer.cycle_id<>p_cycle_id
+   AND d.cycle_date>v_cycle.cycle_date
+ ) THEN RETURN false; END IF;
+
+ IF v_ledger.effect='noop' THEN
+  IF p_stream<>'research_watch' OR p_action<>'resolve_research'
+    OR p_source_row_id IS NOT NULL OR v_ledger.affected_row_id IS NOT NULL
+  THEN RETURN false; END IF;
+  -- A row created after this commit does not disprove the historical no-op.
+  RETURN NOT EXISTS (
+   SELECT 1 FROM public.ag_research_watchlist w
+   WHERE w.user_id=auth.uid() AND w.portfolio_id=v_cycle.portfolio_id
+    AND w.strategy_era_id=v_cycle.strategy_era_id AND w.ticker=p_ticker
+    AND w.resolved_at IS NULL AND w.created_at<=v_ledger.committed_at
+  );
+ END IF;
+ IF v_ledger.effect<>'applied' OR v_ledger.affected_row_id IS NULL
+ THEN RETURN false; END IF;
+
+ IF p_stream='research_watch' THEN
+  SELECT * INTO v_watch FROM public.ag_research_watchlist
+  WHERE id=v_ledger.affected_row_id AND user_id=auth.uid()
+   AND portfolio_id=v_cycle.portfolio_id
+   AND strategy_era_id=v_cycle.strategy_era_id AND ticker=p_ticker;
+  IF NOT FOUND THEN RETURN false; END IF;
+  IF p_action='upsert_watch' THEN
+   RETURN v_watch.research_status='WATCH'
+    AND v_watch.resolved_at IS NULL AND v_watch.resolution IS NULL
+    AND v_watch.confidence IS NOT DISTINCT FROM p_confidence
+    AND v_watch.thesis IS NOT DISTINCT FROM p_thesis
+    AND v_watch.unresolved_questions IS NOT DISTINCT FROM p_unresolved_questions
+    AND v_watch.thesis_clock IS NOT DISTINCT FROM p_thesis_clock
+    AND v_watch.invalidation IS NOT DISTINCT FROM p_invalidation
+    AND v_watch.model IS NOT DISTINCT FROM p_model
+    AND v_watch.prompt_version IS NOT DISTINCT FROM p_prompt_version
+    AND (p_company_name IS NULL OR v_watch.company_name IS NOT DISTINCT FROM p_company_name)
+    AND v_watch.last_seen_at IS NOT DISTINCT FROM v_ledger.committed_at
+    AND v_watch.updated_at IS NOT DISTINCT FROM v_ledger.committed_at
+    AND (p_source_row_id IS NULL OR v_watch.id=p_source_row_id);
+  END IF;
+  IF p_action IN ('resolve_research','resolve_quantitative') THEN
+   RETURN v_watch.id IS NOT DISTINCT FROM p_source_row_id
+    AND v_watch.resolved_at IS NOT DISTINCT FROM v_ledger.committed_at
+    AND v_watch.updated_at IS NOT DISTINCT FROM v_ledger.committed_at
+    AND v_watch.resolution IS NOT DISTINCT FROM
+      (CASE WHEN p_action='resolve_quantitative'
+        THEN 'QUANTITATIVE_'||p_resolution ELSE p_resolution END);
+  END IF;
+  RETURN false;
+ END IF;
+
+ IF p_stream='committee_watch' AND p_action='supersede_committee' THEN
+  SELECT * INTO v_decision FROM public.investment_decisions
+  WHERE id=v_ledger.affected_row_id AND user_id=auth.uid()
+   AND portfolio_id=v_cycle.portfolio_id AND ticker=p_ticker;
+  RETURN FOUND
+   AND v_decision.id IS NOT DISTINCT FROM p_source_row_id
+   AND v_decision.source='ai_committee'
+   AND v_decision.decision_type='watch'
+   AND v_decision.status='superseded'
+   AND v_decision.created_at >= (
+    SELECT inception_at FROM public.portfolio_strategy_eras
+    WHERE id=v_cycle.strategy_era_id
+   );
+ END IF;
+ RETURN false;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.ag_verify_watch_operation_postcondition(
+ uuid,text,text,text,uuid,text,text,numeric,text,text[],text,text[],text,text,boolean
+) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ag_verify_watch_operation_postcondition(
+ uuid,text,text,text,uuid,text,text,numeric,text,text[],text,text[],text,text,boolean
+) TO authenticated;
