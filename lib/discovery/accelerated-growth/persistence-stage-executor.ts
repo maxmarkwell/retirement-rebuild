@@ -19,6 +19,7 @@ export type AgPersistenceStageIo={
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function executeAgPersistenceStage(input:{cycleId:string;io:AgPersistenceStageIo}){
+ if(!UUID.test(input.cycleId))throw new Error("Invalid AG persistence cycle.");
  const holding=await input.io.read(input.cycleId,"holding_review");
  const deep=await input.io.read(input.cycleId,"catalyst_deep_research");
  const committee=await input.io.read(input.cycleId,"committee");
@@ -31,6 +32,8 @@ export async function executeAgPersistenceStage(input:{cycleId:string;io:AgPersi
  });
  const watchCalls=prepareAgWatchRpcBatch(input.cycleId,claim.claimToken,watchIntents);
  const expectedTickers=decisionCalls.map(x=>x.p_ticker);
+ if(new Set(expectedTickers).size!==expectedTickers.length)
+  throw new Error("Duplicate AG persistence decision identity.");
  for(const call of decisionCalls){
   const id=await input.io.commitDecision(call);
   if(!UUID.test(id))throw new Error("Ambiguous AG decision write; manual reconciliation required.");
