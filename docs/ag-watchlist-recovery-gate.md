@@ -80,8 +80,11 @@ own identical canonical encoding, never trust a supplied hash.
    supersession. Disposable PostgreSQL tests at `c41c1096` cover initial apply,
    identical retry, conflicting retry, frozen-manifest membership, detailed
    quantitative resolution provenance and exact Committee source identity.
-   **Still add** cross-owner, forced rollback, later-cycle and timeout-after-
-   commit reconciliation tests before considering this gate satisfied.
+   Cross-owner denial, forced rollback after target mutation, and newer-cycle
+   fencing also pass in disposable PostgreSQL at `fab4e511`. **Still add**
+   timeout-after-commit reconciliation against actual row postconditions and
+   run the suite against an audited actual-schema fixture before satisfying
+   this gate.
 4. Test against a disposable fixture reconstructed from the audited
    actual schema; require exact watch-operation coverage before marking
    the full cycle finalized.
