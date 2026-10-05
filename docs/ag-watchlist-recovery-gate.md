@@ -93,7 +93,10 @@ automatic retry is authorized.
    at `5680e0ef`; stale older-cycle evidence is additionally rejected at
    `0a995b26`. The isolated authenticated reader remains disconnected from the
    active runner. **Still run** the suite against an audited actual-schema
-   fixture before satisfying this gate.
+   fixture before satisfying this gate. The isolated application commit adapter
+   now prevalidates every frozen call before the first RPC, stops on ambiguous
+   responses, preserves prior acknowledgments for diagnosis, and contains no
+   automatic retry path (`43d11429`).
 4. Test against a disposable fixture reconstructed from the audited
    actual schema; require exact watch-operation coverage before marking
    the full cycle finalized.
