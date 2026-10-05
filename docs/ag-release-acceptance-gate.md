@@ -45,3 +45,10 @@ Production recovery DDL and the anon-RPC privilege follow-up are now installed, 
 ## Interrupted persistence recovery contract
 
 A pure `persistence-recovery-contract.ts` now classifies interrupted persistence evidence without any write capability. Its only outcomes are `ALREADY_COMPLETE`, `COMPLETE_ONLY`, or `MANUAL_RECONCILIATION`; there is deliberately no automatic decision/watch replay outcome. `COMPLETE_ONLY` requires a still-running checkpoint plus independently verified decision and watch manifests, and permits only persistence completion under the original valid claim. Failed, missing, manual-review, inconsistent, or partially verified states fail closed. Safety tests also assert the executor/transport contain no retry/timer path and that the recovery classifier cannot call decision/watch commit RPCs. Contract/type CI is green at `1047eda`.
+
+
+## Stage lease/runtime audit
+
+The production route is configured for a 300-second Vercel function ceiling while the deployed checkpoint claim lease is 360 seconds. Current catalyst/deep-research and Committee stage workers can process up to five symbols sequentially, and the research reliability wrapper allows two bounded attempts per symbol but does not impose a per-provider-call abort deadline. Therefore the existing six-minute lease is **not** sufficient evidence that the current multi-symbol stage implementation can finish safely; extending the lease would only enlarge the stale-worker window.
+
+A branch-only runtime contract now reserves 45 seconds for checkpoint completion and defines a 255-second maximum work budget under the current 300s route / 360s lease. It also fixes the intended expensive durable work unit at one symbol per claim. Active-runner wiring is explicitly blocked while the deep-research and Committee workers retain their multi-symbol sequential loops. Next required change: split those stages into durable one-symbol work units (or equivalent child checkpoints) and aggregate only completed immutable outputs. No production DDL change is proposed by this audit.
