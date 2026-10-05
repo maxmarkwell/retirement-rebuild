@@ -116,3 +116,11 @@ await import(toDataUrl(
   resumeTests.replace('"./resume-planner"', JSON.stringify(resumeUrl)),
   "resume-planner.test.ts"
 ));
+
+const postDiscoverySource = await readFile(resolve(directory, "post-discovery-plan.ts"), "utf8");
+const postDiscoveryUrl = toDataUrl(postDiscoverySource, "post-discovery-plan.ts");
+const postDiscoveryTests = await readFile(resolve(directory, "post-discovery-plan.test.ts"), "utf8");
+await import(toDataUrl(
+ postDiscoveryTests.replace('"./post-discovery-plan"', JSON.stringify(postDiscoveryUrl)),
+ "post-discovery-plan.test.ts"
+));
