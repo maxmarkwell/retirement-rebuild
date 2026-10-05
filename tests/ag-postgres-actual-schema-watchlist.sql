@@ -120,3 +120,64 @@ BEGIN
  );
  IF tampered IS DISTINCT FROM false THEN RAISE EXCEPTION 'Tampered watch payload verified unexpectedly'; END IF;
 END $$;
+
+
+-- Audited-schema combined persistence completion: one Committee decision, one
+-- holding decision, and one frozen watch mutation must all verify under the
+-- same persistence claim before the stage can complete.
+INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle_date,status) VALUES (
+ 'b1010101-1010-4010-8010-101010101010',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+ 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date+20,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES
+ ('b1010101-1010-4010-8010-101010101010','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  'holding_review','completed',jsonb_build_object(
+   'persistence_tickers',jsonb_build_array('ACOMBH'),
+   'decision_payloads',jsonb_build_array(jsonb_build_object('ticker','ACOMBH','args',
+    jsonb_build_array('b1010101-1010-4010-8010-101010101010'::uuid,'ACOMBH',
+     'holding_review','hold','Audited combined holding',71::numeric,'long',
+     null,null,null,null,'{"agHoldingReview":true}'::text,null,null,null,null))))),
+ ('b1010101-1010-4010-8010-101010101010','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  'committee','completed',jsonb_build_object(
+   'persistence_tickers',jsonb_build_array('ACOMBC'),
+   'decision_payloads',jsonb_build_array(jsonb_build_object('ticker','ACOMBC','args',
+    jsonb_build_array('b1010101-1010-4010-8010-101010101010'::uuid,'ACOMBC',
+     'committee','watch','Audited combined committee',74::numeric,'short',
+     null,null,null,null,null,null,null,null,null))))),
+ ('b1010101-1010-4010-8010-101010101010','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  'catalyst_deep_research','completed',
+  '{"watchlist_intents":[{"stream":"research_watch","symbol":"ACOMBW","action":"upsert_watch","source_row_id":null,"outcome":{"symbol":"ACOMBW","researchStatus":"WATCH","companyName":"Audited Combined Watch","confidence":0.73,"thesis":"Audited combined watch thesis","unresolvedQuestions":["Question C"],"thesisClock":"medium","invalidation":["Invalidator C"],"model":"fixture-model","promptVersion":"fixture-v1","priorWatchReassessed":false,"priorWatchRowId":null}}]}'::jsonb);
+
+DO $agactualcombined$
+DECLARE cp uuid; token uuid; ok boolean; watch_id uuid;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token FROM
+ public.ag_claim_cycle_stage('b1010101-1010-4010-8010-101010101010','persistence');
+ PERFORM public.ag_commit_cycle_decision(
+  'b1010101-1010-4010-8010-101010101010',token,'ACOMBH','holding_review','hold',
+  'Audited combined holding',71,'long',null,null,null,null,'{"agHoldingReview":true}');
+ PERFORM public.ag_commit_cycle_decision(
+  'b1010101-1010-4010-8010-101010101010',token,'ACOMBC','committee','watch',
+  'Audited combined committee',74,'short',null,null,null,null,null);
+ ok:=public.ag_complete_persistence_stage(cp,token,ARRAY['ACOMBC','ACOMBH']);
+ IF ok THEN RAISE EXCEPTION 'Audited combined completion ignored missing watch write'; END IF;
+ watch_id:=public.ag_commit_watch_operation(
+  'b1010101-1010-4010-8010-101010101010',token,'research_watch','ACOMBW',
+  'upsert_watch',NULL,NULL,'Audited Combined Watch',0.73,
+  'Audited combined watch thesis',ARRAY['Question C'],'medium',
+  ARRAY['Invalidator C'],'fixture-model','fixture-v1',false);
+ IF watch_id IS NULL THEN RAISE EXCEPTION 'Audited combined watch write missing'; END IF;
+ ok:=public.ag_complete_persistence_stage(cp,token,ARRAY['ACOMBC','ACOMBH']);
+ IF NOT ok THEN RAISE EXCEPTION 'Audited combined persistence completion failed'; END IF;
+ IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'completed'
+ THEN RAISE EXCEPTION 'Audited combined persistence stage not completed'; END IF;
+ IF (SELECT output->>'watch_postconditions_verified'
+     FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'true'
+ THEN RAISE EXCEPTION 'Audited combined completion omitted watch verification evidence'; END IF;
+END $agactualcombined$;
