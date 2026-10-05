@@ -101,7 +101,10 @@ DO $agtest$ BEGIN
  END;
  IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='PREERA')
  THEN RAISE EXCEPTION 'Pre-era conflict left ledger evidence'; END IF;
- IF (SELECT status FROM public.investment_decisions WHERE ticker='PREERA')<>'active'
+ IF (SELECT status FROM public.investment_decisions
+     WHERE ticker='PREERA'
+       AND user_id='11111111-1111-4111-8111-111111111111'
+       AND portfolio_id='22222222-2222-4222-8222-222222222222')<>'active'
  THEN RAISE EXCEPTION 'Pre-era decision was mutated'; END IF;
 END $agtest$;
 
