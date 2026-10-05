@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {reconcileAgWatchlistIntent,verifyAgWatchlistAfterAmbiguousWrite} from "./watchlist-reconciliation";
+import {prepareAgWatchPostconditionArgs,reconcileAgWatchlistIntent,verifyAgWatchlistAfterAmbiguousWrite} from "./watchlist-reconciliation";
 import type {AgWatchIntent} from "./watchlist-intent-capture";
 const cycleId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const rowId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -76,4 +76,27 @@ test("clean empty plan needs no database mutations",async()=>{
   const input={cycleId,intents:[] as AgWatchIntent[],ledger:[]};
   assert.equal(reconcileAgWatchlistIntent(input).status,"RECORDED_REQUIRES_DB_POSTCONDITIONS");
   assert.equal(await verifyAgWatchlistAfterAmbiguousWrite(input,async()=>false),"COMPLETE");
+});
+
+test("postcondition args are derived only from frozen operation content",()=>{
+  assert.deepEqual(prepareAgWatchPostconditionArgs(cycleId,intent),{
+    p_cycle_id:cycleId,p_stream:"research_watch",p_ticker:"WATCH",
+    p_action:"resolve_quantitative",p_source_row_id:rowId,p_resolution:"REJECT",
+    p_company_name:null,p_confidence:null,p_thesis:null,p_unresolved_questions:null,
+    p_thesis_clock:null,p_invalidation:null,p_model:null,p_prompt_version:null,
+    p_prior_watch_reassessed:false,
+  });
+  const outcome={
+    symbol:"NEW",companyName:"New Co",researchStatus:"WATCH" as const,
+    confidence:0.72,thesis:"Frozen thesis",unresolvedQuestions:["Q"],
+    thesisClock:"medium",invalidation:["I"],model:"model",promptVersion:"v1",
+    priorWatchReassessed:false,priorWatchRowId:null,
+  };
+  const upsert:AgWatchIntent={stream:"research_watch",symbol:"NEW",source_row_id:null,
+    action:"upsert_watch",outcome};
+  const args=prepareAgWatchPostconditionArgs(cycleId,upsert);
+  assert.equal(args.p_thesis,"Frozen thesis");
+  assert.deepEqual(args.p_unresolved_questions,["Q"]);
+  outcome.unresolvedQuestions.push("later mutation");
+  assert.deepEqual(args.p_unresolved_questions,["Q"]);
 });
