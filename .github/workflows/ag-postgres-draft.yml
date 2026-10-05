@@ -159,6 +159,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-symbol-checkpoints.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_cycle_finalization_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-cycle-finalization.sql
 
       - name: Run isolated transactional smoke tests
         run: |
