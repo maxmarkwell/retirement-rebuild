@@ -55,7 +55,7 @@ BEGIN
  WHERE cycle_id='14141414-1414-4414-8414-141414141414' AND ticker='MIXHOLD';
  ok:=public.ag_complete_persistence_stage(cp,token,ARRAY['MIXBUY','MIXHOLD']);
  IF ok THEN RAISE EXCEPTION 'Mixed completion accepted altered holding hash'; END IF;
- UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(public.digest(
+ UPDATE public.ag_cycle_decision_writes SET payload_hash=encode(extensions.digest(
   convert_to(jsonb_build_array(
    '14141414-1414-4414-8414-141414141414'::uuid,
    'MIXHOLD','holding_review','hold','Mixed holding',71::numeric,
