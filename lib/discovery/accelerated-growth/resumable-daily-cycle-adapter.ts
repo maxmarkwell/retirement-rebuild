@@ -25,7 +25,7 @@ export async function runNextAgResumableResearchStage(input:{
 }):Promise<AgResearchResumeResult>{
  const rows=await readAuthenticatedAgCheckpointStatus(input.cycleId);
  const plan=planAgResume(rows);
- if(plan.action!=="run") return {plan,executedStage:null,persistenceReady:plan.action==="run"&&plan.stage==="persistence"};
+ if(plan.action!=="run") return {plan,executedStage:null,persistenceReady:false};
  if(plan.stage==="persistence"||plan.stage==="finalized")
   return {plan,executedStage:null,persistenceReady:plan.stage==="persistence"};
 
