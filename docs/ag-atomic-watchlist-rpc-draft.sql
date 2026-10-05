@@ -106,7 +106,7 @@ BEGIN
    )
  ) THEN RAISE EXCEPTION 'Watch operation or frozen payload absent from completed research manifest'; END IF;
 
- v_payload_hash:=encode(public.digest(convert_to(jsonb_build_array(
+ v_payload_hash:=encode(extensions.digest(convert_to(jsonb_build_array(
   p_cycle_id,p_stream,p_ticker,p_action,p_source_row_id,p_resolution,
   p_company_name,p_confidence,p_thesis,p_unresolved_questions,p_thesis_clock,
   p_invalidation,p_model,p_prompt_version,p_prior_watch_reassessed)::text,'UTF8'),'sha256'),'hex');
@@ -243,7 +243,7 @@ BEGIN
  WHERE id=p_cycle_id AND user_id=auth.uid();
  IF NOT FOUND THEN RETURN false; END IF;
 
- v_payload_hash:=encode(public.digest(convert_to(jsonb_build_array(
+ v_payload_hash:=encode(extensions.digest(convert_to(jsonb_build_array(
   p_cycle_id,p_stream,p_ticker,p_action,p_source_row_id,p_resolution,
   p_company_name,p_confidence,p_thesis,p_unresolved_questions,p_thesis_clock,
   p_invalidation,p_model,p_prompt_version,p_prior_watch_reassessed)::text,'UTF8'),'sha256'),'hex');
