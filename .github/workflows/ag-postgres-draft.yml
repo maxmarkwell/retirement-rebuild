@@ -43,6 +43,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
       - name: Run isolated transactional smoke tests
         run: |
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
@@ -51,3 +52,4 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-stage-fencing.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-persistence-completion.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-committee-payload.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-holding-payload.sql
