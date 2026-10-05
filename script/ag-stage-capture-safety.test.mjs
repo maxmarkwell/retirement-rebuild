@@ -17,6 +17,9 @@ const resumableAdapter=fs.readFileSync(root+"resumable-daily-cycle-adapter.ts","
 const persistenceExecutor=fs.readFileSync(root+"persistence-stage-executor.ts","utf8");
 const persistenceWatchManifest=fs.readFileSync(root+"persistence-watch-manifest.ts","utf8");
 const persistenceTransport=fs.readFileSync(root+"persistence-stage-supabase.ts","utf8");
+const runtimeBudget=fs.readFileSync(root+"stage-runtime-budget.ts","utf8");
+const deepStageWork=fs.readFileSync(root+"catalyst-deep-stage-work.ts","utf8");
+const committeeStageWork=fs.readFileSync(root+"committee-stage-work.ts","utf8");
 const runner=fs.readFileSync(root+"daily-cycle-work.ts","utf8");
 for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork],["researchStages",researchStages],["persistencePlan",persistencePlan],["resumableAdapter",resumableAdapter],["persistenceWatchManifest",persistenceWatchManifest]]){
  assert.ok(!text.includes("ag_commit_cycle_decision"),name+" must not persist decisions");
@@ -90,3 +93,9 @@ assert.ok(researchStages.includes("parseAgDeepResearchResults"));
 assert.ok(!researchStages.includes("getDynamicDiscoveryUniverse"));
 assert.ok(runner.includes("assertAgLegacyPersistenceDisabled();"));
 console.log("AG stage-capture isolation contract passed");
+
+assert.ok(runtimeBudget.includes("AG_MAX_EXPENSIVE_SYMBOLS_PER_STAGE_CLAIM=1"));
+assert.ok(deepStageWork.includes("for(const candidate of plan.selected)"));
+assert.ok(committeeStageWork.includes("for(const r of eligible)"));
+// Until multi-symbol stages are split into one-symbol durable work units, active runner wiring is forbidden.
+assert.ok(!runner.includes("resumable-daily-cycle-adapter"));
