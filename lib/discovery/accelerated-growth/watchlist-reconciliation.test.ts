@@ -4,9 +4,9 @@ import {canonicalAgWatchOperation,reconcileAgWatchlistIntent} from "./watchlist-
 import type {AgWatchIntent} from "./watchlist-intent-capture";
 const cycleId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const rowId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-const intent:AgWatchIntent={stream:"research_watch",symbol:"WATCH",
+const intent:AgWatchIntent={stream:"research_watch",symbol:"WATCH",source_row_id:rowId,
   action:"resolve_quantitative",resolution:"REJECT"};
-const committee:AgWatchIntent={stream:"committee_watch",symbol:"WATCH",
+const committee:AgWatchIntent={stream:"committee_watch",symbol:"WATCH",source_row_id:rowId,
   action:"supersede_committee",resolution:"REVIEW"};
 const row=(i:AgWatchIntent)=>({
   cycle_id:cycleId,stream:i.stream,symbol:i.symbol,action:i.action,
@@ -39,8 +39,9 @@ test("same ticker in distinct watch streams has distinct operation identity",()=
   assert.deepEqual(result.missing,["committee_watch:WATCH"]);
 });
 test("payload identity includes action and resolution and rejects duplicate intents",()=>{
-  assert.notEqual(canonicalAgWatchOperation(intent),
-    canonicalAgWatchOperation({...intent,resolution:"REVIEW"}));
+  const altered:AgWatchIntent={stream:"research_watch",symbol:"WATCH",source_row_id:rowId,
+    action:"resolve_quantitative",resolution:"REVIEW"};
+  assert.notEqual(canonicalAgWatchOperation(intent),canonicalAgWatchOperation(altered));
   assert.throws(()=>reconcileAgWatchlistIntent({cycleId,
     intents:[intent,intent],ledger:[]}));
 });
