@@ -31,3 +31,9 @@ Pre-existing live SECURITY DEFINER warnings outside this recovery package remain
 ## Conclusion
 
 The branch recovery privilege model and migration dependency order are internally consistent under disposable PostgreSQL and the audited production-shaped fixture. This supports preparing a migration package for independent review, but not applying it to production or wiring the active AG route.
+
+## Packaged migration candidate evidence
+
+A non-numbered review artifact now exists at `supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql`. CI creates a fresh database from the audited pre-provenance fixture, loads the existing research-watchlist migration, applies this candidate as one transaction, asserts recovery-table RLS/direct-grant boundaries and SECURITY DEFINER search-path/PUBLIC-execute posture, then executes the audited decision/watch/persistence behavior suites.
+
+The candidate passed PostgreSQL CI at `f9b6043`, along with the isolated recovery suites. Contract CI at the same head passed AG tests, Next type generation, and TypeScript compilation. This is review evidence only: the candidate is intentionally outside `supabase/migrations` and has not been applied to Supabase.
