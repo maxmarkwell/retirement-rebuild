@@ -11,3 +11,13 @@ BEGIN
  IF bad<>0 THEN RAISE EXCEPTION 'symbol RPC security contract failed'; END IF;
  IF has_function_privilege('authenticated','public.ag_protect_completed_symbol_checkpoint()','EXECUTE') THEN RAISE EXCEPTION 'trigger helper client executable'; END IF;
 END $t$;
+
+-- Fan-out must renew only an already-valid parent lease; stale parents remain fail-closed.
+DO $t$
+DECLARE def text;
+BEGIN
+ SELECT pg_get_functiondef(p.oid) INTO def FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+ WHERE n.nspname='public' AND p.proname='ag_claim_cycle_symbol';
+ IF def NOT LIKE '%lease_expires_at > now()%' AND def NOT LIKE '%lease_expires_at>now()%' THEN RAISE EXCEPTION 'symbol claim does not fence stale parent lease'; END IF;
+ IF def NOT LIKE '%lease_expires_at = now() + interval ''6 minutes''%' AND def NOT LIKE '%lease_expires_at=now()+interval ''6 minutes''%' THEN RAISE EXCEPTION 'symbol claim does not renew valid parent lease'; END IF;
+END $t$;
