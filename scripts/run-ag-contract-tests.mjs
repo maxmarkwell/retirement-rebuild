@@ -157,3 +157,8 @@ const symbolAggregationRunnable=symbolAggregationSource
 const symbolAggregationUrl=toDataUrl(symbolAggregationRunnable,"symbol-stage-aggregation.ts");
 const symbolAggregationTests=await readFile(resolve(directory,"symbol-stage-aggregation.test.ts"),"utf8");
 await import(toDataUrl(symbolAggregationTests.replace('"./symbol-stage-aggregation"',JSON.stringify(symbolAggregationUrl)),"symbol-stage-aggregation.test.ts"));
+
+const symbolCheckpointSource=await readFile(resolve(directory,"symbol-checkpoint-orchestrator.ts"),"utf8");
+const symbolCheckpointUrl=toDataUrl(symbolCheckpointSource,"symbol-checkpoint-orchestrator.ts");
+const symbolCheckpointTests=await readFile(resolve(directory,"symbol-checkpoint-orchestrator.test.ts"),"utf8");
+await import(toDataUrl(symbolCheckpointTests.replace('"./symbol-checkpoint-orchestrator"',JSON.stringify(symbolCheckpointUrl)),"symbol-checkpoint-orchestrator.test.ts"));
