@@ -177,15 +177,25 @@ INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle
  ('a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date+3,'running');
 INSERT INTO public.ag_cycle_stage_checkpoints(id,cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output,claim_token,lease_expires_at) VALUES
  ('a2111111-1111-4111-8111-111111111111','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','holding_review','completed','{}'::jsonb,NULL,NULL),
- ('a2222222-2222-4222-8222-222222222222','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','discovery','running',NULL,'a2121212-2121-4121-8121-212121212121',now()+interval '10 minutes');
-DO $$
-DECLARE ok boolean;
+ ('a2222222-2222-4222-8222-222222222222','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','discovery','pending',NULL,NULL,NULL);
+DO $
+DECLARE ok boolean; cp uuid; token uuid; n integer;
 BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token
+ FROM public.ag_claim_cycle_stage('a2020202-2020-4020-8020-202020202020'::uuid,'discovery');
+ IF cp IS DISTINCT FROM 'a2222222-2222-4222-8222-222222222222'::uuid OR token IS NULL
+ THEN RAISE EXCEPTION 'Discovery stage claim identity invalid'; END IF;
  BEGIN
-  PERFORM public.ag_complete_cycle_stage('a2222222-2222-4222-8222-222222222222'::uuid,'a2121212-2121-4121-8121-212121212121'::uuid,'{"discovery":{"candidates":[]},"watch_context":{"research":{},"committee":{}}}'::jsonb);
+  PERFORM public.ag_complete_cycle_stage(cp,token,'{"discovery":{"candidates":[]},"watch_context":{"research":{},"committee":{}}}'::jsonb);
   RAISE EXCEPTION 'Incomplete Discovery handoff accepted';
  EXCEPTION WHEN OTHERS THEN IF SQLERRM='Incomplete Discovery handoff accepted' THEN RAISE; END IF; END;
- ok:=public.ag_complete_cycle_stage('a2222222-2222-4222-8222-222222222222'::uuid,'a2121212-2121-4121-8121-212121212121'::uuid,
+ ok:=public.ag_complete_cycle_stage(cp,token,
  '{"discovery":{"candidates":[],"executionEvidenceInputs":{},"rateLimited":false,"stoppedEarly":false,"errors":[]},"watch_context":{"research":{},"committee":{}}}'::jsonb);
  IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'Valid Discovery handoff did not complete'; END IF;
-END $$;
+ SELECT count(*) INTO n FROM public.ag_read_completed_stage_output(
+  'a2020202-2020-4020-8020-202020202020'::uuid,'discovery')
+ WHERE stage='discovery'
+   AND output->'discovery'->>'rateLimited'='false'
+   AND output->'watch_context'->'research'='{}'::jsonb;
+ IF n<>1 THEN RAISE EXCEPTION 'Completed Discovery output did not round-trip through authenticated RPC'; END IF;
+END $;
