@@ -43,8 +43,7 @@ BEGIN
   IF jsonb_typeof(v_manifest) IS DISTINCT FROM 'array'
      OR jsonb_typeof(v_tickers) IS DISTINCT FROM 'array'
   THEN RETURN false; END IF;
-  IF jsonb_array_length(v_manifest)=0
-     OR jsonb_array_length(v_manifest)<>jsonb_array_length(v_tickers)
+  IF jsonb_array_length(v_manifest)<>jsonb_array_length(v_tickers)
   THEN RETURN false; END IF;
   -- Reject malformed, duplicate, missing or out-of-scope entries. A
   -- manifest cannot silently omit a ledger row or duplicate one ticker.
