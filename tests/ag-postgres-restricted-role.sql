@@ -1,6 +1,6 @@
 -- Disposable Postgres only: exercise grants and RLS as the restricted app role.
 GRANT USAGE ON SCHEMA public, auth TO authenticated;
-GRANT SELECT ON public.ag_cycle_decision_writes TO authenticated;
+-- Direct recovery-table access must remain unavailable to authenticated.
 -- SECURITY DEFINER RPC must be callable, but direct ledger mutation forbidden.
 GRANT EXECUTE ON FUNCTION public.ag_commit_cycle_decision(
  uuid,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text
@@ -10,9 +10,14 @@ SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111'
 DO $$
 DECLARE visible integer; result_id uuid;
 BEGIN
- SELECT count(*) INTO visible FROM public.ag_cycle_decision_writes
- WHERE cycle_id='44444444-4444-4444-8444-444444444444';
- IF visible = 0 THEN RAISE EXCEPTION 'Owner cannot read ledger'; END IF;
+ BEGIN
+  SELECT count(*) INTO visible FROM public.ag_cycle_decision_writes;
+  RAISE EXCEPTION 'Restricted role unexpectedly read ledger directly';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+ SELECT count(*) INTO visible FROM public.ag_read_cycle_decision_ledger(
+   '44444444-4444-4444-8444-444444444444');
+ IF visible = 0 THEN RAISE EXCEPTION 'Owner cannot read scoped ledger RPC'; END IF;
  BEGIN
   INSERT INTO public.ag_cycle_decision_writes(
     cycle_id,user_id,portfolio_id,strategy_era_id,ticker,decision_kind,payload_hash
@@ -46,8 +51,9 @@ SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999'
 DO $$
 DECLARE visible integer;
 BEGIN
- SELECT count(*) INTO visible FROM public.ag_cycle_decision_writes;
- IF visible <> 0 THEN RAISE EXCEPTION 'RLS leaked another owners ledger'; END IF;
+ SELECT count(*) INTO visible FROM public.ag_read_cycle_decision_ledger(
+   '44444444-4444-4444-8444-444444444444');
+ IF visible <> 0 THEN RAISE EXCEPTION 'Scoped ledger RPC leaked another owners ledger'; END IF;
  BEGIN
   PERFORM public.ag_commit_cycle_decision(
     '44444444-4444-4444-8444-444444444444',
