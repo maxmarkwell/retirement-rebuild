@@ -13,8 +13,8 @@ BEGIN
   JOIN pg_namespace n ON n.oid=t.relnamespace
   WHERE n.nspname='public' AND t.relname='ag_research_watchlist'
     AND c.conname='ag_research_watchlist_resolution_check';
-  IF resolution_def IS NULL OR resolution_def LIKE '%QUANTITATIVE_REVIEW%'
-  THEN RAISE EXCEPTION 'Failed candidate left watchlist constraint mutation behind'; END IF;
+  IF resolution_def IS NULL OR resolution_def NOT LIKE '%QUANTITATIVE_REVIEW%'
+  THEN RAISE EXCEPTION 'Reconciled watchlist constraint was not preserved'; END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
