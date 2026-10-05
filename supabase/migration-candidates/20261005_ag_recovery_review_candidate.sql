@@ -23,23 +23,7 @@ COMMENT ON COLUMN public.investment_decisions.notes IS
 -- * applying this column alone does NOT authorize AG persistence/reactivation.
 
 
--- SOURCE: docs/ag-watchlist-schema-compatibility-proposal.sql
-
--- DRAFT ONLY. DO NOT APPLY WITHOUT READ-ONLY LIVE CATALOG AUDIT.
--- The checked-in 20260922100000 migration permits only PROCEED/STOP/STALE,
--- while the existing application writes these quantitative provenance values.
--- This proposal preserves that provenance rather than silently mapping it.
-ALTER TABLE public.ag_research_watchlist
-  DROP CONSTRAINT ag_research_watchlist_resolution_check;
-ALTER TABLE public.ag_research_watchlist
-  ADD CONSTRAINT ag_research_watchlist_resolution_check CHECK (
-    resolution IS NULL OR resolution IN (
-      'PROCEED','STOP','STALE',
-      'QUANTITATIVE_REVIEW','QUANTITATIVE_REJECT',
-      'QUANTITATIVE_INSUFFICIENT_DATA'
-    )
-  );
-
+-- Live preflight confirms 20260924190000 already installed the quantitative watchlist constraint; no watchlist DDL is needed here.
 
 -- SOURCE: checkpoint table SQL extracted from design
 
