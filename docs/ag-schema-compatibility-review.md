@@ -23,6 +23,22 @@ SELECT to_regclass('public.ag_cycle_stage_checkpoints') AS checkpoint_table,
 
 Record whether `notes` was introduced outside version-controlled migrations, and compare **all** proposed RPC INSERT columns and constraints against the live schema. Verify `public.digest` is available in the target database's actual extension schema. If `notes` is absent, propose a separately reviewed migration or a documented provenance-preserving alternate mapping. Do not silently remove the field.
 
+## Live audit result — 2026-10-05
+
+The required read-only audit is complete. See
+`ag-live-schema-audit-2026-10-05.md`.
+
+Confirmed: `notes` is absent; `pgcrypto` is installed in `extensions`;
+the live quantitative watchlist constraint accepts the legacy
+`QUANTITATIVE_*` values; recovery checkpoint/ledger tables and recovery RPCs
+are absent; and the active-AI uniqueness index is cross-era. Supabase migration
+history stops at Sep. 17 despite later AG schema being present, so migration
+history must be reconciled before any DDL is applied.
+
+The draft SQL now targets `extensions.digest` and explicitly fails closed on
+a pre-era active AI decision. A nullable `notes text` addition is documented
+in `ag-decision-provenance-schema-proposal.sql` but has **not** been applied.
+
 ## Release gate
 
 1. Obtain read-only live schema evidence and reconcile it with committed migrations.
