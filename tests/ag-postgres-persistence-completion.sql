@@ -1,6 +1,6 @@
 -- Disposable DB: generic completion must not bypass persistence ledger.
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
-DO $$
+DO $agmissingwatch$
 DECLARE cp uuid; token uuid; ok boolean;
 BEGIN
  SELECT id,claim_token INTO cp,token FROM public.ag_cycle_stage_checkpoints
