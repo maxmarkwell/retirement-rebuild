@@ -1,30 +1,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {canonicalAgWatchOperation,reconcileAgWatchlistIntent} from "./watchlist-reconciliation";
+import {reconcileAgWatchlistIntent,verifyAgWatchlistAfterAmbiguousWrite} from "./watchlist-reconciliation";
 import type {AgWatchIntent} from "./watchlist-intent-capture";
 const cycleId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const rowId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const hash="a".repeat(64);
 const intent:AgWatchIntent={stream:"research_watch",symbol:"WATCH",source_row_id:rowId,
   action:"resolve_quantitative",resolution:"REJECT"};
 const committee:AgWatchIntent={stream:"committee_watch",symbol:"WATCH",source_row_id:rowId,
   action:"supersede_committee",resolution:"REVIEW"};
 const row=(i:AgWatchIntent)=>({
   cycle_id:cycleId,stream:i.stream,symbol:i.symbol,action:i.action,
-  payload_json:canonicalAgWatchOperation(i),status:"committed" as const,
+  source_row_id:i.source_row_id,payload_hash:hash,status:"committed" as const,
   effect:"applied" as const,affected_row_id:rowId,
 });
-test("exact frozen operations are recorded, but database postconditions remain mandatory",()=>{
+test("exact ledger shape is preliminary evidence pending database postconditions",()=>{
   const result=reconcileAgWatchlistIntent({cycleId,intents:[intent,committee],
     ledger:[row(intent),row(committee)]});
-  assert.equal(result.status,"VERIFIED_RECORDED_REQUIRES_DB_POSTCONDITIONS");
+  assert.equal(result.status,"RECORDED_REQUIRES_DB_POSTCONDITIONS");
   assert.deepEqual(result.recorded,["research_watch:WATCH","committee_watch:WATCH"]);
 });
 test("missing, pending, altered, unscoped and duplicate ledger rows require manual reconciliation",()=>{
   const good=row(intent);
   for(const ledger of [
     [],[{...good,status:"pending" as const}],
-    [{...good,payload_json:"{}"}],
+    [{...good,payload_hash:"bad"}],
     [{...good,cycle_id:rowId}],
+    [{...good,source_row_id:null}],
     [{...good,affected_row_id:null}],
     [{...good,effect:"noop" as const,affected_row_id:rowId}],
     [good,good],
@@ -39,10 +41,7 @@ test("same ticker in distinct watch streams has distinct operation identity",()=
     ledger:[row(intent)]});
   assert.deepEqual(result.missing,["committee_watch:WATCH"]);
 });
-test("payload identity includes action and resolution and rejects duplicate intents",()=>{
-  const altered:AgWatchIntent={stream:"research_watch",symbol:"WATCH",source_row_id:rowId,
-    action:"resolve_quantitative",resolution:"REVIEW"};
-  assert.notEqual(canonicalAgWatchOperation(intent),canonicalAgWatchOperation(altered));
+test("duplicate frozen operation identities are rejected",()=>{
   assert.throws(()=>reconcileAgWatchlistIntent({cycleId,
     intents:[intent,intent],ledger:[]}));
 });
@@ -50,12 +49,31 @@ test("committed no-op is explicit and carries no affected row identity",()=>{
   const noSource:AgWatchIntent={stream:"research_watch",symbol:"NEW",source_row_id:null,
     action:"resolve_research",resolution:"STOP"};
   const result=reconcileAgWatchlistIntent({cycleId,intents:[noSource],ledger:[{
-    ...row(noSource),effect:"noop",affected_row_id:null,
+    ...row(noSource),source_row_id:null,effect:"noop",affected_row_id:null,
   }]});
-  assert.equal(result.status,"VERIFIED_RECORDED_REQUIRES_DB_POSTCONDITIONS");
+  assert.equal(result.status,"RECORDED_REQUIRES_DB_POSTCONDITIONS");
 });
-test("clean empty plan with no ledger entries has no unresolved mutations",()=>{
-  const result=reconcileAgWatchlistIntent({cycleId,intents:[],ledger:[]});
-  assert.equal(result.status,"VERIFIED_RECORDED_REQUIRES_DB_POSTCONDITIONS");
-  assert.deepEqual(result.recorded,[]);
+test("timeout recovery completes only after every database postcondition verifies",async()=>{
+  const input={cycleId,intents:[intent,committee],ledger:[row(intent),row(committee)]};
+  const seen:string[]=[];
+  assert.equal(await verifyAgWatchlistAfterAmbiguousWrite(input,async(_cycle,item)=>{
+    seen.push(item.stream+":"+item.symbol); return true;
+  }),"COMPLETE");
+  assert.deepEqual(seen,["research_watch:WATCH","committee_watch:WATCH"]);
+  assert.equal(await verifyAgWatchlistAfterAmbiguousWrite(input,async(_cycle,item)=>
+    item.stream!=="committee_watch"),"MANUAL_RECONCILIATION");
+  assert.equal(await verifyAgWatchlistAfterAmbiguousWrite(input,async()=>{throw new Error("read failed")}),
+    "MANUAL_RECONCILIATION");
+});
+test("bad preliminary ledger evidence never invokes the postcondition verifier",async()=>{
+  let invoked=false;
+  const result=await verifyAgWatchlistAfterAmbiguousWrite(
+    {cycleId,intents:[intent],ledger:[]},async()=>{invoked=true;return true;});
+  assert.equal(result,"MANUAL_RECONCILIATION");
+  assert.equal(invoked,false);
+});
+test("clean empty plan needs no database mutations",async()=>{
+  const input={cycleId,intents:[] as AgWatchIntent[],ledger:[]};
+  assert.equal(reconcileAgWatchlistIntent(input).status,"RECORDED_REQUIRES_DB_POSTCONDITIONS");
+  assert.equal(await verifyAgWatchlistAfterAmbiguousWrite(input,async()=>false),"COMPLETE");
 });
