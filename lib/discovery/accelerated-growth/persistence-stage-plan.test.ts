@@ -1,4 +1,5 @@
-import {describe,it,expect} from "vitest";
+import test from "node:test";
+import assert from "node:assert/strict";
 import {prepareAgPersistenceDecisionCalls} from "./persistence-stage-plan";
 const cycle="11111111-1111-4111-8111-111111111111";
 const claim="22222222-2222-4222-8222-222222222222";
@@ -8,20 +9,20 @@ const frozen=(ticker:string,kind:"holding_review"|"committee",type:string)=>({
   "bull","bear","monitor","invalidate",null,false,true,"v1",null]}],
  calls:[{p_claim_token:oldClaim}],
 });
-describe("AG persistence stage plan",()=>{
- it("rekeys frozen stage intent under only the persistence claim",()=>{
+
+ test("rekeys frozen stage intent under only the persistence claim",()=>{
   const calls=prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
    holding:frozen("HELD","holding_review","hold"),
    committee:frozen("NEW","committee","watch")});
-  expect(calls.map(x=>x.p_ticker)).toEqual(["HELD","NEW"]);
-  expect(calls.every(x=>x.p_claim_token===claim)).toBe(true);
-  expect(calls.some(x=>x.p_claim_token===oldClaim)).toBe(false);
+  assert.deepEqual(calls.map(x=>x.p_ticker),["HELD","NEW"]);
+  assert.ok(calls.every(x=>x.p_claim_token===claim));
+  assert.ok(!calls.some(x=>x.p_claim_token===oldClaim));
  });
- it("supports an explicit zero-decision cycle",()=>{
+ test("supports an explicit zero-decision cycle",()=>{
   expect(prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
    holding:{decision_payloads:[]},committee:{decision_payloads:[]}})).toEqual([]);
  });
- it("fails closed on overlap or mutated canonical identity",()=>{
+ test("fails closed on overlap or mutated canonical identity",()=>{
   expect(()=>prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
    holding:frozen("SAME","holding_review","hold"),
    committee:frozen("SAME","committee","watch")})).toThrow(/overlap/);
@@ -30,4 +31,3 @@ describe("AG persistence stage plan",()=>{
   expect(()=>prepareAgPersistenceDecisionCalls({cycleId:cycle,claimToken:claim,
    holding:{decision_payloads:[]},committee:bad})).toThrow(/payload/);
  });
-});
