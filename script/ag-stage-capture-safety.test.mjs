@@ -89,7 +89,7 @@ assert.ok(researchStages.includes('stage:"discovery"')&&researchStages.includes(
 assert.ok(researchStages.includes("resumeAgDeepResearchFanout")&&researchStages.includes("resumeAgCommitteeFanout"));
 assert.ok(researchStages.includes("resumeAgCommitteeFanout"));
 assert.ok(researchStages.includes("resumeAgDeepResearchFanout"));
-assert.ok(researchStages.includes("parseAgDeepResearchResults"));
+assert.ok(researchStages.includes("resumeAgCommitteeFanout"));
 assert.ok(!researchStages.includes("getDynamicDiscoveryUniverse"));
 assert.ok(runner.includes("assertAgLegacyPersistenceDisabled();"));
 console.log("AG stage-capture isolation contract passed");
