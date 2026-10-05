@@ -178,7 +178,7 @@ INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle
 INSERT INTO public.ag_cycle_stage_checkpoints(id,cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output,claim_token,lease_expires_at) VALUES
  ('a2111111-1111-4111-8111-111111111111','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','holding_review','completed','{}'::jsonb,NULL,NULL),
  ('a2222222-2222-4222-8222-222222222222','a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','discovery','pending',NULL,NULL,NULL);
-DO $
+DO $agdiscovery$
 DECLARE ok boolean; cp uuid; token uuid; n integer;
 BEGIN
  SELECT checkpoint_id,claim_token INTO cp,token
@@ -198,4 +198,4 @@ BEGIN
    AND output->'discovery'->>'rateLimited'='false'
    AND output->'watch_context'->'research'='{}'::jsonb;
  IF n<>1 THEN RAISE EXCEPTION 'Completed Discovery output did not round-trip through authenticated RPC'; END IF;
-END $;
+END $agdiscovery$;
