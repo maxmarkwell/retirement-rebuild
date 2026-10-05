@@ -55,7 +55,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_actual_schema;'
           psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_actual_schema;'
           export PGDATABASE=ag_actual_schema
-          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;'
+          # Roles are cluster-wide and were created by the isolated-schema step.
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
           psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-schema-compatibility-proposal.sql
