@@ -5,6 +5,18 @@ import type { AgStageCheckpointRpc, AgStageClaim } from "./stage-checkpoint-capt
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export async function reclaimAuthenticatedAgExpiredSymbolParent(cycleId:string,stage:"catalyst_deep_research"|"committee"):Promise<AgStageClaim>{
+ const supabase=await createClient();
+ const {data:{user}}=await supabase.auth.getUser();
+ if(!user) throw new Error("You must be signed in.");
+ const {data,error}=await supabase.rpc("ag_reclaim_expired_symbol_parent_stage",{p_cycle_id:cycleId,p_stage:stage});
+ if(error) throw new Error(`Unable to reclaim expired AG ${stage} stage: ${error.message}`);
+ const row=Array.isArray(data)?data[0]:data;
+ if(!row || !UUID.test(row.checkpoint_id) || !UUID.test(row.claim_token))
+  throw new Error("AG parent reclaim returned invalid identity.");
+ return {checkpointId:row.checkpoint_id,claimToken:row.claim_token,stage};
+}
+
 export async function createAuthenticatedAgStageCheckpointRpc():Promise<AgStageCheckpointRpc>{
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
