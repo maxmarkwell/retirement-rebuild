@@ -36,7 +36,9 @@ INSERT INTO public.ag_cycle_stage_checkpoints(
   jsonb_build_object('stream','research_watch','symbol','OLDWATCH',
     'source_row_id','16161616-1616-4616-8616-161616161616','action','resolve_quantitative'),
   jsonb_build_object('stream','committee_watch','symbol','CWATCH',
-    'source_row_id','17171717-1717-4717-8717-171717171717','action','supersede_committee')
+    'source_row_id','17171717-1717-4717-8717-171717171717','action','supersede_committee'),
+  jsonb_build_object('stream','research_watch','symbol','ROLLBACK',
+    'source_row_id',null,'action','upsert_watch')
   )));
 INSERT INTO public.ag_cycle_stage_checkpoints(
  cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at
@@ -109,4 +111,103 @@ BEGIN
   IF SQLERRM='Operation absent from frozen manifest accepted' THEN RAISE; END IF;
   IF SQLERRM<>'Watch operation absent from completed research manifest' THEN RAISE; END IF;
  END;
+END $agtest$;
+
+-- A failure after target mutation must roll back both target and ledger.
+CREATE FUNCTION public.ag_test_fail_watch_commit() RETURNS trigger LANGUAGE plpgsql AS $agtest$
+BEGIN
+ IF NEW.ticker='ROLLBACK' AND NEW.status='committed' THEN
+  RAISE EXCEPTION 'forced watch ledger failure';
+ END IF;
+ RETURN NEW;
+END $agtest$;
+CREATE TRIGGER ag_test_fail_watch_commit
+ BEFORE UPDATE ON public.ag_cycle_watch_writes
+ FOR EACH ROW EXECUTE FUNCTION public.ag_test_fail_watch_commit();
+DO $agtest$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_watch_operation(
+   '15151515-1515-4515-8515-151515151515','18181818-1818-4818-8818-181818181818',
+   'research_watch','ROLLBACK','upsert_watch',null,null,'Rollback Co',0.5,
+   'Rollback thesis',ARRAY['Q'],'short',ARRAY['I'],'model','v1',false);
+  RAISE EXCEPTION 'Forced rollback operation unexpectedly committed';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Forced rollback operation unexpectedly committed' THEN RAISE; END IF;
+  IF SQLERRM<>'forced watch ledger failure' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM public.ag_research_watchlist WHERE ticker='ROLLBACK')
+    OR EXISTS (SELECT 1 FROM public.ag_cycle_watch_writes
+               WHERE cycle_id='15151515-1515-4515-8515-151515151515'
+                 AND ticker='ROLLBACK')
+ THEN RAISE EXCEPTION 'Forced watch failure left partial state'; END IF;
+END $agtest$;
+DROP TRIGGER ag_test_fail_watch_commit ON public.ag_cycle_watch_writes;
+DROP FUNCTION public.ag_test_fail_watch_commit();
+
+-- Cross-owner caller cannot reuse a valid claim or frozen manifest.
+SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false);
+DO $agtest$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_watch_operation(
+   '15151515-1515-4515-8515-151515151515','18181818-1818-4818-8818-181818181818',
+   'research_watch','NEWSTOP','resolve_research',null,'STOP',
+   null,null,null,null,null,null,null,null,false);
+  RAISE EXCEPTION 'Cross-owner watch operation accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Cross-owner watch operation accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'AG cycle unavailable' THEN RAISE; END IF;
+ END;
+END $agtest$;
+SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+
+-- A delayed older cycle cannot overwrite a newer committed watch operation.
+INSERT INTO public.ag_daily_cycles VALUES
+ ('19191919-1919-4919-8919-191919191919',
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  '33333333-3333-4333-8333-333333333333',current_date+13,'running'),
+ ('20202020-2020-4020-8020-202020202020',
+  '11111111-1111-4111-8111-111111111111',
+  '22222222-2222-4222-8222-222222222222',
+  '33333333-3333-4333-8333-333333333333',current_date+14,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ '19191919-1919-4919-8919-191919191919',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333','catalyst_deep_research','completed',
+ '{"watchlist_intents":[{"stream":"research_watch","symbol":"FENCED","source_row_id":null,"action":"resolve_research"}]}'::jsonb);
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at
+) VALUES (
+ '19191919-1919-4919-8919-191919191919',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333','persistence','running',
+ '21212121-2121-4121-8121-212121212121',now()+interval '10 minutes');
+INSERT INTO public.ag_cycle_watch_writes(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stream,ticker,action,
+ payload_hash,status,effect,affected_row_id,committed_at
+) VALUES (
+ '20202020-2020-4020-8020-202020202020',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ 'research_watch','FENCED','resolve_research',repeat('e',64),
+ 'committed','noop',null,now());
+DO $agtest$ BEGIN
+ BEGIN
+  PERFORM public.ag_commit_watch_operation(
+   '19191919-1919-4919-8919-191919191919','21212121-2121-4121-8121-212121212121',
+   'research_watch','FENCED','resolve_research',null,'STOP',
+   null,null,null,null,null,null,null,null,false);
+  RAISE EXCEPTION 'Older watch cycle bypassed newer-cycle fence';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Older watch cycle bypassed newer-cycle fence' THEN RAISE; END IF;
+  IF SQLERRM<>'Newer AG cycle already committed this watch operation' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM public.ag_cycle_watch_writes
+   WHERE cycle_id='19191919-1919-4919-8919-191919191919' AND ticker='FENCED')
+ THEN RAISE EXCEPTION 'Fenced older cycle left pending ledger state'; END IF;
 END $agtest$;
