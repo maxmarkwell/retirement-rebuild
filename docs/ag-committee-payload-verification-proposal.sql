@@ -77,7 +77,7 @@ BEGIN
         AND w.portfolio_id=v_cycle.portfolio_id
         AND w.strategy_era_id=v_cycle.strategy_era_id
         AND w.decision_kind='committee' AND w.status='committed'
-        AND w.payload_hash=encode(public.digest(
+        AND w.payload_hash=encode(extensions.digest(
           convert_to((m.entry->'args')::text,'UTF8'),'sha256'),'hex')
         AND d.user_id=w.user_id AND d.portfolio_id=w.portfolio_id
         AND d.ticker=w.ticker AND d.status='active'
