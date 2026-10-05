@@ -13,8 +13,9 @@ const deepWork=fs.readFileSync(root+"catalyst-deep-stage-work.ts","utf8");
 const committeeWork=fs.readFileSync(root+"committee-stage-work.ts","utf8");
 const researchStages=fs.readFileSync(root+"resumable-research-stages.ts","utf8");
 const persistencePlan=fs.readFileSync(root+"persistence-stage-plan.ts","utf8");
+const resumableAdapter=fs.readFileSync(root+"resumable-daily-cycle-adapter.ts","utf8");
 const runner=fs.readFileSync(root+"daily-cycle-work.ts","utf8");
-for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork],["researchStages",researchStages],["persistencePlan",persistencePlan]]){
+for(const [name,text] of [["transport",transport],["capture",capture],["builders",builders],["executor",executor],["stageWork",stageWork],["statusReader",statusReader],["outputReader",outputReader],["discoveryWork",discoveryWork],["deepWork",deepWork],["committeeWork",committeeWork],["researchStages",researchStages],["persistencePlan",persistencePlan],["resumableAdapter",resumableAdapter]]){
  assert.ok(!text.includes("ag_commit_cycle_decision"),name+" must not persist decisions");
  assert.ok(!text.includes("ag_commit_watch_operation"),name+" must not persist watchlist");
  assert.ok(!text.includes("executeAgDailyCycleTransactions"),name+" must not execute transactions");
@@ -50,6 +51,16 @@ assert.ok(committeeWork.includes("runAgCommittee"));
 assert.ok(!committeeWork.includes("runAgDeepResearchPipeline"));
 assert.ok(!runner.includes("resumable-research-stages"));
 assert.ok(!runner.includes("persistence-stage-plan"));
+assert.ok(!runner.includes("resumable-daily-cycle-adapter"));
+assert.ok(resumableAdapter.includes("readAuthenticatedAgCheckpointStatus"));
+assert.ok(resumableAdapter.includes("planAgResume"));
+assert.ok(resumableAdapter.includes("executeAgHoldingReviewStage"));
+assert.ok(resumableAdapter.includes("executeAgDiscoveryStage"));
+assert.ok(resumableAdapter.includes("executeAgCatalystDeepStage"));
+assert.ok(resumableAdapter.includes("executeAgCommitteeResearchStage"));
+assert.ok(!resumableAdapter.includes("ag_commit_cycle_decision"));
+assert.ok(!resumableAdapter.includes("ag_commit_watch_operation"));
+assert.ok(!resumableAdapter.includes("executeAgDailyCycleTransactions"));
 assert.ok(persistencePlan.includes("p_claim_token:claimToken"));
 assert.ok(!persistencePlan.includes("supabase"));
 assert.ok(!persistencePlan.includes("commitPreparedAgBatch"));
