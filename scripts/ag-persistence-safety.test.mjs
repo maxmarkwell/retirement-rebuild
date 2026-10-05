@@ -43,3 +43,13 @@ test("symbol checkpoint transport remains isolated from active runner",()=>{
  assert.match(transport,/ag_complete_cycle_symbol/);
  assert.doesNotMatch(orchestrator,/retry|setTimeout|setInterval/i);
 });
+
+test("isolated resumable research uses child symbol fanout",()=>{
+ const stages=readFileSync("lib/discovery/accelerated-growth/resumable-research-stages.ts","utf8");
+ const fanout=readFileSync("lib/discovery/accelerated-growth/resumable-symbol-fanout.ts","utf8");
+ const runner=readFileSync("lib/discovery/accelerated-growth/daily-cycle-work.ts","utf8");
+ assert.match(stages,/resumeAgDeepResearchFanout/);assert.match(stages,/resumeAgCommitteeFanout/);
+ assert.doesNotMatch(stages,/runAgCatalystDeepResearchStage|runAgCommitteeStage/);
+ assert.match(fanout,/runNextAgSymbolWork/);assert.match(fanout,/aggregateAgDeepSymbolOutputs/);assert.match(fanout,/aggregateAgCommitteeSymbolOutputs/);
+ assert.doesNotMatch(runner,/resumable-symbol-fanout/);
+});
