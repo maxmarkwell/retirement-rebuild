@@ -61,12 +61,15 @@ that upstream normalization when freezing or replaying watch operations.
 scoped durable ledger rows, including stream, ticker, action, canonical
 payload, committed status and affected row identity. It detects missing,
 extra, pending, altered, duplicate and cross-cycle rows; every uncertain
-case requires manual reconciliation. Even an exact ledger match is labeled
-`VERIFIED_RECORDED_REQUIRES_DB_POSTCONDITIONS`: the actual affected watch
-or Committee decision must still be verified read-only, and no automatic
-retry is authorized. The proposed canonical serializer is an application
-comparison contract; the eventual database RPC must derive and test its
-own identical canonical encoding, never trust a supplied hash.
+case requires manual reconciliation. An exact ledger-shape match is labeled
+`RECORDED_REQUIRES_DB_POSTCONDITIONS`: a 64-character server hash is only
+preliminary evidence. The application never pretends it can reconstruct or
+validate that digest from a different JSON serializer. The read-only
+`ag_verify_watch_operation_postcondition` RPC recomputes the exact server
+payload digest from frozen typed arguments and verifies the affected research
+watch or Committee decision row. Any false result, read error, target tamper,
+cross-owner request, or newer-cycle write requires manual reconciliation; no
+automatic retry is authorized.
 
 ## Acceptance sequence
 
@@ -82,9 +85,12 @@ own identical canonical encoding, never trust a supplied hash.
    quantitative resolution provenance and exact Committee source identity.
    Cross-owner denial, forced rollback after target mutation, and newer-cycle
    fencing also pass in disposable PostgreSQL at `fab4e511`. **Still add**
-   timeout-after-commit reconciliation against actual row postconditions and
-   run the suite against an audited actual-schema fixture before satisfying
-   this gate.
+   timeout-after-commit reconciliation now verifies server payload identity
+   plus actual research/Committee row postconditions in disposable PostgreSQL
+   at `5680e0ef`; stale older-cycle evidence is additionally rejected at
+   `0a995b26`. The isolated authenticated reader remains disconnected from the
+   active runner. **Still run** the suite against an audited actual-schema
+   fixture before satisfying this gate.
 4. Test against a disposable fixture reconstructed from the audited
    actual schema; require exact watch-operation coverage before marking
    the full cycle finalized.
