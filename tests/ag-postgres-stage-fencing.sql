@@ -84,8 +84,51 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Malformed Committee ticker accepted' THEN RAISE; END IF;
  END;
+ -- A valid ticker list without original source and payload evidence fails.
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,
+    '{"persistence_tickers":["ALPHA","BETA"]}');
+  RAISE EXCEPTION 'Ticker-only Committee checkpoint accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Ticker-only Committee checkpoint accepted' THEN RAISE; END IF;
+ END;
+ -- Full source set and canonical payload array must match one-to-one.
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(checkpoint,token,jsonb_build_object(
+    'persistence_tickers',jsonb_build_array('ALPHA','BETA'),
+    'source_symbols',jsonb_build_array('ALPHA','BETA'),
+    'source_count',2,'output_count',2,'failure_count',0,
+    'source_decisions',jsonb_build_array(
+      jsonb_build_object('symbol','ALPHA'),jsonb_build_object('symbol','BETA')),
+    'decision_payloads',jsonb_build_array(
+      jsonb_build_object('ticker','ALPHA','args',jsonb_build_array(
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+        'ALPHA','committee','watch','Alpha thesis',75,'short',
+        null,null,null,null,null,null,null,null,null)),
+      jsonb_build_object('ticker','ALPHA','args',jsonb_build_array(
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+        'ALPHA','committee','watch','Duplicate thesis',75,'short',
+        null,null,null,null,null,null,null,null,null)))));
+  RAISE EXCEPTION 'Duplicate full Committee payload accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Duplicate full Committee payload accepted' THEN RAISE; END IF;
+ END;
  completed := public.ag_complete_cycle_stage(checkpoint,token,
-   '{"persistence_tickers":["ALPHA","BETA"]}');
- IF NOT completed THEN RAISE EXCEPTION 'Valid Committee manifest rejected'; END IF;
+   jsonb_build_object(
+    'persistence_tickers',jsonb_build_array('ALPHA','BETA'),
+    'source_symbols',jsonb_build_array('ALPHA','BETA'),
+    'source_count',2,'output_count',2,'failure_count',0,
+    'source_decisions',jsonb_build_array(
+      jsonb_build_object('symbol','ALPHA'),jsonb_build_object('symbol','BETA')),
+    'decision_payloads',jsonb_build_array(
+      jsonb_build_object('ticker','ALPHA','args',jsonb_build_array(
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+        'ALPHA','committee','watch','Alpha thesis',75,'short',
+        null,null,null,null,null,null,null,null,null)),
+      jsonb_build_object('ticker','BETA','args',jsonb_build_array(
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+        'BETA','committee','watch','Beta thesis',75,'short',
+        null,null,null,null,null,null,null,null,null)))));
+ IF NOT completed THEN RAISE EXCEPTION 'Valid full Committee manifest rejected'; END IF;
 
 END $agtest$;
