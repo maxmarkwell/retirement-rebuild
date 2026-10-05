@@ -5,6 +5,15 @@ INSERT INTO public.portfolio_strategy_eras VALUES ('33333333-3333-4333-8333-3333
 INSERT INTO public.ag_daily_cycles VALUES ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',current_date,'running');
 INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output)
 VALUES ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','committee','completed','{"persistence_tickers":["TEST","SNAP","ROLL","BATCHA","BATCHB","RACE","ROLECHECK"]}'::jsonb);
+INSERT INTO public.ag_cycle_stage_checkpoints(
+ cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,output
+) VALUES (
+ '44444444-4444-4444-8444-444444444444',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ 'holding_review','completed','{"persistence_tickers":["HOLDTEST"]}'::jsonb
+);
 INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at)
 VALUES ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','persistence','running','55555555-5555-4555-8555-555555555555',now()+interval '10 minutes');
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
@@ -24,6 +33,29 @@ BEGIN
  END;
  IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='UNLISTED')
  THEN RAISE EXCEPTION 'Unlisted Committee ticker wrote ledger evidence'; END IF;
+ -- A holding write outside its own completed stage must fail before mutation.
+ BEGIN
+  PERFORM public.ag_commit_cycle_decision(
+   '44444444-4444-4444-8444-444444444444',
+   '55555555-5555-4555-8555-555555555555',
+   'UNLISTEDH','holding_review','hold','Valid holding thesis',75,'short',
+   null,null,null,null,null);
+  RAISE EXCEPTION 'Unlisted holding ticker accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Unlisted holding ticker accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Holding ticker absent from completed persistence manifest'
+  THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes WHERE ticker='UNLISTEDH')
+ THEN RAISE EXCEPTION 'Unlisted holding ticker wrote ledger evidence'; END IF;
+ PERFORM public.ag_commit_cycle_decision(
+  '44444444-4444-4444-8444-444444444444',
+  '55555555-5555-4555-8555-555555555555',
+  'HOLDTEST','holding_review','hold','Holding snapshot',75,'short',
+  null,null,null,null,null);
+ IF NOT EXISTS (SELECT 1 FROM public.ag_cycle_decision_writes
+    WHERE ticker='HOLDTEST' AND decision_kind='holding_review' AND status='committed')
+ THEN RAISE EXCEPTION 'Listed holding decision did not commit'; END IF;
  -- Required payload fields are enforced by the database, not just TS.
  BEGIN
   PERFORM public.ag_commit_cycle_decision(
