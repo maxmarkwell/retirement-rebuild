@@ -105,3 +105,14 @@ await import(toDataUrl(
   executorTests.replace('"./resumable-stage-executor"', JSON.stringify(executorUrl)),
   "resumable-stage-executor.test.ts"
 ));
+
+const resumeSource = await readFile(resolve(directory, "resume-planner.ts"), "utf8");
+const resumeUrl = toDataUrl(
+  resumeSource.replace('"./stage-checkpoint-contract"', JSON.stringify(stageContractUrl)),
+  "resume-planner.ts"
+);
+const resumeTests = await readFile(resolve(directory, "resume-planner.test.ts"), "utf8");
+await import(toDataUrl(
+  resumeTests.replace('"./resume-planner"', JSON.stringify(resumeUrl)),
+  "resume-planner.test.ts"
+));
