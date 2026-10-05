@@ -49,3 +49,9 @@ Current Supabase documentation continues to require a fixed `search_path` for SE
 A read-only production catalog preflight on 2026-10-05 confirmed PostgreSQL 17.6, the expected `anon`, `authenticated`, and `service_role` roles, `pgcrypto` in the `extensions` schema, absence of `investment_decisions.notes`, and absence of the proposed recovery tables/functions. It also confirmed migration-history entries `20260922100000` and `20260924190000` and that the live watchlist resolution constraint already includes all three quantitative resolution values.
 
 That last finding removed redundant watchlist constraint DDL from the packaged recovery candidate. Candidate CI now begins from the reconciled watchlist state by applying both historical watchlist migrations before the recovery candidate. At `f237325`, PostgreSQL CI passed audited-schema behavior, forced transactional rollback, clean candidate application, privilege assertions, and transactional smoke tests; contract CI passed AG tests, Next type generation, and TypeScript compilation.
+
+## Privileged API surface lock
+
+The review found one additional hardening issue: `ag_protect_completed_checkpoint()` is a trigger-only helper and should never be a client RPC, but PostgreSQL's default function privileges could otherwise leave it executable through PUBLIC. The proposal and packaged candidate now explicitly revoke PUBLIC/anon/authenticated execution and grant it only to `service_role`.
+
+The migration-candidate privilege test now also asserts the exact authenticated SECURITY DEFINER function-name set. Any future recovery edit that accidentally exposes an additional privileged `ag_*` function to `authenticated` will fail CI. At `d2b027a`, PostgreSQL migration/rollback/behavior/smoke coverage and the AG contract/type suites are green with this hardening.
