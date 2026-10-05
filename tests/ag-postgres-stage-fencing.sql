@@ -140,3 +140,46 @@ BEGIN
  IF NOT completed THEN RAISE EXCEPTION 'Valid full Committee manifest rejected'; END IF;
 
 END $agtest$;
+
+-- Nonempty holding checkpoint must preserve one-to-one source and payload
+-- identities, including a correctly scoped canonical 16-field argument list.
+INSERT INTO public.ag_daily_cycles VALUES
+ ('edededed-eded-4ded-8ded-edededededed',
+ '11111111-1111-4111-8111-111111111111',
+ '22222222-2222-4222-8222-222222222222',
+ '33333333-3333-4333-8333-333333333333',
+ current_date+7,'running');
+DO $agtest$
+DECLARE cp uuid; token uuid; ok boolean; payload jsonb;
+BEGIN
+ SELECT checkpoint_id,claim_token INTO cp,token FROM
+ public.ag_claim_cycle_stage('edededed-eded-4ded-8ded-edededededed','holding_review');
+ payload:=jsonb_build_object(
+  'persistence_tickers',jsonb_build_array('HELD'),
+  'source_symbols',jsonb_build_array('HELD'),
+  'source_count',1,'output_count',1,'failure_count',0,
+  'source_decisions',jsonb_build_array(jsonb_build_object('symbol','HELD')),
+  'decision_payloads',jsonb_build_array(jsonb_build_object(
+    'ticker','HELD','args',jsonb_build_array(
+      'edededed-eded-4ded-8ded-edededededed'::uuid,
+      'HELD','holding_review','hold','Holding thesis',70,'long',
+      null,null,null,null,null,null,null,null,null))));
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,
+    jsonb_set(payload,'{source_symbols}','["OTHER"]'::jsonb));
+  RAISE EXCEPTION 'Mismatched holding source accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Mismatched holding source accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Holding intent identities or payloads inconsistent' THEN RAISE; END IF;
+ END;
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage(cp,token,
+    jsonb_set(payload,'{decision_payloads,0,args,2}','"committee"'::jsonb));
+  RAISE EXCEPTION 'Wrong-kind holding payload accepted';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Wrong-kind holding payload accepted' THEN RAISE; END IF;
+  IF SQLERRM<>'Holding intent identities or payloads inconsistent' THEN RAISE; END IF;
+ END;
+ ok:=public.ag_complete_cycle_stage(cp,token,payload);
+ IF NOT ok THEN RAISE EXCEPTION 'Valid nonempty holding checkpoint rejected'; END IF;
+END $agtest$;
