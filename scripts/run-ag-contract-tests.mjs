@@ -134,3 +134,11 @@ const researchPayloadUrl = toDataUrl(researchPayloadSource
  .replace(/import \{captureAgWatchlistIntent\} from "\.\/watchlist-intent-capture";/, "const captureAgWatchlistIntent=(x)=>x;"), "research-stage-payloads.ts");
 const researchPayloadTests = await readFile(resolve(directory, "research-stage-payloads.test.ts"), "utf8");
 await import(toDataUrl(researchPayloadTests.replace('"./research-stage-payloads"', JSON.stringify(researchPayloadUrl)), "research-stage-payloads.test.ts"));
+
+const persistenceRecoverySource=await readFile(resolve(directory,"persistence-recovery-contract.ts"),"utf8");
+const persistenceRecoveryUrl=toDataUrl(persistenceRecoverySource,"persistence-recovery-contract.ts");
+const persistenceRecoveryTests=await readFile(resolve(directory,"persistence-recovery-contract.test.ts"),"utf8");
+await import(toDataUrl(
+ persistenceRecoveryTests.replace('"./persistence-recovery-contract"',JSON.stringify(persistenceRecoveryUrl)),
+ "persistence-recovery-contract.test.ts"
+));
