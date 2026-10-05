@@ -167,3 +167,25 @@ BEGIN
  IF n<>0 THEN RAISE EXCEPTION 'Cross-owner completed-output RPC leaked evidence'; END IF;
 END $$;
 RESET ROLE;
+
+
+-- Discovery checkpoint completion rejects incomplete handoffs and accepts a
+-- minimal structurally complete frozen snapshot.
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+INSERT INTO public.ag_daily_cycles(id,user_id,portfolio_id,strategy_era_id,cycle_date,status) VALUES
+ ('a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc',current_date+3,'running');
+INSERT INTO public.ag_cycle_stage_checkpoints(cycle_id,user_id,portfolio_id,strategy_era_id,stage,status,claim_token,lease_expires_at) VALUES
+ ('a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','holding_review','completed',NULL,NULL),
+ ('a2020202-2020-4020-8020-202020202020','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','cccccccc-cccc-4ccc-8ccc-cccccccccccc','discovery','running','a2121212-2121-4121-8121-212121212121',now()+interval '10 minutes');
+DO $$
+DECLARE ok boolean;
+BEGIN
+ BEGIN
+  PERFORM public.ag_complete_cycle_stage('a2020202-2020-4020-8020-202020202020'::uuid,'a2121212-2121-4121-8121-212121212121'::uuid,'{"discovery":{"candidates":[]},"watch_context":{"research":{},"committee":{}}}'::jsonb);
+  RAISE EXCEPTION 'Incomplete Discovery handoff accepted';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM='Incomplete Discovery handoff accepted' THEN RAISE; END IF; END;
+ ok:=public.ag_complete_cycle_stage('a2020202-2020-4020-8020-202020202020'::uuid,'a2121212-2121-4121-8121-212121212121'::uuid,
+ '{"discovery":{"candidates":[],"executionEvidenceInputs":{},"rateLimited":false,"stoppedEarly":false,"errors":[]},"watch_context":{"research":{},"committee":{}}}'::jsonb);
+ IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'Valid Discovery handoff did not complete'; END IF;
+END $$;
