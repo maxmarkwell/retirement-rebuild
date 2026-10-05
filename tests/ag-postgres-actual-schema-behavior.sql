@@ -149,7 +149,9 @@ SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 DO $$
 DECLARE n integer; payload jsonb;
 BEGIN
- SELECT count(*),max(output) INTO n,payload
+ SELECT count(*) INTO n
+ FROM public.ag_read_completed_stage_output('dddddddd-dddd-4ddd-8ddd-dddddddddddd','committee');
+ SELECT output INTO payload
  FROM public.ag_read_completed_stage_output('dddddddd-dddd-4ddd-8ddd-dddddddddddd','committee');
  IF n<>1 OR payload IS NULL THEN RAISE EXCEPTION 'Owner completed-output RPC failed'; END IF;
  SELECT count(*) INTO n
