@@ -36,11 +36,19 @@ BEGIN
    OR p_prompt_version IS NULL OR length(trim(p_prompt_version))=0
    OR p_prior_watch_reassessed IS DISTINCT FROM (p_source_row_id IS NOT NULL)
  ) THEN RAISE EXCEPTION 'Invalid AG watch upsert payload'; END IF;
- IF p_action='resolve_research' AND p_resolution NOT IN ('PROCEED','STOP')
- THEN RAISE EXCEPTION 'Invalid AG research resolution'; END IF;
+ IF p_action='resolve_research' AND (
+   p_resolution NOT IN ('PROCEED','STOP')
+   OR p_prior_watch_reassessed IS DISTINCT FROM (p_source_row_id IS NOT NULL)
+ ) THEN RAISE EXCEPTION 'Invalid AG research resolution'; END IF;
  IF p_action IN ('resolve_quantitative','supersede_committee')
-    AND p_resolution NOT IN ('REVIEW','REJECT','INSUFFICIENT_DATA')
+    AND (p_resolution NOT IN ('REVIEW','REJECT','INSUFFICIENT_DATA')
+      OR p_prior_watch_reassessed IS DISTINCT FROM false)
  THEN RAISE EXCEPTION 'Invalid AG quantitative resolution'; END IF;
+ IF p_action<>'upsert_watch' AND (
+   p_company_name IS NOT NULL OR p_confidence IS NOT NULL OR p_thesis IS NOT NULL
+   OR p_unresolved_questions IS NOT NULL OR p_thesis_clock IS NOT NULL
+   OR p_invalidation IS NOT NULL OR p_model IS NOT NULL OR p_prompt_version IS NOT NULL
+ ) THEN RAISE EXCEPTION 'Non-upsert watch payload contains unexpected fields'; END IF;
 
  SELECT * INTO v_cycle FROM public.ag_daily_cycles
  WHERE id=p_cycle_id AND user_id=auth.uid() AND status='running' FOR UPDATE;
@@ -75,7 +83,28 @@ BEGIN
    AND entry->>'stream'=p_stream AND entry->>'symbol'=p_ticker AND entry->>'action'=p_action
    AND ((p_source_row_id IS NULL AND entry->'source_row_id'='null'::jsonb)
      OR entry->>'source_row_id'=p_source_row_id::text)
- ) THEN RAISE EXCEPTION 'Watch operation absent from completed research manifest'; END IF;
+   AND (
+    (p_action='upsert_watch'
+      AND jsonb_typeof(entry->'outcome')='object'
+      AND entry->'outcome'->>'symbol'=p_ticker
+      AND entry->'outcome'->>'researchStatus'='WATCH'
+      AND entry->'outcome'->'companyName' IS NOT DISTINCT FROM
+          COALESCE(to_jsonb(p_company_name),'null'::jsonb)
+      AND entry->'outcome'->'confidence' IS NOT DISTINCT FROM to_jsonb(p_confidence)
+      AND entry->'outcome'->'thesis' IS NOT DISTINCT FROM to_jsonb(p_thesis)
+      AND entry->'outcome'->'unresolvedQuestions' IS NOT DISTINCT FROM to_jsonb(p_unresolved_questions)
+      AND entry->'outcome'->'thesisClock' IS NOT DISTINCT FROM to_jsonb(p_thesis_clock)
+      AND entry->'outcome'->'invalidation' IS NOT DISTINCT FROM to_jsonb(p_invalidation)
+      AND entry->'outcome'->'model' IS NOT DISTINCT FROM to_jsonb(p_model)
+      AND entry->'outcome'->'promptVersion' IS NOT DISTINCT FROM to_jsonb(p_prompt_version)
+      AND entry->'outcome'->'priorWatchReassessed' IS NOT DISTINCT FROM
+          to_jsonb(p_prior_watch_reassessed)
+      AND entry->'outcome'->'priorWatchRowId' IS NOT DISTINCT FROM
+          COALESCE(to_jsonb(p_source_row_id::text),'null'::jsonb))
+    OR
+    (p_action<>'upsert_watch' AND entry->>'resolution'=p_resolution)
+   )
+ ) THEN RAISE EXCEPTION 'Watch operation or frozen payload absent from completed research manifest'; END IF;
 
  v_payload_hash:=encode(public.digest(convert_to(jsonb_build_array(
   p_cycle_id,p_stream,p_ticker,p_action,p_source_row_id,p_resolution,
