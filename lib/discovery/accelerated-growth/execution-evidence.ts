@@ -10,7 +10,7 @@ export type AgExecutionEvidence = {
   evidenceVersion: string;
 };
 
-export function deriveAgExecutionEvidence(stock: DynamicUniverseStock | undefined): AgExecutionEvidence {
+export function deriveAgExecutionEvidence(stock: Pick<DynamicUniverseStock,"volume"|"dollarVolume"|"sector"> | undefined): AgExecutionEvidence {
   const shareVolume = stock?.volume ?? null;
   const dollarVolume = stock?.dollarVolume ?? null;
   const liquidityEligible =
