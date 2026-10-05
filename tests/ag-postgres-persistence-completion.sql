@@ -21,7 +21,11 @@ BEGIN
  END;
  IF (SELECT status FROM public.ag_cycle_stage_checkpoints WHERE id=cp)<>'running'
  THEN RAISE EXCEPTION 'Failed completion changed stage'; END IF;
-END $$;
+ -- A cycle with decision evidence but no completed deep-research watch
+ -- manifest must remain incomplete.
+ IF public.ag_verify_cycle_watch_manifest('44444444-4444-4444-8444-444444444444')
+ THEN RAISE EXCEPTION 'Missing watch manifest verified unexpectedly'; END IF;
+END $;
 
 -- Fresh isolated cycle with exactly one committed decision: success path.
 INSERT INTO public.ag_daily_cycles VALUES
