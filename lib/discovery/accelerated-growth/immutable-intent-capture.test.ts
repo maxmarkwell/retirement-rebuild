@@ -106,3 +106,29 @@ test("Committee capture requires exact evidence identity and validated fields",(
     TEST:{...evidence.TEST,evidenceVersion:""},
   }}));
 });
+
+test("Combined preflight preserves cycle identity for an explicit clean no-decision batch",()=>{
+  const committeeManifest=captureAgCommitteeIntent({
+    cycleId,claimToken,eligibleSymbols:[],decisions:[],failedCount:0,errors:[],
+    evidenceByTicker:{},
+  });
+  const holdingManifest=captureAgHoldingIntent({
+    cycleId,claimToken,eligibleSymbols:[],decisions:[],failedCount:0,errors:[],
+  });
+  assert.equal(committeeManifest.cycle_id,cycleId);
+  assert.equal(holdingManifest.cycle_id,cycleId);
+  assert.deepEqual(validateAgCombinedIntent(committeeManifest,holdingManifest),{
+    cycleId,tickers:[],
+  });
+});
+test("Empty combined manifests from different cycles still fail closed",()=>{
+  const committeeManifest=captureAgCommitteeIntent({
+    cycleId,claimToken,eligibleSymbols:[],decisions:[],failedCount:0,errors:[],
+    evidenceByTicker:{},
+  });
+  const holdingManifest=captureAgHoldingIntent({
+    cycleId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",claimToken,
+    eligibleSymbols:[],decisions:[],failedCount:0,errors:[],
+  });
+  assert.throws(()=>validateAgCombinedIntent(committeeManifest,holdingManifest));
+});
