@@ -53,3 +53,11 @@ await import(toDataUrl(
   intentTests.replace('"./immutable-intent-capture"', JSON.stringify(intentUrl)),
   "immutable-intent-capture.test.ts"
 ));
+
+const watchSource = await readFile(resolve(directory, "watchlist-intent-capture.ts"), "utf8");
+const watchUrl = toDataUrl(watchSource, "watchlist-intent-capture.ts");
+const watchTests = await readFile(resolve(directory, "watchlist-intent-capture.test.ts"), "utf8");
+await import(toDataUrl(
+  watchTests.replace('"./watchlist-intent-capture"', JSON.stringify(watchUrl)),
+  "watchlist-intent-capture.test.ts"
+));
