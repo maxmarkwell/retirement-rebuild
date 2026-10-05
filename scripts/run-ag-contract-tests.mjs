@@ -124,3 +124,13 @@ await import(toDataUrl(
  postDiscoveryTests.replace('"./post-discovery-plan"', JSON.stringify(postDiscoveryUrl)),
  "post-discovery-plan.test.ts"
 ));
+
+const researchHandoffSource = await readFile(resolve(directory, "research-stage-handoff.ts"), "utf8");
+const researchHandoffUrl = toDataUrl(researchHandoffSource.replace(/import type \{AgDiscoveryCandidate,AgDiscoveryResult\} from "\.\/discovery";/, "type AgDiscoveryCandidate=any; type AgDiscoveryResult=any;").replace(/import type \{AgPriorResearchWatch\} from "\.\/deep-research";/, "type AgPriorResearchWatch=any;"), "research-stage-handoff.ts");
+const researchPayloadSource = await readFile(resolve(directory, "research-stage-payloads.ts"), "utf8");
+const researchPayloadUrl = toDataUrl(researchPayloadSource
+ .replace('import {freezeAgDiscoveryHandoff,type AgDiscoveryHandoff} from "./research-stage-handoff";', `import {freezeAgDiscoveryHandoff} from "${researchHandoffUrl}"; type AgDiscoveryHandoff=any;`)
+ .replace(/import type \{AgDeepStageResult\} from "\.\/catalyst-deep-stage-work";/, "type AgDeepStageResult=any;")
+ .replace(/import \{captureAgWatchlistIntent\} from "\.\/watchlist-intent-capture";/, "const captureAgWatchlistIntent=(x)=>x;"), "research-stage-payloads.ts");
+const researchPayloadTests = await readFile(resolve(directory, "research-stage-payloads.test.ts"), "utf8");
+await import(toDataUrl(researchPayloadTests.replace('"./research-stage-payloads"', JSON.stringify(researchPayloadUrl)), "research-stage-payloads.test.ts"));
