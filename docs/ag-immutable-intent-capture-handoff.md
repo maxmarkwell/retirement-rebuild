@@ -60,15 +60,16 @@ The pure `immutable-intent-capture.ts` now builds both manifests from existing d
    ownership semantics without a regression test.
 5. Before enabling persistence completion, validate the disjoint union of
    frozen holding and Committee manifests and require exact committed-ledger
-   coverage for **both** kinds. The current draft completion intentionally
-   rejects mixed batches. Watchlist changes are a separate mutation stream
-   and need independently idempotent, reconciled persistence.
+   coverage for **both** kinds. The draft completion now verifies both payload kinds and the exact disjoint
+   mixed batch in disposable PostgreSQL tests. Watchlist changes remain
+   separate mutation streams needing independently idempotent, reconciled persistence.
 
 ## Transaction and recovery boundary
 
 The draft `ag_complete_persistence_stage` locks the persistence checkpoint,
-checks Committee ledger coverage and calls
-`ag_verify_committee_payload_manifest` inside that lock. The decision RPC
+checks the disjoint combined ledger coverage and calls both
+`ag_verify_committee_payload_manifest` and
+`ag_verify_holding_payload_manifest` inside that lock. The decision RPC
 locks the same checkpoint. This is necessary but not sufficient: it verifies
 the **stored** manifest, not whether the upstream Committee truly produced
 every entry. A timeout after any write must trigger read-only ledger inspection
@@ -84,3 +85,7 @@ authorized by this design.
 ## Outstanding capture integration risk
 
 The existing Committee writer derives BUY execution evidence by fetching the dynamic discovery universe **at persistence time**. A resumable implementation must freeze the same evidence at Committee completion (or an explicitly versioned prior research checkpoint), then pass that exact evidence to the isolated capture builder. Never re-fetch a changed universe after a retry and silently change the persisted BUY evidence. Capture the original stage result and derived evidence together; a syntactically correct client-provided evidence map is not upstream provenance. The holding stage claim token and Committee stage claim token are distinct from the later persistence claim token: frozen argument arrays deliberately exclude claim tokens and persistence RPC calls must be prepared again under the current persistence claim.
+
+## Watchlist intent boundary
+
+The isolated `watchlist-intent-capture.ts` now snapshots all three legacy watchlist mutation streams after a clean upstream research result, without any database writes. Its tests cover distinct streams, duplicate/conflicting ticker operations, incomplete research, immutable output and the normalized 0–1 confidence scale. The checked-in research-watchlist migration does not allow the legacy writer's `QUANTITATIVE_*` resolution strings. See `ag-watchlist-recovery-gate.md` for the read-only schema audit and durable replay requirements. Do not infer that a passing pure planner proves the watchlist can be persisted or safely resumed.
