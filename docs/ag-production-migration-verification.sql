@@ -56,3 +56,18 @@ SELECT
  (SELECT count(*) FROM public.ag_research_watchlist) AS research_watchlist,
  (SELECT count(*) FROM public.investment_decisions) AS investment_decisions,
  (SELECT count(*) FROM public.transactions) AS transactions;
+
+-- Watchlist compatibility expected both before and after recovery migration.
+SELECT c.conname,pg_get_constraintdef(c.oid) AS definition
+FROM pg_constraint c
+JOIN pg_class t ON t.oid=c.conrelid
+JOIN pg_namespace n ON n.oid=t.relnamespace
+WHERE n.nspname='public' AND t.relname='ag_research_watchlist'
+  AND c.conname='ag_research_watchlist_resolution_check';
+
+-- Recovery objects must be empty immediately after schema-only application.
+-- Before migration these relations are absent, so run this block postflight only.
+-- SELECT
+--   (SELECT count(*) FROM public.ag_cycle_stage_checkpoints) AS checkpoints,
+--   (SELECT count(*) FROM public.ag_cycle_decision_writes) AS decision_writes,
+--   (SELECT count(*) FROM public.ag_cycle_watch_writes) AS watch_writes;
