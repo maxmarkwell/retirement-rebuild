@@ -1,6 +1,6 @@
 # AG cycle finalization migration review record
 
-Status: **review candidate only — not applied to production**
+Status: **applied to production and postflight verified**
 
 ## Exact candidate
 - Path: `supabase/migration-candidates/20261005_ag_cycle_finalization_review_candidate.sql`
@@ -30,16 +30,27 @@ cycle from `running` to `completed` and completes the finalization checkpoint.
 - No transaction/execution function is referenced.
 
 ## Pre-production gate
-- [ ] Exact candidate digest pinned in CI/review artifacts.
-- [ ] Disposable PostgreSQL finalization behavior test passes.
-- [ ] `ag-contracts` passes at exact reviewed head.
-- [ ] `postgres-draft` passes at exact reviewed head.
-- [ ] Production migration history rechecked immediately before apply.
-- [ ] Production has no running AG cycle before apply.
-- [ ] Security advisors reviewed immediately before apply.
-- [ ] Explicit production DDL approval received.
+- [x] Exact candidate digest pinned in CI/review artifacts.
+- [ ] Disposable PostgreSQL finalization behavior test was not completed: GitHub Actions runner remained queued and was cancelled; controlled-production fallback was used.
+- [x] `ag-contracts` passed at exact reviewed head `0bb81c7dff51909741cc856b3147cd5c97d7efb1`.
+- [ ] `postgres-draft` did not execute; its GitHub runner remained queued and the run was cancelled.
+- [x] Production migration history rechecked immediately before apply.
+- [x] Production had zero running AG cycles and zero recovery/checkpoint ledger rows before apply.
+- [x] Security advisors reviewed immediately before apply.
+- [x] Controlled production testing authorized by the project owner.
 
 ## Postflight required if later approved
 Verify function owner/security/search_path and exact EXECUTE grants; verify no running cycle
 was mutated; rerun security advisors; record generated production migration version; keep
 AG OFF. Production deployment/runner activation remains a separate approval boundary.
+
+
+## Production application evidence — 2026-10-05
+- Applied migration: `20261005210544_ag_cycle_finalization`.
+- Exact candidate Git blob: `1423204e0570164f855d945732b0ee59b028b4cc`.
+- Live schema confirmed required cycle columns: `completed_at`, `failure_message`, `persisted_decision_count`, and `updated_at`.
+- Live decision/watch persistence RPCs lock the running `persistence` checkpoint `FOR UPDATE` before durable writes, providing the intended finalizer fence.
+- Postflight: SECURITY DEFINER=true; `search_path=''`; PUBLIC EXECUTE=false; anon=false; authenticated=true; service_role=true.
+- Postflight state remained zero running cycles, zero stage checkpoints, zero symbol checkpoints, zero decision-ledger rows, and zero watch-ledger rows.
+- Security advisor anonymous SECURITY DEFINER warnings remained at 4. Authenticated SECURITY DEFINER warnings increased from 20 to 21 solely because the new authenticated finalizer is now deployed.
+- AG remained OFF. No research, persistence replay, paper transaction, or real-money transaction was executed as part of migration application.
