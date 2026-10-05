@@ -127,6 +127,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_revoke_anon_review_candidate.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-recovery-privileges.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_symbol_checkpoints_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-symbol-checkpoints.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
           psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
 
