@@ -48,8 +48,11 @@ export async function runNextAgResumableResearchStage(input:{
    return {plan,executedStage:null,persistenceReady:false};
   plan={action:"run",stage:waitingStage};
  }
+ // Persistence and finalization belong to the durability coordinator. Once
+ // research reaches either boundary, signal the route to hand off rather than
+ // silently returning a research stage_step.
  if(plan.stage==="persistence"||plan.stage==="finalized")
-  return {plan,executedStage:null,persistenceReady:plan.stage==="persistence"};
+  return {plan,executedStage:null,persistenceReady:true};
 
  const baseRpc=await createAuthenticatedAgStageCheckpointRpc();
  const rpc=reclaimedClaim?{...baseRpc,claim:async(_cycleId:string,stage:any)=>stage===reclaimedClaim!.stage?reclaimedClaim!:baseRpc.claim(_cycleId,stage)}:baseRpc;
