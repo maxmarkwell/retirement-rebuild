@@ -23,6 +23,7 @@ export async function POST(request:Request){
   }
   return NextResponse.json({cycleId:body.cycleId,outcome:"continue",stage:step.plan.stage,action:step.plan.action==="wait"?"wait":"stage_step",invocationNumber:claim.invocationNumber,schedulingEnabled:false,transactionsWritten:false});
  }catch(error){
+  try{await finishAgWorker(body.cycleId,body.token,"revoked");}catch{}
   return NextResponse.json({cycleId:body.cycleId,outcome:"needs_review",action:"worker_error",message:error instanceof Error?error.message:"Unknown worker error.",invocationNumber:claim.invocationNumber,schedulingEnabled:false,transactionsWritten:false},{status:500});
  }
 }
