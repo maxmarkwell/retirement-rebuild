@@ -14,6 +14,7 @@ type CycleStatus = {
   staleCycles: Array<{ id: string; cycleDate: string; startedAt: string | null }>;
   executionEnabled: boolean;
   transactionsWrittenByCycle: boolean;
+  progress: { stage: string | null; completedStages: number; totalStages: number; deepResearchCompleted: number; deepResearchTotal: number } | null;
   cycle: {
     universe_count: number | null;
     preselected_count: number | null;
@@ -86,6 +87,8 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       {recoveryBlocked && <p role="alert" className="mt-2 text-xs font-semibold text-red-700">A potentially abandoned AG cycle was detected. New runs and retries are blocked in this control pending manual recovery review. Review the cycle records and persistence before proceeding.</p>}
       {status.activePriorDateCycle && <p className="mt-2 text-xs font-medium text-gray-700">Finishing the previously started research cycle before a new daily cycle can begin.</p>}
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
+
+      {status.progress && status.status === "running" && <p className="mt-2 text-xs font-medium text-gray-700">{status.progress.stage === "catalyst_deep_research" ? `Deep Research ${status.progress.deepResearchCompleted}/${status.progress.deepResearchTotal}` : `Stage ${status.progress.completedStages + 1}/${status.progress.totalStages} · ${status.progress.stage?.replaceAll("_", " ").toUpperCase()}`}</p>}
 
       {status.cycle && (
         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
