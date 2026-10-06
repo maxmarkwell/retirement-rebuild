@@ -6,6 +6,8 @@ import { useState } from "react";
 type CycleStatus = {
   cycleDate: string;
   hasCycleToday: boolean;
+  displayedCycleDate: string;
+  activePriorDateCycle: boolean;
   status: string;
   retryAvailable: boolean;
   requiresManualRecoveryReview: boolean;
@@ -48,7 +50,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       const response = await fetch(`/api/accelerated-growth/daily-cycle${retry}`, { method: "POST" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.reason ?? body.error ?? "Accelerated Growth cycle failed.");
-      setMessage(body.reusedDailyCycle ? "Today's cycle already exists; no duplicate work was created." : "Today's Accelerated Growth research cycle completed.");
+      setMessage(body.autonomousResearch ? "Research is running automatically. You can leave this page and return later." : body.reusedDailyCycle ? "This cycle already exists; no duplicate work was created." : "Research advanced successfully.");
       await refreshStatus();
       router.refresh();
     } catch (error) {
@@ -62,19 +64,19 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   const recoveryBlocked = status.requiresManualRecoveryReview;
   const completed = status.status === "completed";
   const failed = status.status === "failed";
-  const label = recoveryBlocked ? "Manual Review Required" : running ? "Running Research…" : failed ? "Retry Today's Cycle" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
+  const label = recoveryBlocked ? "Manual Review Required" : running ? "Starting Research…" : status.status === "running" ? "Research Running" : failed ? "Retry Research Cycle" : completed ? "Research Complete" : "Start Daily Research";
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Daily Research Cycle</p>
-          <p className="mt-1 text-xs text-gray-500">{status.cycleDate} · {status.status.replaceAll("_", " ").toUpperCase()}</p>
+          <p className="mt-1 text-xs text-gray-500">{status.displayedCycleDate ?? status.cycleDate} · {status.status.replaceAll("_", " ").toUpperCase()}</p>
         </div>
         <button
           type="button"
           onClick={runCycle}
-          disabled={running || completed || recoveryBlocked}
+          disabled={running || status.status === "running" || completed || recoveryBlocked}
           className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {label}
@@ -82,6 +84,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       </div>
 
       {recoveryBlocked && <p role="alert" className="mt-2 text-xs font-semibold text-red-700">A potentially abandoned AG cycle was detected. New runs and retries are blocked in this control pending manual recovery review. Review the cycle records and persistence before proceeding.</p>}
+      {status.activePriorDateCycle && <p className="mt-2 text-xs font-medium text-gray-700">Finishing the previously started research cycle before a new daily cycle can begin.</p>}
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
 
       {status.cycle && (
