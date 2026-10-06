@@ -30,7 +30,7 @@ test("browser minting is paper-only and worker claiming is service-role-only",as
  assert.match(sql,/revoke all on function public\.ag_claim_cycle_worker\(uuid,text\) from public, anon, authenticated/);
  assert.match(sql,/grant execute on function public\.ag_claim_cycle_worker\(uuid,text\) to service_role/);
  assert.match(sql,/ag_finish_cycle_worker/);
- assert.match(sql,/p_terminal_status not in \('consumed','revoked'\)/);
+ assert.match(sql,/p_terminal_status = any\(array\['consumed','revoked'\]\)/);
 });
 
 test("worker RPC delegation is transaction-local, cycle-bound and service-role-only",async()=>{
