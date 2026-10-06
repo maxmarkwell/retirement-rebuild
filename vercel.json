@@ -19,6 +19,15 @@
           "retryAfterSeconds": 30
         }
       ]
+    },
+    "app/api/queues/ag-autonomous-durability/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "ag-autonomous-durability-v1",
+          "retryAfterSeconds": 60
+        }
+      ]
     }
   }
 }
