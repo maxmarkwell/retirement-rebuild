@@ -1,6 +1,6 @@
 import {handleCallback} from "@vercel/queue";
 import {runAuthorizedAgWorkerStep} from "@/lib/discovery/accelerated-growth/autonomous-worker-step";
-import {enqueueAgResearchStep,type AgResearchQueueMessage} from "@/lib/discovery/accelerated-growth/autonomous-queue";
+import {enqueueAgResearchStep,enqueueAgDurabilityStep,type AgResearchQueueMessage} from "@/lib/discovery/accelerated-growth/autonomous-queue";
 export const runtime="nodejs";
 export const maxDuration=300;
 function valid(message:unknown):message is AgResearchQueueMessage{
@@ -12,7 +12,11 @@ export const POST=handleCallback(async(message,metadata)=>{
  if(process.env.AG_AUTONOMOUS_QUEUE_ENABLED!=="true"||process.env.AG_AUTONOMOUS_WORKER_ENABLED!=="true")return;
  if(!valid(message))throw new Error("Invalid AG autonomous research message.");
  const result=await runAuthorizedAgWorkerStep({cycleId:message.cycleId,token:message.token});
- if(result.outcome==="needs_review"||result.action==="persistence_ready"||result.action==="research_complete")return;
+ if(result.outcome==="needs_review")return;
+ if(result.action==="persistence_ready"||result.action==="research_complete"){
+  if(process.env.AG_AUTONOMOUS_DURABILITY_ENABLED==="true")await enqueueAgDurabilityStep(message,{sequence:1});
+  return;
+ }
  const afterSeconds=result.action==="wait"?30:0;
  await enqueueAgResearchStep(message,{afterSeconds,sequence:result.invocationNumber+1});
 },{
