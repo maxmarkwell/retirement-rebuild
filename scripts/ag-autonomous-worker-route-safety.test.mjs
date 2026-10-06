@@ -1,13 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-test("AG autonomous worker route is gated, bounded to research, and cannot transact or schedule",async()=>{
+test("AG autonomous worker route is gated and delegates one bounded step",async()=>{
  const route=await readFile("app/api/accelerated-growth/autonomous-worker/route.ts","utf8");
- assert.match(route,/AG_AUTONOMOUS_WORKER_ENABLED/);assert.match(route,/x-ag-worker-secret/);assert.match(route,/claimAgWorker/);
- assert.match(route,/createWorkerAgExecutionContext/);assert.match(route,/runNextAgResumableResearchStage/);
- assert.match(route,/persistence_ready/);assert.match(route,/finishAgWorker/);assert.match(route,/schedulingEnabled:false/);assert.match(route,/transactionsWritten:false/);
+ assert.match(route,/AG_AUTONOMOUS_WORKER_ENABLED/);assert.match(route,/x-ag-worker-secret/);assert.match(route,/runAuthorizedAgWorkerStep/);
+ assert.match(route,/schedulingEnabled:false/);assert.match(route,/transactionsWritten:false/);
  assert.doesNotMatch(route,/runNextAgDurabilityStep|executeAgDailyCycleTransactions|daily-cycle-execution|ag_execution_authorizations|ag_sell_execution_authorizations/);
  assert.doesNotMatch(route,/fetch\s*\(|after\s*\(|waitUntil|setTimeout|setInterval/);
+});
+test("AG bounded worker step owns research execution but no scheduling or durability",async()=>{
+ const source=await readFile("lib/discovery/accelerated-growth/autonomous-worker-step.ts","utf8");
+ assert.match(source,/claimAgWorker/);assert.match(source,/createWorkerAgExecutionContext/);assert.match(source,/runNextAgResumableResearchStage/);assert.match(source,/finishAgWorker/);
+ assert.match(source,/persistence_ready/);assert.match(source,/transactionsWritten:false/);
+ assert.doesNotMatch(source,/@vercel\/queue|enqueueAgResearchStep|runNextAgDurabilityStep|executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
 test("AG worker context uses only cycle-scoped worker RPCs",async()=>{
  const source=await readFile("lib/discovery/accelerated-growth/autonomous-worker-context.ts","utf8");
