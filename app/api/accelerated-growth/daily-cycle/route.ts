@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgResearchDailyCycle } from "@/lib/discovery/accelerated-growth/daily-cycle-work";
 import { runNextAgResumableCycleStep } from "@/lib/discovery/accelerated-growth/resumable-cycle-orchestrator";
 import { runNextAgDurabilityStep } from "@/lib/discovery/accelerated-growth/resumable-durability-orchestrator";
+import { startAgAutonomousResearchContinuation } from "@/lib/discovery/accelerated-growth/autonomous-cycle-start";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -30,8 +31,12 @@ export async function POST(request: NextRequest) {
         const durable = await runNextAgDurabilityStep({ cycleId: step.cycleId });
         return NextResponse.json({ ...durable, resumableResearch: true, durabilityEnabled: true, executionEnabled: false, transactionsWritten: false });
       }
+      const autonomous = step.action === "stage_step" || step.action === "wait"
+        ? await startAgAutonomousResearchContinuation(step.cycleId)
+        : { started: false as const };
       return NextResponse.json({
         ...step,
+        autonomousResearch: autonomous.started,
         resumableResearch: true,
         executionEnabled: false,
         transactionsWritten: false,
