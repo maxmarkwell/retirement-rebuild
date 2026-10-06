@@ -80,7 +80,7 @@ grant execute on function public.ag_authorize_cycle_worker(uuid,text,integer,int
 create or replace function public.ag_claim_cycle_worker(
   p_cycle_id uuid,
   p_token_hash text
-) returns table(authorization_id uuid,user_id uuid,invocation_number integer)
+) returns table(authorization_id uuid,user_id uuid,invocation_number integer,max_candidates integer)
 language plpgsql
 security definer
 set search_path = ''
@@ -126,9 +126,10 @@ begin
     where id=v_auth.id
     returning id,public.ag_cycle_worker_authorizations.user_id,invocation_count
     into authorization_id,user_id,invocation_number;
+  select c.max_candidates into max_candidates from public.ag_daily_cycles c where c.id=v_auth.cycle_id and c.user_id=v_auth.user_id;
   return next;
 end;
-$$;
+$;
 
 revoke all on function public.ag_claim_cycle_worker(uuid,text) from public, anon, authenticated;
 grant execute on function public.ag_claim_cycle_worker(uuid,text) to service_role;
