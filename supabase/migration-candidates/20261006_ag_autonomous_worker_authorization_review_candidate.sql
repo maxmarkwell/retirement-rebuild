@@ -48,7 +48,7 @@ begin
     select 1
     from public.ag_daily_cycles c
     join public.portfolios p on p.id=c.portfolio_id and p.user_id=c.user_id
-    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id
+    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id and e.user_id=c.user_id
     where c.id=p_cycle_id and c.user_id=v_user_id and c.status='running'
       and p.type='paper_active' and p.is_real_money=false
       and e.strategy_key='accelerated_growth' and e.execution_mode='paper' and e.ended_at is null
@@ -111,7 +111,7 @@ begin
   if not exists (
     select 1 from public.ag_daily_cycles c
     join public.portfolios p on p.id=c.portfolio_id and p.user_id=c.user_id
-    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id
+    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id and e.user_id=c.user_id
     where c.id=v_auth.cycle_id and c.user_id=v_auth.user_id and c.status='running'
       and p.type='paper_active' and p.is_real_money=false
       and e.strategy_key='accelerated_growth' and e.execution_mode='paper' and e.ended_at is null
@@ -153,3 +153,124 @@ $$;
 
 revoke all on function public.ag_finish_cycle_worker(uuid,text,text) from public, anon, authenticated;
 grant execute on function public.ag_finish_cycle_worker(uuid,text,text) to service_role;
+
+
+-- Service-role-only delegation helper. Every worker operation supplies the
+-- authorization id + cycle + token digest. The helper revalidates all three,
+-- expiry, invocation budget and paper-only ownership before locally binding
+-- auth.uid() for the existing hardened RPC. set_config(..., true) is
+-- transaction-local and does not create or expose a user session/JWT.
+create or replace function public.ag_bind_cycle_worker_identity(
+  p_authorization_id uuid,p_cycle_id uuid,p_token_hash text
+) returns uuid
+language plpgsql security definer set search_path=''
+as $$
+declare v_auth public.ag_cycle_worker_authorizations%rowtype;
+begin
+ select * into v_auth from public.ag_cycle_worker_authorizations
+ where id=p_authorization_id and cycle_id=p_cycle_id and token_hash=p_token_hash
+   and status='active' and expires_at>now() and invocation_count<=max_invocations;
+ if not found then raise exception 'Valid AG worker authorization required'; end if;
+ if not exists (
+  select 1 from public.ag_daily_cycles c
+  join public.portfolios p on p.id=c.portfolio_id and p.user_id=c.user_id
+  join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id and e.user_id=c.user_id
+  where c.id=v_auth.cycle_id and c.user_id=v_auth.user_id and c.status='running'
+    and p.type='paper_active' and p.is_real_money=false
+    and e.strategy_key='accelerated_growth' and e.execution_mode='paper' and e.ended_at is null
+ ) then raise exception 'Eligible running paper AG cycle required'; end if;
+ perform set_config('request.jwt.claim.sub',v_auth.user_id::text,true);
+ return v_auth.user_id;
+end;
+$$;
+revoke all on function public.ag_bind_cycle_worker_identity(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.ag_bind_cycle_worker_identity(uuid,uuid,text) to service_role;
+
+create or replace function public.ag_worker_read_cycle_checkpoint_status(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text
+) returns table(checkpoint_id uuid,stage text,status text,attempt_count integer,started_at timestamptz,completed_at timestamptz,lease_expires_at timestamptz,updated_at timestamptz)
+language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return query select * from public.ag_read_cycle_checkpoint_status(p_cycle_id);
+end $$;
+
+create or replace function public.ag_worker_read_completed_stage_output(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_stage text
+) returns table(checkpoint_id uuid,stage text,output jsonb,completed_at timestamptz)
+language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return query select * from public.ag_read_completed_stage_output(p_cycle_id,p_stage);
+end $$;
+
+create or replace function public.ag_worker_claim_cycle_stage(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_stage text
+) returns table(checkpoint_id uuid,claim_token uuid)
+language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return query select * from public.ag_claim_cycle_stage(p_cycle_id,p_stage);
+end $$;
+
+create or replace function public.ag_worker_complete_cycle_stage(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_checkpoint_id uuid,p_claim_token uuid,p_output jsonb
+) returns boolean language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ if not exists(select 1 from public.ag_cycle_stage_checkpoints where id=p_checkpoint_id and cycle_id=p_cycle_id) then return false; end if;
+ return public.ag_complete_cycle_stage(p_checkpoint_id,p_claim_token,p_output);
+end $$;
+
+create or replace function public.ag_worker_read_cycle_symbol_checkpoints(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_parent_stage text
+) returns table(symbol text,status text,output jsonb)
+language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return query select * from public.ag_read_cycle_symbol_checkpoints(p_cycle_id,p_parent_stage);
+end $$;
+
+create or replace function public.ag_worker_claim_cycle_symbol(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_parent_stage text,p_symbol text
+) returns table(checkpoint_id uuid,claim_token uuid)
+language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return query select * from public.ag_claim_cycle_symbol(p_cycle_id,p_parent_stage,p_symbol);
+end $$;
+
+create or replace function public.ag_worker_complete_cycle_symbol(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_checkpoint_id uuid,p_claim_token uuid,p_output jsonb
+) returns boolean language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ if not exists(select 1 from public.ag_cycle_symbol_checkpoints where id=p_checkpoint_id and cycle_id=p_cycle_id) then return false; end if;
+ return public.ag_complete_cycle_symbol(p_checkpoint_id,p_claim_token,p_output);
+end $$;
+
+create or replace function public.ag_worker_reclaim_expired_symbol_parent_stage(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_stage text
+) returns table(checkpoint_id uuid,claim_token uuid)
+language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return query select * from public.ag_reclaim_expired_symbol_parent_stage(p_cycle_id,p_stage);
+end $$;
+
+revoke all on function public.ag_worker_read_cycle_checkpoint_status(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_read_completed_stage_output(uuid,uuid,text,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_claim_cycle_stage(uuid,uuid,text,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_complete_cycle_stage(uuid,uuid,text,uuid,uuid,jsonb) from public,anon,authenticated;
+revoke all on function public.ag_worker_read_cycle_symbol_checkpoints(uuid,uuid,text,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_claim_cycle_symbol(uuid,uuid,text,text,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_complete_cycle_symbol(uuid,uuid,text,uuid,uuid,jsonb) from public,anon,authenticated;
+revoke all on function public.ag_worker_reclaim_expired_symbol_parent_stage(uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.ag_worker_read_cycle_checkpoint_status(uuid,uuid,text) to service_role;
+grant execute on function public.ag_worker_read_completed_stage_output(uuid,uuid,text,text) to service_role;
+grant execute on function public.ag_worker_claim_cycle_stage(uuid,uuid,text,text) to service_role;
+grant execute on function public.ag_worker_complete_cycle_stage(uuid,uuid,text,uuid,uuid,jsonb) to service_role;
+grant execute on function public.ag_worker_read_cycle_symbol_checkpoints(uuid,uuid,text,text) to service_role;
+grant execute on function public.ag_worker_claim_cycle_symbol(uuid,uuid,text,text,text) to service_role;
+grant execute on function public.ag_worker_complete_cycle_symbol(uuid,uuid,text,uuid,uuid,jsonb) to service_role;
+grant execute on function public.ag_worker_reclaim_expired_symbol_parent_stage(uuid,uuid,text,text) to service_role;
