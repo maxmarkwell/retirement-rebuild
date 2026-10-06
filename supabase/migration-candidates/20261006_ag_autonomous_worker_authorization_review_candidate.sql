@@ -275,3 +275,71 @@ grant execute on function public.ag_worker_read_cycle_symbol_checkpoints(uuid,uu
 grant execute on function public.ag_worker_claim_cycle_symbol(uuid,uuid,text,text,text) to service_role;
 grant execute on function public.ag_worker_complete_cycle_symbol(uuid,uuid,text,uuid,uuid,jsonb) to service_role;
 grant execute on function public.ag_worker_reclaim_expired_symbol_parent_stage(uuid,uuid,text,text) to service_role;
+
+
+-- Durability wrappers reuse the same cycle capability and existing hardened
+-- persistence/finalization RPCs. They remain service-role-only and paper-only.
+create or replace function public.ag_worker_commit_cycle_decision(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_claim_token uuid,p_ticker text,p_kind text,p_decision_type text,p_thesis text,p_confidence numeric,p_thesis_clock text,p_bull_case text,p_bear_case text,p_monitoring text,p_invalidation text,p_notes text,p_ag_thesis_valid boolean,p_ag_liquidity_eligible boolean,p_ag_evidence_version text,p_ag_theme_key text
+) returns uuid language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return public.ag_commit_cycle_decision(p_cycle_id,p_claim_token,p_ticker,p_kind,p_decision_type,p_thesis,p_confidence,p_thesis_clock,p_bull_case,p_bear_case,p_monitoring,p_invalidation,p_notes,p_ag_thesis_valid,p_ag_liquidity_eligible,p_ag_evidence_version,p_ag_theme_key);
+end $$;
+
+create or replace function public.ag_worker_commit_watch_operation(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_claim_token uuid,p_stream text,p_ticker text,p_action text,p_source_row_id uuid,p_resolution text,p_company_name text,p_confidence numeric,p_thesis text,p_unresolved_questions text[],p_thesis_clock text,p_invalidation text[],p_model text,p_prompt_version text,p_prior_watch_reassessed boolean
+) returns uuid language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return public.ag_commit_watch_operation(p_cycle_id,p_claim_token,p_stream,p_ticker,p_action,p_source_row_id,p_resolution,p_company_name,p_confidence,p_thesis,p_unresolved_questions,p_thesis_clock,p_invalidation,p_model,p_prompt_version,p_prior_watch_reassessed);
+end $$;
+
+create or replace function public.ag_worker_verify_decision_manifest(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_kind text
+) returns boolean language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ if p_kind='holding_review' then return public.ag_verify_holding_payload_manifest(p_cycle_id); end if;
+ if p_kind='committee' then return public.ag_verify_committee_payload_manifest(p_cycle_id); end if;
+ raise exception 'Invalid AG decision manifest kind';
+end $$;
+
+create or replace function public.ag_worker_verify_cycle_watch_manifest(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text
+) returns boolean language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ return public.ag_verify_cycle_watch_manifest(p_cycle_id);
+end $$;
+
+create or replace function public.ag_worker_complete_persistence_stage(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_checkpoint_id uuid,p_claim_token uuid,p_expected_tickers text[]
+) returns boolean language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ if not exists(select 1 from public.ag_cycle_stage_checkpoints where id=p_checkpoint_id and cycle_id=p_cycle_id and stage='persistence') then return false; end if;
+ return public.ag_complete_persistence_stage(p_checkpoint_id,p_claim_token,p_expected_tickers);
+end $$;
+
+create or replace function public.ag_worker_finalize_daily_cycle(
+ p_authorization_id uuid,p_cycle_id uuid,p_token_hash text,p_checkpoint_id uuid,p_claim_token uuid
+) returns boolean language plpgsql security definer set search_path='' as $$
+begin
+ perform public.ag_bind_cycle_worker_identity(p_authorization_id,p_cycle_id,p_token_hash);
+ if not exists(select 1 from public.ag_cycle_stage_checkpoints where id=p_checkpoint_id and cycle_id=p_cycle_id and stage='finalized') then return false; end if;
+ return public.ag_finalize_daily_cycle(p_checkpoint_id,p_claim_token);
+end $$;
+
+revoke all on function public.ag_worker_commit_cycle_decision(uuid,uuid,text,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_commit_watch_operation(uuid,uuid,text,uuid,text,text,text,uuid,text,text,numeric,text,text[],text,text[],text,text,boolean) from public,anon,authenticated;
+revoke all on function public.ag_worker_verify_decision_manifest(uuid,uuid,text,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_verify_cycle_watch_manifest(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.ag_worker_complete_persistence_stage(uuid,uuid,text,uuid,uuid,text[]) from public,anon,authenticated;
+revoke all on function public.ag_worker_finalize_daily_cycle(uuid,uuid,text,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.ag_worker_commit_cycle_decision(uuid,uuid,text,uuid,text,text,text,text,numeric,text,text,text,text,text,text,boolean,boolean,text,text) to service_role;
+grant execute on function public.ag_worker_commit_watch_operation(uuid,uuid,text,uuid,text,text,text,uuid,text,text,numeric,text,text[],text,text[],text,text,boolean) to service_role;
+grant execute on function public.ag_worker_verify_decision_manifest(uuid,uuid,text,text) to service_role;
+grant execute on function public.ag_worker_verify_cycle_watch_manifest(uuid,uuid,text) to service_role;
+grant execute on function public.ag_worker_complete_persistence_stage(uuid,uuid,text,uuid,uuid,text[]) to service_role;
+grant execute on function public.ag_worker_finalize_daily_cycle(uuid,uuid,text,uuid,uuid) to service_role;
