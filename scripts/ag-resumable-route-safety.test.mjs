@@ -63,3 +63,10 @@ test("resumable coordinator safely reuses one prior-date running cycle",async()=
  assert.match(source,/authoritativeCycleDate/);
  assert.doesNotMatch(source,/executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
+
+test("finalized resume plan hands off to durability instead of falsely ending research",async()=>{
+ const adapter=await readFile("lib/discovery/accelerated-growth/resumable-daily-cycle-adapter.ts","utf8");
+ assert.match(adapter,/plan\.stage==="persistence"\|\|plan\.stage==="finalized"/);
+ assert.match(adapter,/persistenceReady:true/);
+ assert.match(adapter,/executedStage:null/);
+});
