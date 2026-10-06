@@ -1,0 +1,22 @@
+import {handleCallback} from "@vercel/queue";
+import {runAuthorizedAgDurabilityStep} from "@/lib/discovery/accelerated-growth/autonomous-worker-durability-step";
+import {enqueueAgDurabilityStep,type AgResearchQueueMessage} from "@/lib/discovery/accelerated-growth/autonomous-queue";
+export const runtime="nodejs";
+export const maxDuration=300;
+function valid(message:unknown):message is AgResearchQueueMessage{
+ if(!message||typeof message!=="object")return false;const m=message as Record<string,unknown>;
+ return m.version===1&&typeof m.cycleId==="string"&&typeof m.token==="string"&&m.cycleId.length===36&&m.token.length>=32;
+}
+export const POST=handleCallback(async(message)=>{
+ if(process.env.AG_AUTONOMOUS_QUEUE_ENABLED!=="true"||process.env.AG_AUTONOMOUS_WORKER_ENABLED!=="true"||process.env.AG_AUTONOMOUS_DURABILITY_ENABLED!=="true")return;
+ if(!valid(message))throw new Error("Invalid AG autonomous durability message.");
+ const result=await runAuthorizedAgDurabilityStep({cycleId:message.cycleId,token:message.token});
+ if(result.outcome!=="continue")return;
+ await enqueueAgDurabilityStep(message,{sequence:result.invocationNumber+1});
+},{
+ visibilityTimeoutSeconds:300,
+ retry:(error,metadata)=>{
+  if(metadata.deliveryCount>=3)return {acknowledge:true};
+  return {afterSeconds:Math.min(300,2**metadata.deliveryCount*10)};
+ },
+});
