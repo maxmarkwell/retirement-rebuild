@@ -31,11 +31,12 @@ export async function runNextAgResumableCycleStep(input?:{maxCandidates?:number;
 
  const cycleDate=input?.cycleDate??denverAgCycleDate();
  const maxCandidates=Math.max(1,Math.min(Math.trunc(input?.maxCandidates??5),5));
- const {data:otherRunning,error:runningError}=await supabase.from("ag_daily_cycles")
-  .select("id,cycle_date").eq("user_id",user.id).eq("portfolio_id",portfolio.id)
-  .eq("strategy_era_id",era.id).eq("status","running").neq("cycle_date",cycleDate).limit(1);
+ const {data:runningCycles,error:runningError}=await supabase.from("ag_daily_cycles")
+  .select("id,cycle_date,max_candidates").eq("user_id",user.id).eq("portfolio_id",portfolio.id)
+  .eq("strategy_era_id",era.id).eq("status","running").limit(2);
  if(runningError)throw new Error(`Unable to inspect running AG cycles: ${runningError.message}`);
- if((otherRunning??[]).length)throw new Error("Another AG cycle is running; manual reconciliation required.");
+ if((runningCycles??[]).length>1)throw new Error("Multiple AG cycles are running; manual reconciliation required.");
+ const priorRunning=(runningCycles??[]).find(row=>row.cycle_date!==cycleDate)??null;
 
  const {data:existing,error:existingError}=await supabase.from("ag_daily_cycles")
   .select("id,status,max_candidates").eq("user_id",user.id).eq("portfolio_id",portfolio.id)
@@ -44,8 +45,12 @@ export async function runNextAgResumableCycleStep(input?:{maxCandidates?:number;
  if(existing&&existing.status!=="running")
   throw new Error(`Authoritative AG cycle is already ${existing.status}; no resumable research step allowed.`);
 
- let cycleId=existing?.id as string|undefined;
- if(existing&&existing.max_candidates!==maxCandidates)
+ if(priorRunning&&existing)
+  throw new Error("Conflicting AG cycle state requires manual reconciliation.");
+ const resumableExisting=priorRunning??existing;
+ let cycleId=resumableExisting?.id as string|undefined;
+ const authoritativeCycleDate=(resumableExisting?.cycle_date as string|undefined)??cycleDate;
+ if(resumableExisting&&resumableExisting.max_candidates!==maxCandidates)
   throw new Error("AG max-candidate manifest changed during resumable cycle.");
 
  if(!cycleId){
@@ -62,12 +67,12 @@ export async function runNextAgResumableCycleStep(input?:{maxCandidates?:number;
 
  const step=await runNextAgResumableResearchStage({cycleId:authoritativeCycleId,maxCandidates});
  if(step.plan.action==="manual_review")
-  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"manual_review",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate:authoritativeCycleDate,status:"running",action:"manual_review",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
  if(step.plan.action==="wait")
-  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"wait",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate:authoritativeCycleDate,status:"running",action:"wait",stage:step.plan.stage,persistenceReady:false,transactionsWritten:false};
  if(step.plan.action==="complete")
-  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"research_complete",stage:null,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate:authoritativeCycleDate,status:"running",action:"research_complete",stage:null,persistenceReady:false,transactionsWritten:false};
  if(step.persistenceReady)
-  return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"persistence_ready",stage:"persistence",persistenceReady:true,transactionsWritten:false};
- return {cycleId:authoritativeCycleId,cycleDate,status:"running",action:"stage_step",stage:step.executedStage,persistenceReady:false,transactionsWritten:false};
+  return {cycleId:authoritativeCycleId,cycleDate:authoritativeCycleDate,status:"running",action:"persistence_ready",stage:"persistence",persistenceReady:true,transactionsWritten:false};
+ return {cycleId:authoritativeCycleId,cycleDate:authoritativeCycleDate,status:"running",action:"stage_step",stage:step.executedStage,persistenceReady:false,transactionsWritten:false};
 }
