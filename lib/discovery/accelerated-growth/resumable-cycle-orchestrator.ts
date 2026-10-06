@@ -39,7 +39,7 @@ export async function runNextAgResumableCycleStep(input?:{maxCandidates?:number;
  const priorRunning=(runningCycles??[]).find(row=>row.cycle_date!==cycleDate)??null;
 
  const {data:existing,error:existingError}=await supabase.from("ag_daily_cycles")
-  .select("id,status,max_candidates").eq("user_id",user.id).eq("portfolio_id",portfolio.id)
+  .select("id,status,cycle_date,max_candidates").eq("user_id",user.id).eq("portfolio_id",portfolio.id)
   .eq("strategy_era_id",era.id).eq("cycle_date",cycleDate).maybeSingle();
  if(existingError)throw new Error(`Unable to inspect AG daily cycle: ${existingError.message}`);
  if(existing&&existing.status!=="running")
