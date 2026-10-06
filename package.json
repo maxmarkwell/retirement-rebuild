@@ -7,7 +7,7 @@
     "build": "npm run test:ag && next build",
     "start": "next start",
     "lint": "eslint",
-    "test:ag": "node scripts/run-ag-contract-tests.mjs && node --test scripts/ag-cycle-finalization-safety.test.mjs scripts/ag-persistence-safety.test.mjs scripts/ag-rpc-draft-contract.test.mjs scripts/ag-schema-dependencies.test.mjs scripts/ag-ledger-reader-safety.test.mjs scripts/ag-resumable-route-safety.test.mjs script/ag-stage-capture-safety.test.mjs"
+    "test:ag": "node scripts/run-ag-contract-tests.mjs && node --test scripts/ag-autonomous-cycle-safety.test.mjs scripts/ag-cycle-finalization-safety.test.mjs scripts/ag-persistence-safety.test.mjs scripts/ag-rpc-draft-contract.test.mjs scripts/ag-schema-dependencies.test.mjs scripts/ag-ledger-reader-safety.test.mjs scripts/ag-resumable-route-safety.test.mjs script/ag-stage-capture-safety.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
