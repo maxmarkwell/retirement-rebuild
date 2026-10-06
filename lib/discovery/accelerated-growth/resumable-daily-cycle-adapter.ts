@@ -27,14 +27,17 @@ export async function runNextAgResumableResearchStage(input:{
  let plan=planAgResume(rows);
  let reclaimedSymbolParent=false;
  let reclaimedClaim:Awaited<ReturnType<typeof reclaimAuthenticatedAgExpiredSymbolParent>>|null=null;
- if(plan.action==="manual_review" && plan.reason==="stale_or_failed" &&
-    (plan.stage==="catalyst_deep_research"||plan.stage==="committee")){
-  const row=rows.find(x=>x.stage===plan.stage);
-  if(row?.status==="running" && row.leaseExpiresAt && Date.parse(row.leaseExpiresAt)<=Date.now()){
-   reclaimedClaim=await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,plan.stage);
+ if(plan.action==="manual_review"){
+  const reviewStage=plan.stage;
+  if(plan.reason==="stale_or_failed" &&
+     (reviewStage==="catalyst_deep_research"||reviewStage==="committee")){
+   const row=rows.find(x=>x.stage===reviewStage);
+   if(row?.status==="running" && row.leaseExpiresAt && Date.parse(row.leaseExpiresAt)<=Date.now()){
+    reclaimedClaim=await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,reviewStage);
    reclaimedSymbolParent=true;
    const refreshed=await readAuthenticatedAgCheckpointStatus(input.cycleId);
    plan=planAgResume(refreshed);
+   }
   }
  }
  if(plan.action!=="wait" && plan.action!=="run") return {plan,executedStage:null,persistenceReady:false};
