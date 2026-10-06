@@ -29,7 +29,7 @@ export async function claimAgWorker(cycleId:string,rawToken:string){
  if(error)throw new Error(`Unable to claim AG worker authorization: ${error.message}`);
  const row=Array.isArray(data)?data[0]:null;
  if(!row)return null;
- return {authorizationId:String(row.authorization_id),userId:String(row.user_id),invocationNumber:Number(row.invocation_number)};
+ return {authorizationId:String(row.authorization_id),userId:String(row.user_id),invocationNumber:Number(row.invocation_number),maxCandidates:Number(row.max_candidates)};
 }
 
 export async function finishAgWorker(cycleId:string,rawToken:string,status:"consumed"|"revoked"){
