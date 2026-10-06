@@ -32,3 +32,15 @@ test("browser minting is paper-only and worker claiming is service-role-only",as
  assert.match(sql,/ag_finish_cycle_worker/);
  assert.match(sql,/p_terminal_status not in \('consumed','revoked'\)/);
 });
+
+test("worker RPC delegation is transaction-local, cycle-bound and service-role-only",async()=>{
+ const sql=await readFile("supabase/migration-candidates/20261006_ag_autonomous_worker_authorization_review_candidate.sql","utf8");
+ assert.match(sql,/ag_bind_cycle_worker_identity/);
+ assert.match(sql,/set_config\('request\.jwt\.claim\.sub',v_auth\.user_id::text,true\)/);
+ assert.match(sql,/id=p_authorization_id and cycle_id=p_cycle_id and token_hash=p_token_hash/);
+ const names=["ag_worker_read_cycle_checkpoint_status","ag_worker_read_completed_stage_output","ag_worker_claim_cycle_stage","ag_worker_complete_cycle_stage","ag_worker_read_cycle_symbol_checkpoints","ag_worker_claim_cycle_symbol","ag_worker_complete_cycle_symbol","ag_worker_reclaim_expired_symbol_parent_stage"];
+ for(const name of names){
+  assert.match(sql,new RegExp("revoke all on function public\\."+name+"[\\s\\S]*?from public,anon,authenticated"));
+  assert.match(sql,new RegExp("grant execute on function public\\."+name+"[\\s\\S]*?to service_role"));
+ }
+});
