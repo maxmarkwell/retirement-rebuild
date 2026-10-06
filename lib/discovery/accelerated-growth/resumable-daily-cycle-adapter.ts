@@ -39,10 +39,11 @@ export async function runNextAgResumableResearchStage(input:{
  }
  if(plan.action!=="wait" && plan.action!=="run") return {plan,executedStage:null,persistenceReady:false};
  if(plan.action==="wait"){
-  // Only this request's successful reclaim may consume the fresh lease.
-  if(!reclaimedSymbolParent || (plan.stage!=="catalyst_deep_research"&&plan.stage!=="committee"))
+  // Narrow first so TypeScript and runtime both exclude the stage-less complete variant.
+  const waitingStage=plan.stage;
+  if(!reclaimedSymbolParent || (waitingStage!=="catalyst_deep_research"&&waitingStage!=="committee"))
    return {plan,executedStage:null,persistenceReady:false};
-  plan={action:"run",stage:plan.stage};
+  plan={action:"run",stage:waitingStage};
  }
  if(plan.stage==="persistence"||plan.stage==="finalized")
   return {plan,executedStage:null,persistenceReady:plan.stage==="persistence"};
