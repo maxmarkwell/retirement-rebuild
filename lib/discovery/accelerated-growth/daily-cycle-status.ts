@@ -43,6 +43,17 @@ export async function getAgDailyCycleStatus() {
   const staleCycles = runningCycles.filter(isAgCycleStale).map((item) => ({
     id: item.id, cycleDate: item.cycle_date, startedAt: item.started_at,
   }));
+  let progress: { stage: string | null; completedStages: number; totalStages: number; deepResearchCompleted: number; deepResearchTotal: number } | null = null;
+  if (authoritativeCycle?.id) {
+    const { data: checkpoints, error: checkpointError } = await supabase.from("ag_cycle_stage_checkpoints")
+      .select("stage,status").eq("cycle_id", authoritativeCycle.id);
+    if (checkpointError) throw new Error(`Unable to load AG cycle progress: ${checkpointError.message}`);
+    const ordered = ["holding_review","discovery","catalyst_deep_research","committee","persistence","finalized"];
+    const stageStatus = new Map((checkpoints ?? []).map((row) => [row.stage, row.status]));
+    const completedStages = ordered.filter((stage) => stageStatus.get(stage) === "completed").length;
+    const stage = ordered.find((item) => stageStatus.get(item) !== "completed") ?? "finalized";
+    progress = { stage, completedStages, totalStages: ordered.length, deepResearchCompleted: authoritativeCycle.deep_research_completed_count ?? 0, deepResearchTotal: authoritativeCycle.discovery_advance_count ?? 0 };
+  }
 
   return {
     cycleDate,
@@ -56,6 +67,7 @@ export async function getAgDailyCycleStatus() {
     staleCycles,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
+    progress,
     cycle: authoritativeCycle,
   };
 }
