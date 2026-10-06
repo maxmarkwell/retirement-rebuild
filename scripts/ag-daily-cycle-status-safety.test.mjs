@@ -8,4 +8,7 @@ test("AG status prefers an authoritative running prior-date cycle over today's e
  assert.match(source,/displayedCycleDate: authoritativeCycle\?\.cycle_date \?\? cycleDate/);
  assert.match(source,/activePriorDateCycle: Boolean\(activeCycle && activeCycle\.cycle_date !== cycleDate\)/);
  assert.match(source,/cycle: authoritativeCycle/);
+ assert.match(source,/ag_cycle_stage_checkpoints/);
+ assert.match(source,/deepResearchCompleted/);
+ assert.match(source,/deepResearchTotal/);
 });
