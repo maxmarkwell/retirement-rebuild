@@ -144,7 +144,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if p_terminal_status not in ('consumed','revoked') then raise exception 'Invalid terminal worker status'; end if;
+  if not (p_terminal_status = any(array['consumed','revoked'])) then raise exception 'Invalid terminal worker status'; end if;
   update public.ag_cycle_worker_authorizations
     set status=p_terminal_status,updated_at=now()
     where cycle_id=p_cycle_id and token_hash=p_token_hash and status='active';
