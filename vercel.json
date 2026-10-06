@@ -9,5 +9,16 @@
       "path": "/api/snapshots/daily",
       "schedule": "0 23 * * 1-5"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/queues/ag-autonomous-research/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "ag-autonomous-research-v1",
+          "retryAfterSeconds": 30
+        }
+      ]
+    }
+  }
 }
