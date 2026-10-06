@@ -48,7 +48,7 @@ begin
     select 1
     from public.ag_daily_cycles c
     join public.portfolios p on p.id=c.portfolio_id and p.user_id=c.user_id
-    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id and e.user_id=c.user_id
+    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id
     where c.id=p_cycle_id and c.user_id=v_user_id and c.status='running'
       and p.type='paper_active' and p.is_real_money=false
       and e.strategy_key='accelerated_growth' and e.execution_mode='paper' and e.ended_at is null
@@ -111,7 +111,7 @@ begin
   if not exists (
     select 1 from public.ag_daily_cycles c
     join public.portfolios p on p.id=c.portfolio_id and p.user_id=c.user_id
-    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id and e.user_id=c.user_id
+    join public.portfolio_strategy_eras e on e.id=c.strategy_era_id and e.portfolio_id=c.portfolio_id
     where c.id=v_auth.cycle_id and c.user_id=v_auth.user_id and c.status='running'
       and p.type='paper_active' and p.is_real_money=false
       and e.strategy_key='accelerated_growth' and e.execution_mode='paper' and e.ended_at is null
