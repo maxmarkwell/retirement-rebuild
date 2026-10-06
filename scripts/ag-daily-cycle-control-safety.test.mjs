@@ -9,6 +9,8 @@ test("AG daily control presents autonomous lifecycle instead of repeated-click s
  assert.match(source,/Research is running automatically/);
  assert.match(source,/displayedCycleDate/);
  assert.match(source,/activePriorDateCycle/);
+ assert.match(source,/Deep Research/);
+ assert.match(source,/completedStages/);
  assert.match(source,/disabled=\{running \|\| status\.status === "running"/);
  assert.doesNotMatch(source,/Run Today's AG Research|Today's Accelerated Growth research cycle completed/);
 });
