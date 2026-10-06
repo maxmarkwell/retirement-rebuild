@@ -51,3 +51,15 @@ test("expired symbol-parent recovery stays narrow and cannot bypass active lease
  assert.match(migration,/e\.execution_mode='paper'/);
  assert.doesNotMatch(adapter,/executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
+
+
+test("resumable coordinator safely reuses one prior-date running cycle",async()=>{
+ const source=await readFile("lib/discovery/accelerated-growth/resumable-cycle-orchestrator.ts","utf8");
+ assert.match(source,/\.eq\("status","running"\)\.limit\(2\)/);
+ assert.match(source,/length>1/);
+ assert.match(source,/priorRunning/);
+ assert.match(source,/Conflicting AG cycle state requires manual reconciliation/);
+ assert.match(source,/resumableExisting=priorRunning\?\?existing/);
+ assert.match(source,/authoritativeCycleDate/);
+ assert.doesNotMatch(source,/executeAgDailyCycleTransactions|daily-cycle-execution/);
+});
