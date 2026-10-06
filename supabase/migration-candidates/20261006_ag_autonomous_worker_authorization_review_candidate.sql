@@ -129,7 +129,7 @@ begin
   select c.max_candidates into max_candidates from public.ag_daily_cycles c where c.id=v_auth.cycle_id and c.user_id=v_auth.user_id;
   return next;
 end;
-$;
+$$;
 
 revoke all on function public.ag_claim_cycle_worker(uuid,text) from public, anon, authenticated;
 grant execute on function public.ag_claim_cycle_worker(uuid,text) to service_role;
