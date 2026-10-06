@@ -8,16 +8,22 @@ import {runAgCatalystDeepSymbolWork} from "./catalyst-deep-stage-work";
 import {runAgCommitteeSymbolWork} from "./committee-stage-work";
 import {aggregateAgDeepSymbolOutputs,aggregateAgCommitteeSymbolOutputs} from "./symbol-stage-aggregation";
 import {createAuthenticatedAgSymbolCheckpointIo} from "./symbol-checkpoint-supabase";
+import type {AgSymbolCheckpointIo} from "./symbol-checkpoint-orchestrator";
+import type {AgStage,AgStageEnvelope} from "./stage-checkpoint-contract";
 import {runNextAgSymbolWork} from "./symbol-checkpoint-orchestrator";
 import {deriveAgExecutionEvidence} from "./execution-evidence";
 import {captureAgCommitteeIntent} from "./immutable-intent-capture";
 import {validateAgStageEnvelope} from "./stage-checkpoint-contract";
 
-export async function resumeAgDeepResearchFanout(input:{cycleId:string;parentClaim:{checkpointId:string;claimToken:string};rpc:AgStageCheckpointRpc;maxCandidates?:number}){
- const env=await readAuthenticatedAgCompletedStageOutput({cycleId:input.cycleId,stage:"discovery"});
+type FanoutIo={createSymbolIo?:()=>Promise<AgSymbolCheckpointIo>;readCompletedStageOutput?:(input:{cycleId:string;stage:AgStage})=>Promise<AgStageEnvelope|null>};
+const defaultRead=readAuthenticatedAgCompletedStageOutput;
+
+export async function resumeAgDeepResearchFanout(input:{cycleId:string;parentClaim:{checkpointId:string;claimToken:string};rpc:AgStageCheckpointRpc;maxCandidates?:number;io?:FanoutIo}){
+ const read=input.io?.readCompletedStageOutput??defaultRead;
+ const env=await read({cycleId:input.cycleId,stage:"discovery"});
  if(!env)throw new Error("Completed AG Discovery checkpoint required.");
  const discovery=parseAgDiscoveryStagePayload(env.payload),plan=deriveAgPostDiscoveryPlan(discovery,input.maxCandidates);
- const expected=plan.selected.map(x=>x.symbol),io=await createAuthenticatedAgSymbolCheckpointIo();
+ const expected=plan.selected.map(x=>x.symbol),io=await (input.io?.createSymbolIo??createAuthenticatedAgSymbolCheckpointIo)();
  const step=await runNextAgSymbolWork({cycleId:input.cycleId,parentStage:"catalyst_deep_research",expectedSymbols:expected,io,
   work:async symbol=>{const candidate=plan.selected.find(x=>x.symbol===symbol);if(!candidate)throw new Error("AG deep symbol absent from frozen plan.");return runAgCatalystDeepSymbolWork({candidate,discovery});}});
  if(step.action!=="AGGREGATE")return {completed:false,step};
@@ -28,16 +34,17 @@ export async function resumeAgDeepResearchFanout(input:{cycleId:string;parentCla
  return {completed:true,step};
 }
 
-export async function resumeAgCommitteeFanout(input:{cycleId:string;parentClaim:{checkpointId:string;claimToken:string};rpc:AgStageCheckpointRpc}){
- const deep=await readAuthenticatedAgCompletedStageOutput({cycleId:input.cycleId,stage:"catalyst_deep_research"});
+export async function resumeAgCommitteeFanout(input:{cycleId:string;parentClaim:{checkpointId:string;claimToken:string};rpc:AgStageCheckpointRpc;io?:FanoutIo}){
+ const read=input.io?.readCompletedStageOutput??defaultRead;
+ const deep=await read({cycleId:input.cycleId,stage:"catalyst_deep_research"});
  if(!deep)throw new Error("Completed AG deep-research checkpoint required.");
  const research=parseAgDeepResearchResults(deep.payload).filter(x=>x.researchStatus==="PROCEED"),expected=research.map(x=>x.symbol);
- const io=await createAuthenticatedAgSymbolCheckpointIo();
+ const io=await (input.io?.createSymbolIo??createAuthenticatedAgSymbolCheckpointIo)();
  const step=await runNextAgSymbolWork({cycleId:input.cycleId,parentStage:"committee",expectedSymbols:expected,io,
   work:async symbol=>{const item=research.find(x=>x.symbol===symbol);if(!item)throw new Error("AG Committee symbol absent from frozen manifest.");return runAgCommitteeSymbolWork(item);}});
  if(step.action!=="AGGREGATE")return {completed:false,step};
  const result=aggregateAgCommitteeSymbolOutputs({eligibleSymbols:expected,decisions:step.outputs as any});
- const discoveryEnv=await readAuthenticatedAgCompletedStageOutput({cycleId:input.cycleId,stage:"discovery"});
+ const discoveryEnv=await read({cycleId:input.cycleId,stage:"discovery"});
  if(!discoveryEnv)throw new Error("Completed AG Discovery checkpoint required for Committee evidence.");
  const discovery=parseAgDiscoveryStagePayload(discoveryEnv.payload);
  const evidenceByTicker=Object.fromEntries(result.eligibleSymbols.map(t=>{const frozen=discovery.discovery.executionEvidenceInputs[t];if(!frozen)throw new Error(`Missing frozen AG execution evidence for ${t}`);return[t,deriveAgExecutionEvidence(frozen)];}));
