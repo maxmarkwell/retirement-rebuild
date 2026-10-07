@@ -3,7 +3,7 @@ import {parseAgDiscoveryStagePayload,parseAgDeepResearchResults} from "./researc
 
 const uuid="11111111-1111-4111-8111-111111111111";
 test("Discovery checkpoint parser revalidates frozen handoff",()=>{
- const payload:any={discovery:{rateLimited:false,stoppedEarly:false,errors:[],candidates:[],broadPreScreenCount:36,preselectedCount:0,evaluatedCount:0,selectorSignal:"market_quality_fallback"},
+ const payload:any={discovery:{rateLimited:false,stoppedEarly:false,errors:[],candidates:[],broadPreScreenCount:36,preselectedCount:0,evaluatedCount:0,selectorSignal:"bulk_income_growth_with_market_fallback",bulkGrowthCoverageCount:30},
   watch_context:{research:{ABC:{rowId:uuid,confidence:.5,thesis:"t",unresolvedQuestions:[],thesisClock:"short",firstSeenAt:"2026-01-01",lastSeenAt:"2026-01-02"}},committee:{}}};
  assert.equal(parseAgDiscoveryStagePayload(payload).watchContext.research.ABC.rowId,uuid);
  payload.watch_context.research.ABC.rowId="not-a-uuid";
