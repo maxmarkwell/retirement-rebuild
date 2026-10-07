@@ -20,11 +20,17 @@ export const POST=handleCallback(async(message,metadata)=>{
  }
  if(result.outcome==="needs_review")return;
  if(result.action==="persistence_ready"||result.action==="research_complete"){
-  if(process.env.AG_AUTONOMOUS_DURABILITY_ENABLED==="true")await enqueueAgDurabilityStep(message,{sequence:1});
+  if(process.env.AG_AUTONOMOUS_DURABILITY_ENABLED==="true")try{await enqueueAgDurabilityStep(message,{sequence:1});}catch(error){
+   if(metadata.deliveryCount>=5)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
+   throw error;
+  }
   return;
  }
  const afterSeconds=result.action==="wait"?30:0;
- await enqueueAgResearchStep(message,{afterSeconds,sequence:result.invocationNumber+1});
+ try{await enqueueAgResearchStep(message,{afterSeconds,sequence:result.invocationNumber+1});}catch(error){
+  if(metadata.deliveryCount>=5)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
+  throw error;
+ }
 },{
  visibilityTimeoutSeconds:300,
  retry:(error,metadata)=>{
