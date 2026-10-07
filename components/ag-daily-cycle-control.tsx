@@ -16,6 +16,7 @@ type CycleStatus = {
   transactionsWrittenByCycle: boolean;
   progress: { stage: string | null; completedStages: number; totalStages: number; deepResearchCompleted: number; deepResearchTotal: number } | null;
   cycle: {
+    id?: string;
     universe_count: number | null;
     preselected_count: number | null;
     evaluated_count: number | null;
@@ -40,6 +41,29 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
     const response = await fetch("/api/accelerated-growth/daily-cycle/status", { cache: "no-store" });
     const body = await response.json();
     if (response.ok) setStatus(body);
+  }
+
+  async function recoverCycle() {
+    if (!status.requiresManualRecoveryReview || !status.cycle?.id) return;
+    setRunning(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/accelerated-growth/daily-cycle/recover", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ cycleId: status.cycle.id }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "AG recovery failed.");
+      setMessage("Failed research cycle closed safely. Its failure evidence was preserved.");
+      await refreshStatus();
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "AG recovery failed.");
+      await refreshStatus();
+    } finally {
+      setRunning(false);
+    }
   }
 
   async function runCycle() {
@@ -84,7 +108,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         </button>
       </div>
 
-      {recoveryBlocked && <p role="alert" className="mt-2 text-xs font-semibold text-red-700">A potentially abandoned AG cycle was detected. New runs and retries are blocked in this control pending manual recovery review. Review the cycle records and persistence before proceeding.</p>}
+      {recoveryBlocked && <div className="mt-2"><p role="alert" className="text-xs font-semibold text-red-700">This AG research cycle stopped in a state that requires manual recovery. New runs are blocked until it is closed safely.</p><button type="button" onClick={recoverCycle} disabled={running || !status.cycle?.id} className="mt-2 rounded-md border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-50">Mark Failed &amp; Unblock</button></div>}
       {status.activePriorDateCycle && <p className="mt-2 text-xs font-medium text-gray-700">Finishing the previously started research cycle before a new daily cycle can begin.</p>}
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
 
