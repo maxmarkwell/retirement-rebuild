@@ -62,7 +62,7 @@ export async function runNextAgResumableResearchStage(input:{
   case "holding_review":
    await executeAgHoldingReviewStage({cycleId:input.cycleId,rpc});break;
   case "discovery":
-   await executeAgDiscoveryStage({cycleId:input.cycleId,rpc});break;
+   await executeAgDiscoveryStage({cycleId:input.cycleId,rpc,workerContext:input.context});break;
   case "catalyst_deep_research":
    await executeAgCatalystDeepStage({cycleId:input.cycleId,rpc,maxCandidates:input.maxCandidates,io:input.context?{createSymbolIo:input.context.createSymbolIo,readCompletedStageOutput:input.context.readCompletedStageOutput}:undefined});break;
   case "committee":
