@@ -25,6 +25,14 @@ export function deriveAgPostDiscoveryPlan(h:AgDiscoveryHandoff,maxCandidates=5):
   if(aw)return -1;if(bw)return 1;return b.score.total-a.score.total;
  });
  const fresh=advance.filter(c=>!reassess.has(c.symbol)).sort((a,b)=>b.score.total-a.score.total);
- return {selected:[...watched,...fresh].slice(0,Math.max(1,Math.min(maxCandidates,5))),
+ const limit=Math.max(1,Math.min(maxCandidates,5));
+ // Reassessments remain first-class, but reserve at least one slot for a fresh
+ // ADVANCE when both groups exist so an old WATCH backlog cannot starve new ideas.
+ let selected:AgDiscoveryCandidate[];
+ if(watched.length&&fresh.length&&limit>1){
+  const watchedSlots=Math.min(watched.length,limit-1);
+  selected=[...watched.slice(0,watchedSlots),...fresh.slice(0,limit-watchedSlots)];
+ }else selected=[...watched,...fresh].slice(0,limit);
+ return {selected,
   quantitativeWatchResolutions,committeeWatchResolutions};
 }
