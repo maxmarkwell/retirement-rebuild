@@ -23,13 +23,30 @@ export async function authorizeAuthenticatedAgWorker(cycleId:string){
  return {authorizationId:data as string,token:rawToken};
 }
 
-export async function claimAgWorker(cycleId:string,rawToken:string){
- const admin=createAdminClient();
- const {data,error}=await admin.rpc("ag_claim_cycle_worker",{p_cycle_id:cycleId,p_token_hash:digest(rawToken)});
- if(error)throw new Error(`Unable to claim AG worker authorization: ${error.message}`);
+type AgWorkerAuthorization={authorizationId:string;userId:string;invocationNumber:number;maxCandidates:number};
+function normalizeWorkerRow(data:unknown):AgWorkerAuthorization|null{
  const row=Array.isArray(data)?data[0]:null;
  if(!row)return null;
  return {authorizationId:String(row.authorization_id),userId:String(row.user_id),invocationNumber:Number(row.invocation_number),maxCandidates:Number(row.max_candidates)};
+}
+
+export async function validateAgWorker(cycleId:string,rawToken:string){
+ const admin=createAdminClient();
+ const {data,error}=await admin.rpc("ag_validate_cycle_worker",{p_cycle_id:cycleId,p_token_hash:digest(rawToken)});
+ if(error)throw new Error(`Unable to validate AG worker authorization: ${error.message}`);
+ return normalizeWorkerRow(data);
+}
+
+export async function chargeAgWorkerInvocation(cycleId:string,rawToken:string){
+ const admin=createAdminClient();
+ const {data,error}=await admin.rpc("ag_charge_cycle_worker_invocation",{p_cycle_id:cycleId,p_token_hash:digest(rawToken)});
+ if(error)throw new Error(`Unable to charge AG worker invocation: ${error.message}`);
+ return normalizeWorkerRow(data);
+}
+
+// Legacy/manual callers may still require an immediate consuming claim.
+export async function claimAgWorker(cycleId:string,rawToken:string){
+ return chargeAgWorkerInvocation(cycleId,rawToken);
 }
 
 export async function finishAgWorker(cycleId:string,rawToken:string,status:"consumed"|"revoked"){
