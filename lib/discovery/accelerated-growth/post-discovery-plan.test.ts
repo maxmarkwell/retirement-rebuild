@@ -14,3 +14,15 @@ test("Committee watch resolution retains original decision id",()=>{
  const h:any={discovery:{candidates:[candidate("CW","REVIEW",1)]},watchContext:{research:{},committee:{CW:"33333333-3333-4333-8333-333333333333"}}};
  assert.equal(deriveAgPostDiscoveryPlan(h).committeeWatchResolutions[0].sourceDecisionId,"33333333-3333-4333-8333-333333333333");
 });
+
+test("watch backlog cannot consume every deep-research slot when fresh advances exist",()=>{
+ const watches:any={};
+ const candidates:any[]=[];
+ for(let i=0;i<7;i++){const s=`W${i}`;watches[s]=watch(`00000000-0000-4000-8000-00000000000${i}`,`2026-01-0${i+1}T00:00:00Z`);candidates.push(candidate(s,"ADVANCE",80-i));}
+ candidates.push(candidate("FRESH","ADVANCE",100));
+ const h:any={discovery:{candidates},watchContext:{research:watches,committee:{}}};
+ const p=deriveAgPostDiscoveryPlan(h,5);
+ assert.equal(p.selected.length,5);
+ assert.ok(p.selected.some(x=>x.symbol==="FRESH"));
+ assert.equal(p.selected.filter(x=>x.symbol.startsWith("W")).length,4);
+});
