@@ -53,11 +53,34 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
   return true;
 }
 function rankBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
-  return stocks
+  const eligible = stocks
     .filter(passesZeroCallGate)
     .map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }))
-    .sort((a, b) => b.selectorScore - a.selectorScore)
-    .slice(0, limit);
+    .sort((a, b) => b.selectorScore - a.selectorScore);
+
+  // Preserve sector breadth inside each AG evaluation bucket. Liquidity still
+  // breaks ties, but one hot/liquid sector cannot consume the whole quota.
+  const sectorCap = Math.max(2, Math.ceil(limit * 0.34));
+  const sectorCounts = new Map<string, number>();
+  const selected: Preselected[] = [];
+  for (const item of eligible) {
+    if (selected.length >= limit) break;
+    const sector = item.stock.sector ?? "Unknown";
+    const count = sectorCounts.get(sector) ?? 0;
+    if (count >= sectorCap) continue;
+    selected.push(item);
+    sectorCounts.set(sector, count + 1);
+  }
+  if (selected.length < limit) {
+    const symbols = new Set(selected.map((item) => item.stock.ticker));
+    for (const item of eligible) {
+      if (selected.length >= limit) break;
+      if (symbols.has(item.stock.ticker)) continue;
+      selected.push(item);
+      symbols.add(item.stock.ticker);
+    }
+  }
+  return selected;
 }
 function isRateLimitError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
