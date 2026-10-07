@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 
 test("AG worker authorization candidate is server-only and bounded",async()=>{
  const sql=await readFile("supabase/migration-candidates/20261006_ag_autonomous_worker_authorization_review_candidate.sql","utf8");
- assert.match(sql,/REVIEW CANDIDATE ONLY/);
+ assert.match(sql,/SOURCE OF APPLIED MIGRATION 20261006170509_ag_autonomous_worker_authorization/);
  assert.match(sql,/cycle_id uuid not null unique/);
  assert.match(sql,/token_hash text not null unique/);
  assert.match(sql,/status in \('active','consumed','revoked','expired'\)/i);
