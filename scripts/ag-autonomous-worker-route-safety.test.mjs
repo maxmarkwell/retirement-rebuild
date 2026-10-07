@@ -10,7 +10,7 @@ test("AG autonomous worker route is gated and delegates one bounded step",async(
 });
 test("AG bounded worker step owns research execution but no scheduling or durability",async()=>{
  const source=await readFile("lib/discovery/accelerated-growth/autonomous-worker-step.ts","utf8");
- assert.match(source,/claimAgWorker/);assert.match(source,/createWorkerAgExecutionContext/);assert.match(source,/runNextAgResumableResearchStage/);assert.match(source,/finishAgWorker/);
+ assert.match(source,/validateAgWorker/);assert.match(source,/chargeAgWorkerInvocation/);assert.match(source,/createWorkerAgExecutionContext/);assert.match(source,/runNextAgResumableResearchStage/);assert.match(source,/finishAgWorker/);
  assert.match(source,/persistence_ready/);assert.match(source,/transactionsWritten:false/);
  assert.doesNotMatch(source,/@vercel\/queue|enqueueAgResearchStep|runNextAgDurabilityStep|executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
@@ -23,6 +23,6 @@ test("AG worker context uses only cycle-scoped worker RPCs",async()=>{
 test("AG worker auth adapter hashes capability tokens and constant-time checks worker secret",async()=>{
  const source=await readFile("lib/discovery/accelerated-growth/autonomous-worker-auth.ts","utf8");
  assert.match(source,/createHash\("sha256"\)/);assert.match(source,/randomBytes\(32\)/);assert.match(source,/timingSafeEqual/);assert.match(source,/AG_AUTONOMOUS_WORKER_SECRET/);
- assert.match(source,/ag_authorize_cycle_worker/);assert.match(source,/ag_claim_cycle_worker/);assert.match(source,/ag_finish_cycle_worker/);
+ assert.match(source,/ag_authorize_cycle_worker/);assert.match(source,/ag_validate_cycle_worker/);assert.match(source,/ag_charge_cycle_worker_invocation/);assert.match(source,/ag_finish_cycle_worker/);
  assert.doesNotMatch(source,/executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
