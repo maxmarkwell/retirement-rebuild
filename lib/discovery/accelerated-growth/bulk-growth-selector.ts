@@ -9,6 +9,7 @@ export type AgBulkGrowthSignal = {
 type RawGrowthRow = Record<string, unknown>;
 
 function finitePct(value: unknown): number | null {
+  if (value == null || (typeof value === "string" && value.trim() === "")) return null;
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) ? number * 100 : null;
 }
