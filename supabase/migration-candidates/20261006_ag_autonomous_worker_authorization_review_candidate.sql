@@ -1,5 +1,5 @@
--- REVIEW CANDIDATE ONLY. DO NOT APPLY WITHOUT EXPLICIT PRODUCTION DDL APPROVAL.
--- Authorizes bounded server-side continuation of one paper AG cycle.
+-- SOURCE OF APPLIED MIGRATION 20261006170509_ag_autonomous_worker_authorization. DO NOT MANUALLY REAPPLY.
+-- Authorizes bounded server-side continuation of one paper AG cycle; autonomous execution remains separately feature-gated.
 create table if not exists public.ag_cycle_worker_authorizations (
   id uuid primary key default gen_random_uuid(),
   cycle_id uuid not null unique references public.ag_daily_cycles(id) on delete cascade,
