@@ -22,6 +22,7 @@ export type AgDiscoveryResult = {
   insufficientDataCount: number;
   rateLimited: boolean;
   stoppedEarly: boolean;
+  broadPreScreenCount: number;
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
@@ -147,7 +148,8 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   const statusOrder = { ADVANCE: 0, REVIEW: 1, REJECT: 2, INSUFFICIENT_DATA: 3 } as const;
   candidates.sort((a, b) => statusOrder[a.score.status] - statusOrder[b.score.status] || b.score.total - a.score.total);
   return {
-    universeCount: universe.length, preselectedCount: selected.length, evaluatedCount: candidates.length,
+    universeCount: universe.length, broadPreScreenCount: broadPreScreen.selectedCount,
+    preselectedCount: selected.length, evaluatedCount: candidates.length,
     advanceCount: candidates.filter((c) => c.score.status === "ADVANCE").length,
     reviewCount: candidates.filter((c) => c.score.status === "REVIEW").length,
     rejectCount: candidates.filter((c) => c.score.status === "REJECT").length,
