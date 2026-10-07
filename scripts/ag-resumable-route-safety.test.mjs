@@ -59,7 +59,9 @@ test("resumable coordinator safely reuses one prior-date running cycle",async()=
  assert.match(source,/length>1/);
  assert.match(source,/priorRunning/);
  assert.match(source,/Conflicting AG cycle state requires manual reconciliation/);
- assert.match(source,/resumableExisting=priorRunning\?\?existing/);
+ assert.match(source,/resumableExisting=priorRunning\?\?\(existing\?\.status==="running"\?existing:null\)/);
+ assert.match(source,/retryableFailed=existing\?\.status==="failed"/);
+ assert.match(source,/attempt_number:\(existing\?\.attempt_number\?\?0\)\+1/);
  assert.match(source,/authoritativeCycleDate/);
  assert.doesNotMatch(source,/executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
