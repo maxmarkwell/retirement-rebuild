@@ -82,11 +82,23 @@ export async function getAgBulkGrowthSignals(symbols: string[], now = new Date()
   // Include the prior fiscal year because early-calendar-year filings can still
   // belong to it. Latest filing date wins for each symbol.
   const quarters = ["Q1","Q2","Q3","Q4"] as const;
-  const periods = await Promise.all(
-    [year - 1, year].flatMap((fiscalYear) =>
-      quarters.map((period) => fetchPeriod(fiscalYear, period))
-    )
+  const requests = [year - 1, year].flatMap((fiscalYear) =>
+    quarters.map((period) => ({ fiscalYear, period }))
   );
+  const results = await Promise.allSettled(
+    requests.map(({ fiscalYear, period }) => fetchPeriod(fiscalYear, period))
+  );
+  const periods = results.flatMap((result, index) => {
+    if (result.status === "fulfilled") return [result.value];
+    const request = requests[index];
+    console.warn("[AG discovery] bulk growth quarter unavailable", {
+      fiscalYear: request.fiscalYear,
+      period: request.period,
+      error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+    });
+    return [];
+  });
+  if (periods.length === 0) throw new Error("FMP bulk income growth unavailable for all requested quarters.");
   const latest = new Map<string,AgBulkGrowthSignal>();
   for (const row of periods.flat()) {
     if (!wanted.has(row.symbol)) continue;
