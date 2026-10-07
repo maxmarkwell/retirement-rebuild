@@ -1,5 +1,5 @@
 import "server-only";
-import {claimAgWorker,finishAgWorker} from "./autonomous-worker-auth";
+import {validateAgWorker,chargeAgWorkerInvocation,finishAgWorker} from "./autonomous-worker-auth";
 import {createWorkerAgExecutionContext} from "./autonomous-worker-context";
 import {runNextAgResumableResearchStage} from "./resumable-daily-cycle-adapter";
 
@@ -8,20 +8,28 @@ export type AgWorkerStepResult={
  invocationNumber:number;schedulingEnabled:false;transactionsWritten:false;
 };
 export async function runAuthorizedAgWorkerStep(input:{cycleId:string;token:string}):Promise<AgWorkerStepResult>{
- const claim=await claimAgWorker(input.cycleId,input.token);
- if(!claim)throw new Error("Worker authorization unavailable.");
- const context=createWorkerAgExecutionContext({cycleId:input.cycleId,userId:claim.userId,authorizationId:claim.authorizationId,token:input.token});
+ const authorization=await validateAgWorker(input.cycleId,input.token);
+ if(!authorization)throw new Error("Worker authorization unavailable.");
+ const context=createWorkerAgExecutionContext({cycleId:input.cycleId,userId:authorization.userId,authorizationId:authorization.authorizationId,token:input.token});
  try{
-  const step=await runNextAgResumableResearchStage({cycleId:input.cycleId,maxCandidates:claim.maxCandidates,context});
+  const step=await runNextAgResumableResearchStage({cycleId:input.cycleId,maxCandidates:authorization.maxCandidates,context});
   if(step.plan.action==="manual_review"){
    await finishAgWorker(input.cycleId,input.token,"revoked");
-   return {cycleId:input.cycleId,outcome:"needs_review",stage:step.plan.stage,action:"manual_review",invocationNumber:claim.invocationNumber,schedulingEnabled:false,transactionsWritten:false};
+   return {cycleId:input.cycleId,outcome:"needs_review",stage:step.plan.stage,action:"manual_review",invocationNumber:authorization.invocationNumber,schedulingEnabled:false,transactionsWritten:false};
+  }
+  // Passive resume checks are authorized but do not consume the bounded work
+  // budget. Only an invocation that actually executed one research unit is charged.
+  let invocationNumber=authorization.invocationNumber;
+  if(step.executedStage){
+   const charged=await chargeAgWorkerInvocation(input.cycleId,input.token);
+   if(!charged)throw new Error("Worker productive invocation charge rejected.");
+   invocationNumber=charged.invocationNumber;
   }
   if(step.persistenceReady){
-   return {cycleId:input.cycleId,outcome:"continue",stage:"persistence",action:"persistence_ready",invocationNumber:claim.invocationNumber,schedulingEnabled:false,transactionsWritten:false};
+   return {cycleId:input.cycleId,outcome:"continue",stage:"persistence",action:"persistence_ready",invocationNumber,schedulingEnabled:false,transactionsWritten:false};
   }
   const stage="stage" in step.plan?step.plan.stage:null;
-  return {cycleId:input.cycleId,outcome:"continue",stage,action:step.plan.action==="wait"?"wait":step.plan.action==="complete"?"research_complete":"stage_step",invocationNumber:claim.invocationNumber,schedulingEnabled:false,transactionsWritten:false};
+  return {cycleId:input.cycleId,outcome:"continue",stage,action:step.plan.action==="wait"?"wait":step.plan.action==="complete"?"research_complete":"stage_step",invocationNumber,schedulingEnabled:false,transactionsWritten:false};
  }catch(error){
   try{
    const rows=await context.readCheckpointStatus(input.cycleId);
