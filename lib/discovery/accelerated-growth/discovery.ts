@@ -6,8 +6,11 @@ import {
 import { preScreenDynamicUniverse } from "../pre-screen";
 import { evaluateAcceleratedGrowthCandidate } from "./evaluate";
 
+export type AgSelectorSignal = "market_quality_fallback";
+
 export type AgDiscoveryCandidate = Awaited<ReturnType<typeof evaluateAcceleratedGrowthCandidate>> & {
   selectorScore: number;
+  selectorSignal: AgSelectorSignal;
   sector: string | null;
   industry: string | null;
 };
@@ -23,13 +26,14 @@ export type AgDiscoveryResult = {
   rateLimited: boolean;
   stoppedEarly: boolean;
   broadPreScreenCount: number;
+  selectorSignal: AgSelectorSignal;
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
   executionEvidenceInputs: Record<string,{volume:number|null;dollarVolume:number|null;sector:string|null}>;
 };
 
-type Preselected = { stock: DynamicUniverseStock; selectorScore: number };
+type Preselected = { stock: DynamicUniverseStock; selectorScore: number; selectorSignal: AgSelectorSignal };
 
 const DISCOVERY_SOFT_BUDGET_MS = 150_000;
 
@@ -56,7 +60,7 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
 function rankBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
   const eligible = stocks
     .filter(passesZeroCallGate)
-    .map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }))
+    .map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock), selectorSignal: "market_quality_fallback" as const }))
     .sort((a, b) => b.selectorScore - a.selectorScore);
 
   // Preserve sector breadth inside each AG evaluation bucket. Liquidity still
@@ -116,7 +120,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     if (!symbol || selectedSymbols.has(symbol)) continue;
     const stock = universe.find((item) => item.ticker.toUpperCase() === symbol);
     if (!stock) continue;
-    selected.push({ stock, selectorScore: zeroCallSelectorScore(stock) });
+    selected.push({ stock, selectorScore: zeroCallSelectorScore(stock), selectorSignal: "market_quality_fallback" });
     selectedSymbols.add(symbol);
   }
 
@@ -137,7 +141,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     }
     try {
       const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker);
-      candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, sector: item.stock.sector, industry: item.stock.industry });
+      candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, selectorSignal: item.selectorSignal, sector: item.stock.sector, industry: item.stock.industry });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Evaluation failed.";
       errors.push({ symbol: item.stock.ticker, error: message });
@@ -149,6 +153,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   candidates.sort((a, b) => statusOrder[a.score.status] - statusOrder[b.score.status] || b.score.total - a.score.total);
   return {
     universeCount: universe.length, broadPreScreenCount: broadPreScreen.selectedCount,
+    selectorSignal: "market_quality_fallback",
     preselectedCount: selected.length, evaluatedCount: candidates.length,
     advanceCount: candidates.filter((c) => c.score.status === "ADVANCE").length,
     reviewCount: candidates.filter((c) => c.score.status === "REVIEW").length,
