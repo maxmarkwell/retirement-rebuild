@@ -3,6 +3,7 @@ import {
   type DynamicUniverseStock,
   type MarketCapBucket as UniverseMarketCapBucket,
 } from "../dynamic-universe";
+import { preScreenDynamicUniverse } from "../pre-screen";
 import { evaluateAcceleratedGrowthCandidate } from "./evaluate";
 
 export type AgDiscoveryCandidate = Awaited<ReturnType<typeof evaluateAcceleratedGrowthCandidate>> & {
@@ -31,7 +32,9 @@ type Preselected = { stock: DynamicUniverseStock; selectorScore: number };
 
 const DISCOVERY_SOFT_BUDGET_MS = 150_000;
 
-const BUCKET_LIMITS: Record<UniverseMarketCapBucket, number> = { small: 8, mid: 8, large: 4, mega: 2 };
+// Keep expensive quarterly evaluation bounded, but source those slots from the
+// broader diversified pre-screen rather than sampling the raw universe directly.
+const EVALUATION_LIMITS: Record<UniverseMarketCapBucket, number> = { small: 12, mid: 12, large: 8, mega: 4 };
 
 function clamp(value: number, min = 0, max = 100) { return Math.min(max, Math.max(min, value)); }
 function linear(value: number | null, bad: number, good: number, neutral = 45) {
@@ -49,17 +52,12 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
   if ((stock.marketCapBucket === "small" || stock.marketCapBucket === "mid") && stock.dollarVolume != null && stock.dollarVolume < 2_000_000) return false;
   return true;
 }
-function selectBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
-  const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }));
-  if (eligible.length <= limit) return eligible.sort((a, b) => b.selectorScore - a.selectorScore);
-  const selected: Preselected[] = [];
-  const sliceSize = eligible.length / limit;
-  for (let i = 0; i < limit; i += 1) {
-    const start = Math.floor(i * sliceSize), end = Math.max(start + 1, Math.floor((i + 1) * sliceSize));
-    const slice = eligible.slice(start, end).sort((a, b) => b.selectorScore - a.selectorScore);
-    if (slice[0]) selected.push(slice[0]);
-  }
-  return selected;
+function rankBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
+  return stocks
+    .filter(passesZeroCallGate)
+    .map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }))
+    .sort((a, b) => b.selectorScore - a.selectorScore)
+    .slice(0, limit);
 }
 function isRateLimitError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -69,14 +67,17 @@ function isRateLimitError(error: unknown) {
 export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?: string[] }): Promise<AgDiscoveryResult> {
   const discoveryStartedMs = Date.now();
   const universe = await getDynamicDiscoveryUniverse();
-  const byBucket = new Map<UniverseMarketCapBucket, DynamicUniverseStock[]>();
-  for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) byBucket.set(bucket, []);
-  for (const stock of universe) byBucket.get(stock.marketCapBucket)?.push(stock);
-
+  // The shared pre-screen examines the full dynamic universe and produces a
+  // liquid, sector-diversified shortlist (up to 400 names). AG then ranks only
+  // that shortlist to choose a bounded set for the expensive quarterly calls.
+  const broadPreScreen = preScreenDynamicUniverse(universe);
   const selected: Preselected[] = [];
   const bucketSelectionCounts = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
-  for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) {
-    const bucketSelected = selectBucket(byBucket.get(bucket) ?? [], BUCKET_LIMITS[bucket]);
+  for (const bucket of Object.keys(EVALUATION_LIMITS) as UniverseMarketCapBucket[]) {
+    const bucketSelected = rankBucket(
+      broadPreScreen.selected.filter((stock) => stock.marketCapBucket === bucket),
+      EVALUATION_LIMITS[bucket],
+    );
     bucketSelectionCounts[bucket] = bucketSelected.length;
     selected.push(...bucketSelected);
   }
