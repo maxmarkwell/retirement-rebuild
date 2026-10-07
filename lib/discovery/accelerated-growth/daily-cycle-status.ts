@@ -45,6 +45,8 @@ export async function getAgDailyCycleStatus() {
   }));
 
   let progress: { stage: string | null; completedStages: number; totalStages: number; deepResearchCompleted: number; deepResearchTotal: number } | null = null;
+  let checkpointNeedsReview = false;
+  let workerNeedsReview = false;
   if (authoritativeCycle?.id) {
     // Stage checkpoints intentionally have no browser table SELECT grant. Read
     // them through the existing authenticated, cycle-owned SECURITY DEFINER RPC.
@@ -53,8 +55,21 @@ export async function getAgDailyCycleStatus() {
     if (checkpointError) throw new Error(`Unable to load AG cycle progress: ${checkpointError.message}`);
     const ordered = ["holding_review","discovery","catalyst_deep_research","committee","persistence","finalized"];
     const stageStatus = new Map((checkpoints ?? []).map((row: { stage: string; status: string }) => [row.stage, row.status]));
+    checkpointNeedsReview = [...stageStatus.values()].some((status) => status === "needs_manual_review");
     const completedStages = ordered.filter((stage) => stageStatus.get(stage) === "completed").length;
     const stage = ordered.find((item) => stageStatus.get(item) !== "completed") ?? "finalized";
+    if (authoritativeCycle.status === "running") {
+      const { data: workerRows, error: workerError } = await supabase
+        .rpc("ag_read_cycle_worker_authorization", { p_cycle_id: authoritativeCycle.id });
+      if (workerError) throw new Error(`Unable to load AG worker status: ${workerError.message}`);
+      const worker = Array.isArray(workerRows) ? workerRows[0] : null;
+      workerNeedsReview = Boolean(worker && (
+        worker.status === "revoked" ||
+        worker.status === "expired" ||
+        (worker.status === "active" && worker.expires_at && Date.parse(worker.expires_at) <= Date.now()) ||
+        (worker.status === "active" && worker.invocation_count >= worker.max_invocations)
+      ));
+    }
     progress = {
       stage,
       completedStages,
@@ -72,7 +87,9 @@ export async function getAgDailyCycleStatus() {
     activePriorDateCycle: Boolean(activeCycle && activeCycle.cycle_date !== cycleDate),
     retryAvailable: cycle?.status === "failed",
     staleCycleDetected: authoritativeCycle ? isAgCycleStale(authoritativeCycle) : false,
-    requiresManualRecoveryReview: staleCycles.length > 0,
+    requiresManualRecoveryReview: staleCycles.length > 0 || checkpointNeedsReview || workerNeedsReview,
+    checkpointNeedsReview,
+    workerNeedsReview,
     staleCycles,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
