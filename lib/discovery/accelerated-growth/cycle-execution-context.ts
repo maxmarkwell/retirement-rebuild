@@ -12,6 +12,8 @@ export type AgCycleExecutionContext={
  reclaimExpiredSymbolParent:(cycleId:string,stage:"catalyst_deep_research"|"committee")=>Promise<{checkpointId:string;claimToken:string;stage:"catalyst_deep_research"|"committee"}>;
  createSymbolIo:()=>Promise<AgSymbolCheckpointIo>;
  readCompletedStageOutput:(input:{cycleId:string;stage:AgStage})=>Promise<any>;
+ readDiscoveryContext?:()=>Promise<any>;
+ markStageNeedsReview?:(checkpointId:string,errorMessage:string)=>Promise<boolean>;
 };
 
 /**
