@@ -77,10 +77,15 @@ export async function getAgBulkGrowthSignals(symbols: string[], now = new Date()
   const wanted = new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean));
   if (wanted.size === 0) return new Map();
   const year = now.getUTCFullYear();
-  // Four bulk calls replace hundreds of per-symbol selector calls. Choosing the
-  // latest filed date handles different fiscal calendars without guessing which
-  // fiscal quarter is current for each company.
-  const periods = await Promise.all((["Q1","Q2","Q3","Q4"] as const).map((period) => fetchPeriod(year, period)));
+  // Eight cached bulk calls replace hundreds of per-symbol selector calls.
+  // Include the prior fiscal year because early-calendar-year filings can still
+  // belong to it. Latest filing date wins for each symbol.
+  const quarters = ["Q1","Q2","Q3","Q4"] as const;
+  const periods = await Promise.all(
+    [year - 1, year].flatMap((fiscalYear) =>
+      quarters.map((period) => fetchPeriod(fiscalYear, period))
+    )
+  );
   const latest = new Map<string,AgBulkGrowthSignal>();
   for (const row of periods.flat()) {
     if (!wanted.has(row.symbol)) continue;
