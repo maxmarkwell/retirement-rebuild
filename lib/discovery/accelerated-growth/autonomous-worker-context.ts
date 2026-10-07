@@ -23,5 +23,7 @@ export function createWorkerAgExecutionContext(input:{cycleId:string;userId:stri
    async complete(checkpointId,claimToken,output){const {data,error}=await admin.rpc("ag_worker_complete_cycle_symbol",{...base,p_checkpoint_id:checkpointId,p_claim_token:claimToken,p_output:output});return !error&&data===true;},
   };},
   async readCompletedStageOutput({cycleId,stage}:{cycleId:string;stage:AgStage}){same(cycleId);const {data,error}=await admin.rpc("ag_worker_read_completed_stage_output",{...base,p_stage:stage});if(error)throw new Error("Unable to read worker AG stage output: "+error.message);const row=Array.isArray(data)?data[0]:data;if(!row)return null;return validateAgStageEnvelope({version:1,cycleId,stage:row.stage,completedAt:row.completed_at,payload:row.output},{cycleId,stage});},
+  async readDiscoveryContext(){const {data,error}=await admin.rpc("ag_worker_read_discovery_context",base);if(error)throw new Error("Unable to read worker AG discovery context: "+error.message);return data;},
+  async markStageNeedsReview(checkpointId,errorMessage){const {data,error}=await admin.rpc("ag_worker_mark_cycle_stage_needs_review",{...base,p_checkpoint_id:checkpointId,p_error_message:errorMessage});if(error)throw new Error("Unable to mark worker AG stage for review: "+error.message);return data===true;},
  };
 }
