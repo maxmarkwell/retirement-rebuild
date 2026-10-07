@@ -23,6 +23,12 @@ export async function runAuthorizedAgWorkerStep(input:{cycleId:string;token:stri
   const stage="stage" in step.plan?step.plan.stage:null;
   return {cycleId:input.cycleId,outcome:"continue",stage,action:step.plan.action==="wait"?"wait":step.plan.action==="complete"?"research_complete":"stage_step",invocationNumber:claim.invocationNumber,schedulingEnabled:false,transactionsWritten:false};
  }catch(error){
+  try{
+   const rows=await context.readCheckpointStatus(input.cycleId);
+   const running=[...rows].reverse().find(row=>row.status==="running");
+   const message=error instanceof Error?error.message:"Autonomous AG worker stage failed.";
+   if(running&&context.markStageNeedsReview)await context.markStageNeedsReview(running.checkpointId,message);
+  }catch{}
   try{await finishAgWorker(input.cycleId,input.token,"revoked");}catch{}
   throw error;
  }
