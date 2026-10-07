@@ -5,9 +5,8 @@ import {
 } from "../dynamic-universe";
 import { preScreenDynamicUniverse } from "../pre-screen";
 import { evaluateAcceleratedGrowthCandidate } from "./evaluate";
-import type { AgBulkGrowthSignal } from "./bulk-growth-selector";
 
-export type AgSelectorSignal = "bulk_income_growth" | "market_quality_fallback";
+export type AgSelectorSignal = "market_quality_fallback";
 
 export type AgDiscoveryCandidate = Awaited<ReturnType<typeof evaluateAcceleratedGrowthCandidate>> & {
   selectorScore: number;
@@ -59,22 +58,8 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
   if ((stock.marketCapBucket === "small" || stock.marketCapBucket === "mid") && stock.dollarVolume != null && stock.dollarVolume < 2_000_000) return false;
   return true;
 }
-function growthSelectorScore(growth: AgBulkGrowthSignal) {
-  const revenue = linear(growth.revenueGrowthPct, -10, 40);
-  const operatingIncome = linear(growth.operatingIncomeGrowthPct, -20, 60);
-  const netIncome = linear(growth.netIncomeGrowthPct, -20, 60);
-  return clamp(revenue * 0.6 + operatingIncome * 0.25 + netIncome * 0.15);
-}
-function rankBucket(stocks: DynamicUniverseStock[], limit: number, growthSignals: Map<string,AgBulkGrowthSignal>): Preselected[] {
-  const eligible = stocks
-    .filter(passesZeroCallGate)
-    .map((stock) => {
-      const growth = growthSignals.get(stock.ticker.toUpperCase());
-      return growth
-        ? { stock, selectorScore: growthSelectorScore(growth), selectorSignal: "bulk_income_growth" as const }
-        : { stock, selectorScore: zeroCallSelectorScore(stock), selectorSignal: "market_quality_fallback" as const };
-    })
-    .sort((a, b) => b.selectorScore - a.selectorScore);
+function rankBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
+  const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock), selectorSignal: "market_quality_fallback" as const })).sort((a, b) => b.selectorScore - a.selectorScore);
 
   // Preserve sector breadth inside each AG evaluation bucket. Liquidity still
   // breaks ties, but one hot/liquid sector cannot consume the whole quota.
@@ -112,13 +97,14 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   // liquid, sector-diversified shortlist (up to 300 names). AG then ranks only
   // that shortlist to choose a bounded set for the expensive quarterly calls.
   const broadPreScreen = preScreenDynamicUniverse(universe);
-  // The current FMP subscription returns 402 for the bulk growth endpoint.\n  // Do not spend eight guaranteed-failure calls on every cycle; use the bounded\n  // market-quality selector until an available bulk growth source is integrated.\n  const growthSignals = new Map<string,AgBulkGrowthSignal>();\n  const selected: Preselected[] = [];
+  // The current FMP subscription returns 402 for the bulk growth endpoint.
+  // Do not spend eight guaranteed-failure calls on every cycle.
+  const selected: Preselected[] = [];
   const bucketSelectionCounts = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
   for (const bucket of Object.keys(EVALUATION_LIMITS) as UniverseMarketCapBucket[]) {
     const bucketSelected = rankBucket(
       broadPreScreen.selected.filter((stock) => stock.marketCapBucket === bucket),
       EVALUATION_LIMITS[bucket],
-      growthSignals,
     );
     bucketSelectionCounts[bucket] = bucketSelected.length;
     selected.push(...bucketSelected);
@@ -168,7 +154,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   return {
     universeCount: universe.length, broadPreScreenCount: broadPreScreen.selectedCount,
     selectorSignal: "market_quality_fallback",
-    bulkGrowthCoverageCount: growthSignals.size,
+    bulkGrowthCoverageCount: 0,
     preselectedCount: selected.length, evaluatedCount: candidates.length,
     advanceCount: candidates.filter((c) => c.score.status === "ADVANCE").length,
     reviewCount: candidates.filter((c) => c.score.status === "REVIEW").length,
