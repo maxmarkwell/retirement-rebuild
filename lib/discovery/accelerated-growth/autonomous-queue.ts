@@ -2,11 +2,12 @@ import "server-only";
 import {send} from "@vercel/queue";
 export const AG_AUTONOMOUS_RESEARCH_TOPIC="ag-autonomous-research-v1";
 export const AG_AUTONOMOUS_DURABILITY_TOPIC="ag-autonomous-durability-v1";
-export type AgResearchQueueMessage={version:1;cycleId:string;token:string};
+export type AgResearchQueueMessage={version:1;cycleId:string;token:string;wakeSequence?:number};
 export async function enqueueAgResearchStep(message:AgResearchQueueMessage,input?:{afterSeconds?:number;sequence?:number}){
  if(process.env.AG_AUTONOMOUS_QUEUE_ENABLED!=="true")throw new Error("AG autonomous queue is disabled.");
- const sequence=input?.sequence??1;
- return send(AG_AUTONOMOUS_RESEARCH_TOPIC,message,{
+ const sequence=input?.sequence??message.wakeSequence??1;
+ const payload={...message,wakeSequence:sequence};
+ return send(AG_AUTONOMOUS_RESEARCH_TOPIC,payload,{
   idempotencyKey:`${message.cycleId}:research:${sequence}`,
   retentionSeconds:21600,
   delaySeconds:input?.afterSeconds??0,
