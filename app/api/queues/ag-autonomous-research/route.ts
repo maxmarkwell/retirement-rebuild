@@ -7,7 +7,8 @@ export const maxDuration=300;
 function valid(message:unknown):message is AgResearchQueueMessage{
  if(!message||typeof message!=="object")return false;
  const m=message as Record<string,unknown>;
- return m.version===1&&typeof m.cycleId==="string"&&typeof m.token==="string"&&m.cycleId.length===36&&m.token.length>=32;
+ const sequenceOk=m.wakeSequence===undefined||(Number.isInteger(m.wakeSequence)&&Number(m.wakeSequence)>=1&&Number(m.wakeSequence)<=10000);
+ return m.version===1&&typeof m.cycleId==="string"&&typeof m.token==="string"&&m.cycleId.length===36&&m.token.length>=32&&sequenceOk;
 }
 export const POST=handleCallback(async(message,metadata)=>{
  if(process.env.AG_AUTONOMOUS_QUEUE_ENABLED!=="true"||process.env.AG_AUTONOMOUS_WORKER_ENABLED!=="true")return;
@@ -27,7 +28,8 @@ export const POST=handleCallback(async(message,metadata)=>{
   return;
  }
  const afterSeconds=result.action==="wait"?30:0;
- try{await enqueueAgResearchStep(message,{afterSeconds,sequence:result.invocationNumber+1});}catch(error){
+ const nextWakeSequence=(message.wakeSequence??1)+1;
+ try{await enqueueAgResearchStep(message,{afterSeconds,sequence:nextWakeSequence});}catch(error){
   if(metadata.deliveryCount>=5)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
   throw error;
  }
