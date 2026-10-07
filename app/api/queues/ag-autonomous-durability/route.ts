@@ -18,7 +18,10 @@ export const POST=handleCallback(async(message,metadata)=>{
   throw error;
  }
  if(result.outcome!=="continue")return;
- await enqueueAgDurabilityStep(message,{sequence:result.invocationNumber+1});
+ try{await enqueueAgDurabilityStep(message,{sequence:result.invocationNumber+1});}catch(error){
+  if(metadata.deliveryCount>=3)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
+  throw error;
+ }
 },{
  visibilityTimeoutSeconds:300,
  retry:(error,metadata)=>{
