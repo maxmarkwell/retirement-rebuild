@@ -30,7 +30,7 @@ export function freezeAgDiscoveryHandoff(input:AgDiscoveryHandoff):AgDiscoveryHa
   throw new Error("Invalid AG Discovery funnel counts");
  if(input.discovery.evaluatedCount !== input.discovery.candidates.length)
   throw new Error("Invalid AG Discovery evaluated count");
- if(input.discovery.selectorSignal !== "bulk_income_growth_with_market_fallback")
+ if(input.discovery.selectorSignal !== "market_quality_fallback")
   throw new Error("Unknown AG Discovery selector evidence");
  if(!Number.isInteger(input.discovery.bulkGrowthCoverageCount) || input.discovery.bulkGrowthCoverageCount < 0 ||
     input.discovery.bulkGrowthCoverageCount > input.discovery.broadPreScreenCount)
