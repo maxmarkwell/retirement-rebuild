@@ -5,7 +5,7 @@ import {
 } from "../dynamic-universe";
 import { preScreenDynamicUniverse } from "../pre-screen";
 import { evaluateAcceleratedGrowthCandidate } from "./evaluate";
-import { getAgBulkGrowthSignals, type AgBulkGrowthSignal } from "./bulk-growth-selector";
+import type { AgBulkGrowthSignal } from "./bulk-growth-selector";
 
 export type AgSelectorSignal = "bulk_income_growth" | "market_quality_fallback";
 
@@ -27,7 +27,7 @@ export type AgDiscoveryResult = {
   rateLimited: boolean;
   stoppedEarly: boolean;
   broadPreScreenCount: number;
-  selectorSignal: "bulk_income_growth_with_market_fallback";
+  selectorSignal: "market_quality_fallback";
   bulkGrowthCoverageCount: number;
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
   candidates: AgDiscoveryCandidate[];
@@ -112,13 +112,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   // liquid, sector-diversified shortlist (up to 300 names). AG then ranks only
   // that shortlist to choose a bounded set for the expensive quarterly calls.
   const broadPreScreen = preScreenDynamicUniverse(universe);
-  let growthSignals = new Map<string,AgBulkGrowthSignal>();
-  try {
-    growthSignals = await getAgBulkGrowthSignals(broadPreScreen.selected.map((stock) => stock.ticker));
-  } catch (error) {
-    console.warn("[AG discovery] bulk growth selector unavailable; using market-quality fallback", error);
-  }
-  const selected: Preselected[] = [];
+  // The current FMP subscription returns 402 for the bulk growth endpoint.\n  // Do not spend eight guaranteed-failure calls on every cycle; use the bounded\n  // market-quality selector until an available bulk growth source is integrated.\n  const growthSignals = new Map<string,AgBulkGrowthSignal>();\n  const selected: Preselected[] = [];
   const bucketSelectionCounts = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
   for (const bucket of Object.keys(EVALUATION_LIMITS) as UniverseMarketCapBucket[]) {
     const bucketSelected = rankBucket(
@@ -160,7 +154,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
       break;
     }
     try {
-      const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker);
+      const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker, { companyName: item.stock.companyName, marketCap: item.stock.marketCap });
       candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, selectorSignal: item.selectorSignal, sector: item.stock.sector, industry: item.stock.industry });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Evaluation failed.";
@@ -173,7 +167,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   candidates.sort((a, b) => statusOrder[a.score.status] - statusOrder[b.score.status] || b.score.total - a.score.total);
   return {
     universeCount: universe.length, broadPreScreenCount: broadPreScreen.selectedCount,
-    selectorSignal: "bulk_income_growth_with_market_fallback",
+    selectorSignal: "market_quality_fallback",
     bulkGrowthCoverageCount: growthSignals.size,
     preselectedCount: selected.length, evaluatedCount: candidates.length,
     advanceCount: candidates.filter((c) => c.score.status === "ADVANCE").length,
