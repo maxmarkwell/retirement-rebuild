@@ -21,6 +21,12 @@ function validateMapKeys(map:Record<string,unknown>,label:string){
 export function freezeAgDiscoveryHandoff(input:AgDiscoveryHandoff):AgDiscoveryHandoff{
  if(!input || input.discovery.rateLimited || input.discovery.stoppedEarly ||
     input.discovery.errors.length>0) throw new Error("Incomplete AG Discovery cannot be checkpointed");
+ if(input.discovery.broadPreScreenCount < input.discovery.preselectedCount)
+  throw new Error("Invalid AG Discovery funnel counts");
+ if(input.discovery.evaluatedCount !== input.discovery.candidates.length)
+  throw new Error("Invalid AG Discovery evaluated count");
+ if(input.discovery.selectorSignal !== "market_quality_fallback")
+  throw new Error("Unknown AG Discovery selector evidence");
  validateMapKeys(input.watchContext.research,"research watch");
  validateMapKeys(input.watchContext.committee,"Committee watch");
  for(const [ticker,w] of Object.entries(input.watchContext.research)){
