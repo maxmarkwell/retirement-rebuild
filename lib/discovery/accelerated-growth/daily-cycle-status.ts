@@ -27,13 +27,13 @@ export async function getAgDailyCycleStatus() {
 
   const cycleDate = denverAgCycleDate();
   const { data: cycle, error } = await supabase.from("ag_daily_cycles")
-    .select("id, cycle_date, status, started_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count")
+    .select("id, cycle_date, status, started_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count, attempt_number")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
-    .maybeSingle();
+    .order("attempt_number", { ascending: false }).limit(1).maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
   const { data: recentCycles, error: recentError } = await supabase.from("ag_daily_cycles")
-    .select("id, cycle_date, status, started_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count")
+    .select("id, cycle_date, status, started_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count, attempt_number")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id)
     .eq("status", "running").order("started_at", { ascending: false }).limit(50);
   if (recentError) throw new Error(`Unable to load recent AG cycle diagnostics: ${recentError.message}`);
