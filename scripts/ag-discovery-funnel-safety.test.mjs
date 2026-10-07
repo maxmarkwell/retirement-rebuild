@@ -6,7 +6,7 @@ test("AG discovery sources bounded evaluation from the broad diversified pre-scr
  assert.match(source,/preScreenDynamicUniverse\(universe\)/);
  assert.match(source,/broadPreScreenCount: broadPreScreen\.selectedCount/);
  assert.match(source,/selectorSignal: "market_quality_fallback"/);
- assert.match(source,/bulkGrowthCoverageCount: growthSignals\.size/);
+ assert.match(source,/bulkGrowthCoverageCount: 0/);
  assert.doesNotMatch(source,/getAgBulkGrowthSignals/);
  assert.match(source,/small: 12, mid: 12, large: 8, mega: 4/);
  assert.match(source,/sectorCap = Math\.max\(2, Math\.ceil\(limit \* 0\.34\)\)/);
