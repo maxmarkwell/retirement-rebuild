@@ -55,7 +55,7 @@ export async function getAgDailyCycleStatus() {
     if (checkpointError) throw new Error(`Unable to load AG cycle progress: ${checkpointError.message}`);
     const ordered = ["holding_review","discovery","catalyst_deep_research","committee","persistence","finalized"];
     const stageStatus = new Map((checkpoints ?? []).map((row: { stage: string; status: string }) => [row.stage, row.status]));
-    checkpointNeedsReview = [...stageStatus.values()].some((status) => status === "needs_manual_review");
+    checkpointNeedsReview = authoritativeCycle.status === "running" && [...stageStatus.values()].some((status) => status === "needs_manual_review");
     const completedStages = ordered.filter((stage) => stageStatus.get(stage) === "completed").length;
     const stage = ordered.find((item) => stageStatus.get(item) !== "completed") ?? "finalized";
     if (authoritativeCycle.status === "running") {
@@ -87,7 +87,7 @@ export async function getAgDailyCycleStatus() {
     activePriorDateCycle: Boolean(activeCycle && activeCycle.cycle_date !== cycleDate),
     retryAvailable: cycle?.status === "failed",
     staleCycleDetected: authoritativeCycle ? isAgCycleStale(authoritativeCycle) : false,
-    requiresManualRecoveryReview: staleCycles.length > 0 || checkpointNeedsReview || workerNeedsReview,
+    requiresManualRecoveryReview: authoritativeCycle?.status === "running" && (staleCycles.length > 0 || checkpointNeedsReview || workerNeedsReview),
     checkpointNeedsReview,
     workerNeedsReview,
     staleCycles,
