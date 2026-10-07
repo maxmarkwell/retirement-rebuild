@@ -109,7 +109,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   const discoveryStartedMs = Date.now();
   const universe = await getDynamicDiscoveryUniverse();
   // The shared pre-screen examines the full dynamic universe and produces a
-  // liquid, sector-diversified shortlist (up to 400 names). AG then ranks only
+  // liquid, sector-diversified shortlist (up to 300 names). AG then ranks only
   // that shortlist to choose a bounded set for the expensive quarterly calls.
   const broadPreScreen = preScreenDynamicUniverse(universe);
   let growthSignals = new Map<string,AgBulkGrowthSignal>();
