@@ -54,3 +54,7 @@ assert.equal(assessV2ValuationDislocation({
 assert.equal(assessV2ValuationDislocation({
   ...valuationBase, independentlyEstimatedEquityValue: 90,
 }).status, "NOT_QUALIFIED");
+
+// Evidence strength must remain unset until empirically calibrated.
+assert.equal(recovery.evidenceStrength, null);
+assert.equal(assessV2ValuationDislocation(valuationBase).evidenceStrength, null);
