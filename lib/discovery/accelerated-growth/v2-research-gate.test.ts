@@ -29,6 +29,7 @@ const singleSource = [{
     calculationMethod: "Operating income divided by revenue",
   },
   allowed: ["FILING" as const],
+  expectedPeriod: "2026-Q2",
 }];
 const sources = [
   ...singleSource,
@@ -60,3 +61,15 @@ assert.equal(assessV2ResearchGate(opportunity, survival, [
   { ...sources[1], evidence: { ...sources[1].evidence, source: { ...sources[1].evidence.source, metric: "cash" } } },
   ...sources.slice(2),
 ]).status, "INSUFFICIENT_DATA", "Mislabeled source metrics cannot satisfy eligibility");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  ...sources.slice(0, 1),
+  { ...sources[1], evidence: { ...sources[1].evidence,
+    source: { ...sources[1].evidence.source, fiscalPeriod: "2026-Q1" } } },
+  ...sources.slice(2),
+]).status, "INSUFFICIENT_DATA", "Prior-quarter evidence cannot masquerade as current-quarter evidence");
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  ...sources.slice(0, 1),
+  { ...sources[1], expectedPeriod: "" },
+  ...sources.slice(2),
+]).status, "INSUFFICIENT_DATA", "Missing expected period must fail closed");
