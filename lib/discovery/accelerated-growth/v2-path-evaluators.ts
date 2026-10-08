@@ -4,7 +4,7 @@ import { adjacentQuarterChange, type V2QuarterlyEvidence } from "./v2-financial-
  * Deterministic v2 research qualification, not investment approval or sizing.
  * Thresholds are provisional screening heuristics, not calibrated BUY rules.
  */
-export type V2Path = "TURNAROUND" | "VALUATION_DISLOCATION";
+export type V2Path = "TURNAROUND" | "VALUATION_DISLOCATION" | "ACCELERATING_FUNDAMENTALS" | "EMERGING_OPPORTUNITY" | "CATALYST";
 export type V2PathStatus = "QUALIFIED" | "WATCH" | "NOT_QUALIFIED" | "INSUFFICIENT_DATA";
 export type V2PathAssessment = {
   version: "ag-opportunity-v2";
