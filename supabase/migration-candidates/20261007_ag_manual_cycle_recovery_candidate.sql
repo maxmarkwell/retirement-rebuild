@@ -46,6 +46,16 @@ begin
   raise exception 'cycle has no manual-recovery evidence';
  end if;
 
+ -- Reject ambiguous durability state rather than falsely declaring recovery safe.
+ if exists (select 1 from public.ag_cycle_stage_checkpoints s where s.cycle_id=p_cycle_id and s.stage in ('persistence','finalized'))
+    or exists (select 1 from public.ag_cycle_decision_writes w where w.cycle_id=p_cycle_id)
+    or exists (select 1 from public.ag_cycle_watch_writes w where w.cycle_id=p_cycle_id) then
+  raise exception 'cycle durability evidence exists; reconciliation required';
+ end if;
+ if exists (select 1 from public.ag_cycle_worker_authorizations a where a.cycle_id=p_cycle_id and a.status='active' and a.expires_at>now()) then
+  raise exception 'cycle worker remains authorized';
+ end if;
+
  reason_text=left(coalesce(nullif(trim(p_reason),''),'Manual recovery after autonomous AG failure.'),500);
 
  update public.ag_cycle_stage_checkpoints
