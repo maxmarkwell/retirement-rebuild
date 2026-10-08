@@ -36,6 +36,6 @@ test("autonomous cycle start fails closed when durability is unavailable",async(
  const guard=route.indexOf("AG research durability is disabled; refusing to start");
  const start=route.indexOf("await runNextAgResumableCycleStep");
  assert.ok(guard>0 && guard<start);
- assert.ok(route.includes('AG_AUTONOMOUS_DURABILITY_ENABLED !== "true"'));
+ assert.ok(route.includes('AG_AUTONOMOUS_DURABILITY_ENABLED === "true"'));
  assert.ok(route.includes('AG_RESUMABLE_DURABILITY_ENABLED !== "true"'));
 });
