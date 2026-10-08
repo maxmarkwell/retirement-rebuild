@@ -31,8 +31,9 @@ const singleSource = [{
 }];
 const sources = [
   ...singleSource,
-  ...["freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"].map(name => ({
+  ...["freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"].map((name, index) => ({
     ...singleSource[0], name,
+    evidence: { ...singleSource[0].evidence, value: index + 10, calculationMethod: "Fixture calculation for " + name },
   })),
 ];
 assert.equal(assessV2ResearchGate(opportunity, survival, singleSource).status, "INSUFFICIENT_DATA");
@@ -44,3 +45,10 @@ assert.equal(assessV2ResearchGate({ ...opportunity, status: "NOT_QUALIFIED" }, s
 assert.equal(assessV2ResearchGate(opportunity, survival, [{
   ...sources[0], evidence: { ...sources[0].evidence, source: null },
 }]).status, "INSUFFICIENT_DATA");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  singleSource[0],
+  ...["freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"].map(name => ({
+    ...singleSource[0], name,
+  })),
+]).status, "INSUFFICIENT_DATA", "Duplicated source evidence cannot stand in for different metrics");
