@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { assessV2ResearchGate } from "./v2-research-gate";
+import type { V2EvidenceRecord } from "./v2-evidence-audit";
 import type { V2PathAssessment } from "./v2-path-evaluators";
 import type { SurvivalAssessment } from "./v2-financial-survival";
 
@@ -43,7 +44,7 @@ const requirements = sources.map(x => ({
   metric: x.name, expectedPeriod: x.expectedPeriod, allowedKinds: x.allowed,
   expectedValue: x.evidence.value, absoluteTolerance: 0,
 }));
-const assess = (o: V2PathAssessment, v: SurvivalAssessment | null, entries: typeof sources, req = requirements) =>
+const assess = (o: V2PathAssessment, v: SurvivalAssessment | null, entries: readonly V2EvidenceRecord[], req = requirements) =>
   assessV2ResearchGate(o, v, entries, req);
 assert.equal(assess(opportunity, survival, singleSource).status, "INSUFFICIENT_DATA");
 assert.equal(assess(opportunity, survival, sources).status, "ELIGIBLE");
