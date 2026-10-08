@@ -5,6 +5,8 @@ export type AgV2Source = {
   publishedAt: string;
   retrievedAt: string;
   fiscalPeriod: string;
+  /** Canonical metric label asserted by the source extraction process. */
+  metric: string;
   kind: "FILING" | "MARKET_DATA" | "INDEPENDENT_ANALYSIS";
 };
 export type AgV2SourcedNumber = {
@@ -27,6 +29,7 @@ export function validateAgV2SourcedNumber(
   if (!validUrl) errors.push("INVALID_SOURCE_URL");
   if (!item.source.publisher.trim()) errors.push("MISSING_PUBLISHER");
   if (!item.source.fiscalPeriod.trim()) errors.push("MISSING_PERIOD");
+  if (!item.source.metric?.trim()) errors.push("MISSING_METRIC");
   if (!allowedKinds.includes(item.source.kind)) errors.push("DISALLOWED_SOURCE_KIND");
   const published = Date.parse(item.source.publishedAt);
   const retrieved = Date.parse(item.source.retrievedAt);
