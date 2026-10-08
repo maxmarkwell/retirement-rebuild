@@ -55,3 +55,12 @@ test("in-flight queue shutdowns do not silently acknowledge either stage",async(
  assert.ok(research.indexOf("if(!valid(message))")<research.indexOf("AG research queue or worker disabled"));
  assert.ok(durability.indexOf("if(!valid(message))")<durability.indexOf("AG durability queue or worker disabled"));
 });
+
+test("durability worker fails closed on ambiguous finalization and never executes trades",async()=>{
+ const source=await readFile("lib/discovery/accelerated-growth/autonomous-worker-durability-step.ts","utf8");
+ assert.match(source,/finalized&&finalized\.status!=="pending"/);
+ assert.match(source,/finalization_reconcile_required/);
+ assert.match(source,/finishAgWorker\(input\.cycleId,input\.token,"revoked"\)/);
+ assert.match(source,/AG worker finalization rejected; reconcile authoritative state/);
+ assert.doesNotMatch(source,/cycle_already_finalized|executeAgDailyCycleTransactions|daily-cycle-execution/);
+});
