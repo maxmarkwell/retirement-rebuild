@@ -30,6 +30,11 @@ export function assessV2ResearchGate(
   }
   const uniqueEvidence = new Map<string, string>();
   for (const source of sources) {
+    const permittedKinds = V2_PATH_SOURCE_POLICY[opportunity.path][source.name];
+    if (!permittedKinds) reasons.push("UNEXPECTED_SOURCE_METRIC:" + source.name);
+    else if (source.allowed.length !== permittedKinds.length ||
+      source.allowed.some(kind => !permittedKinds.includes(kind)))
+      reasons.push("SOURCE_KIND_POLICY_MISMATCH:" + source.name);
     const fingerprint = JSON.stringify([source.evidence.value, source.evidence.source?.url,
       source.evidence.source?.fiscalPeriod, source.evidence.calculationMethod]);
     const previous = uniqueEvidence.get(fingerprint);
@@ -43,6 +48,8 @@ export function assessV2ResearchGate(
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
   const auditErrors = auditV2Evidence(opportunity, survival, sources, requirements);
+  if (reasons.some(reason => reason.startsWith("UNEXPECTED_SOURCE_METRIC:") || reason.startsWith("SOURCE_KIND_POLICY_MISMATCH:")))
+    auditErrors.push("SOURCE_POLICY_VIOLATION");
   reasons.push(...auditErrors);
   const status: V2ResearchGateResult["status"] =
     opportunity.status === "NOT_QUALIFIED" ? "NOT_QUALIFIED" :
