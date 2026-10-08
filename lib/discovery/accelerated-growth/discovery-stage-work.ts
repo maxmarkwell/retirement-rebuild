@@ -5,7 +5,16 @@ import {runAcceleratedGrowthDiscovery} from "./discovery";
 import type {AgPriorResearchWatch} from "./deep-research";
 import {freezeAgDiscoveryHandoff,type AgDiscoveryHandoff} from "./research-stage-handoff";
 
-export async function runAgDiscoveryStageWork():Promise<AgDiscoveryHandoff>{
+export async function runAgDiscoveryStageWork(input?:{workerContext?:any}):Promise<AgDiscoveryHandoff>{
+ if(input?.workerContext){
+  const ctx=await input.workerContext.readDiscoveryContext();
+  const research:Record<string,AgPriorResearchWatch>={},committee:Record<string,string>={};
+  for(const w of ctx.researchWatches??[]) research[String(w.ticker).toUpperCase()]={rowId:w.id,confidence:Number(w.confidence),thesis:w.thesis,unresolvedQuestions:w.unresolved_questions??[],thesisClock:w.thesis_clock,firstSeenAt:w.first_seen_at,lastSeenAt:w.last_seen_at};
+  for(const w of ctx.committeeWatches??[]) committee[String(w.ticker).toUpperCase()]=w.id;
+  const reassessSymbols=Array.from(new Set([...Object.keys(research),...Object.keys(committee)]));
+  const discovery=await runAcceleratedGrowthDiscovery({reassessSymbols});
+  return freezeAgDiscoveryHandoff({discovery,watchContext:{research,committee}});
+ }
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  if(!user) throw new Error("You must be signed in.");

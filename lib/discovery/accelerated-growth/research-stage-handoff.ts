@@ -18,9 +18,23 @@ function validateMapKeys(map:Record<string,unknown>,label:string){
   if(label==="Committee watch" && (typeof v!=="string"||!UUID.test(v))) throw new Error("Invalid AG Committee watch source");
  }
 }
+function incompleteDiscoveryDiagnostic(input:AgDiscoveryHandoff){
+ const d=input.discovery;
+ const summaries=d.errors.slice(0,3).map(e=>`${e.symbol}:${String(e.error).replace(/[^a-zA-Z0-9 .:_-]/g," ").slice(0,120)}`);
+ return `Incomplete AG Discovery cannot be checkpointed [rateLimited=${d.rateLimited}; stoppedEarly=${d.stoppedEarly}; evaluated=${d.evaluatedCount}/${d.preselectedCount}; errors=${d.errors.length}; samples=${summaries.join(" | ").slice(0,300)}]`;
+}
 export function freezeAgDiscoveryHandoff(input:AgDiscoveryHandoff):AgDiscoveryHandoff{
  if(!input || input.discovery.rateLimited || input.discovery.stoppedEarly ||
-    input.discovery.errors.length>0) throw new Error("Incomplete AG Discovery cannot be checkpointed");
+    input.discovery.errors.length>0) throw new Error(incompleteDiscoveryDiagnostic(input));
+ if(input.discovery.broadPreScreenCount < input.discovery.preselectedCount)
+  throw new Error("Invalid AG Discovery funnel counts");
+ if(input.discovery.evaluatedCount !== input.discovery.candidates.length)
+  throw new Error("Invalid AG Discovery evaluated count");
+ if(input.discovery.selectorSignal !== "market_quality_fallback")
+  throw new Error("Unknown AG Discovery selector evidence");
+ if(!Number.isInteger(input.discovery.bulkGrowthCoverageCount) || input.discovery.bulkGrowthCoverageCount < 0 ||
+    input.discovery.bulkGrowthCoverageCount > input.discovery.broadPreScreenCount)
+  throw new Error("Invalid AG Discovery bulk growth coverage");
  validateMapKeys(input.watchContext.research,"research watch");
  validateMapKeys(input.watchContext.committee,"Committee watch");
  for(const [ticker,w] of Object.entries(input.watchContext.research)){

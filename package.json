@@ -7,7 +7,7 @@
     "build": "npm run test:ag && next build",
     "start": "next start",
     "lint": "eslint",
-    "test:ag": "node scripts/run-ag-contract-tests.mjs && node --test scripts/ag-cycle-finalization-safety.test.mjs scripts/ag-persistence-safety.test.mjs scripts/ag-rpc-draft-contract.test.mjs scripts/ag-schema-dependencies.test.mjs scripts/ag-ledger-reader-safety.test.mjs scripts/ag-resumable-route-safety.test.mjs script/ag-stage-capture-safety.test.mjs"
+    "test:ag": "node scripts/run-ag-contract-tests.mjs && node --test scripts/ag-discovery-api-budget-safety.test.mjs scripts/ag-worker-invocation-budget-safety.test.mjs scripts/ag-discovery-failure-diagnostic-safety.test.mjs scripts/ag-cycle-retry-attempt-safety.test.mjs scripts/ag-terminal-recovery-status-safety.test.mjs scripts/ag-manual-recovery-ui-safety.test.mjs scripts/ag-manual-cycle-recovery-safety.test.mjs scripts/ag-autonomous-discovery-context-safety.test.mjs scripts/ag-bulk-growth-selector-safety.test.mjs scripts/ag-discovery-funnel-safety.test.mjs scripts/ag-daily-cycle-control-safety.test.mjs scripts/ag-daily-cycle-status-safety.test.mjs scripts/ag-autonomous-durability-safety.test.mjs scripts/ag-autonomous-queue-safety.test.mjs scripts/ag-execution-context-injection-safety.test.mjs scripts/ag-cycle-execution-context-safety.test.mjs scripts/ag-autonomous-worker-route-safety.test.mjs scripts/ag-autonomous-worker-auth-safety.test.mjs scripts/ag-autonomous-cycle-safety.test.mjs scripts/ag-cycle-finalization-safety.test.mjs scripts/ag-persistence-safety.test.mjs scripts/ag-rpc-draft-contract.test.mjs scripts/ag-schema-dependencies.test.mjs scripts/ag-ledger-reader-safety.test.mjs scripts/ag-resumable-route-safety.test.mjs script/ag-stage-capture-safety.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -19,7 +19,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-is": "^19.2.8",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "@vercel/queue": "^0.7.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -21,9 +21,11 @@ export type AgResearchResumeResult={
 };
 
 export async function runNextAgResumableResearchStage(input:{
- cycleId:string;maxCandidates?:number;
+ cycleId:string;maxCandidates?:number;context?:import("./cycle-execution-context").AgCycleExecutionContext;
 }):Promise<AgResearchResumeResult>{
- const rows=await readAuthenticatedAgCheckpointStatus(input.cycleId);
+ if(input.context){const {assertAgExecutionContext}=await import("./cycle-execution-context");assertAgExecutionContext(input.context,input.cycleId);}
+ const readStatus=input.context?.readCheckpointStatus??readAuthenticatedAgCheckpointStatus;
+ const rows=await readStatus(input.cycleId);
  let plan=planAgResume(rows);
  let reclaimedSymbolParent=false;
  let reclaimedClaim:Awaited<ReturnType<typeof reclaimAuthenticatedAgExpiredSymbolParent>>|null=null;
@@ -33,9 +35,9 @@ export async function runNextAgResumableResearchStage(input:{
      (reviewStage==="catalyst_deep_research"||reviewStage==="committee")){
    const row=rows.find(x=>x.stage===reviewStage);
    if(row?.status==="running" && row.leaseExpiresAt && Date.parse(row.leaseExpiresAt)<=Date.now()){
-    reclaimedClaim=await reclaimAuthenticatedAgExpiredSymbolParent(input.cycleId,reviewStage);
+    reclaimedClaim=await (input.context?.reclaimExpiredSymbolParent??reclaimAuthenticatedAgExpiredSymbolParent)(input.cycleId,reviewStage);
    reclaimedSymbolParent=true;
-   const refreshed=await readAuthenticatedAgCheckpointStatus(input.cycleId);
+   const refreshed=await readStatus(input.cycleId);
    plan=planAgResume(refreshed);
    }
   }
@@ -54,17 +56,17 @@ export async function runNextAgResumableResearchStage(input:{
  if(plan.stage==="persistence"||plan.stage==="finalized")
   return {plan,executedStage:null,persistenceReady:true};
 
- const baseRpc=await createAuthenticatedAgStageCheckpointRpc();
+ const baseRpc=await (input.context?.createStageRpc??createAuthenticatedAgStageCheckpointRpc)();
  const rpc=reclaimedClaim?{...baseRpc,claim:async(_cycleId:string,stage:any)=>stage===reclaimedClaim!.stage?reclaimedClaim!:baseRpc.claim(_cycleId,stage)}:baseRpc;
  switch(plan.stage){
   case "holding_review":
    await executeAgHoldingReviewStage({cycleId:input.cycleId,rpc});break;
   case "discovery":
-   await executeAgDiscoveryStage({cycleId:input.cycleId,rpc});break;
+   await executeAgDiscoveryStage({cycleId:input.cycleId,rpc,workerContext:input.context});break;
   case "catalyst_deep_research":
-   await executeAgCatalystDeepStage({cycleId:input.cycleId,rpc,maxCandidates:input.maxCandidates});break;
+   await executeAgCatalystDeepStage({cycleId:input.cycleId,rpc,maxCandidates:input.maxCandidates,io:input.context?{createSymbolIo:input.context.createSymbolIo,readCompletedStageOutput:input.context.readCompletedStageOutput}:undefined});break;
   case "committee":
-   await executeAgCommitteeResearchStage({cycleId:input.cycleId,rpc});break;
+   await executeAgCommitteeResearchStage({cycleId:input.cycleId,rpc,io:input.context?{createSymbolIo:input.context.createSymbolIo,readCompletedStageOutput:input.context.readCompletedStageOutput}:undefined});break;
  }
  return {plan,executedStage:plan.stage,persistenceReady:false};
 }

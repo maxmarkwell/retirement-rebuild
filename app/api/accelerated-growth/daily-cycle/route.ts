@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgResearchDailyCycle } from "@/lib/discovery/accelerated-growth/daily-cycle-work";
 import { runNextAgResumableCycleStep } from "@/lib/discovery/accelerated-growth/resumable-cycle-orchestrator";
 import { runNextAgDurabilityStep } from "@/lib/discovery/accelerated-growth/resumable-durability-orchestrator";
+import { startAgAutonomousResearchContinuation } from "@/lib/discovery/accelerated-growth/autonomous-cycle-start";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -12,6 +13,22 @@ export async function POST(request: NextRequest) {
   if (process.env.AG_DAILY_CYCLE_RUNS_ENABLED !== "true") {
     return NextResponse.json({
       reason: "Accelerated Growth research is paused pending timeout remediation.",
+      researchPaused: true,
+      retryAvailable: false,
+      executionEnabled: false,
+      transactionsWritten: false,
+    }, { status: 503 });
+  }
+  // A six-stage autonomous cycle cannot safely start unless its durability
+  // consumer is enabled. Reject before creating or advancing any cycle.
+  if (process.env.AG_RESUMABLE_RESEARCH_RUNNER_ENABLED === "true" &&
+      process.env.AG_RESUMABLE_DURABILITY_ENABLED !== "true" &&
+      !(process.env.AG_AUTONOMOUS_CYCLE_ENABLED === "true" &&
+        process.env.AG_AUTONOMOUS_QUEUE_ENABLED === "true" &&
+        process.env.AG_AUTONOMOUS_WORKER_ENABLED === "true" &&
+        process.env.AG_AUTONOMOUS_DURABILITY_ENABLED === "true")) {
+    return NextResponse.json({
+      reason: "AG research durability is disabled; refusing to start a cycle that cannot finalize.",
       researchPaused: true,
       retryAvailable: false,
       executionEnabled: false,
@@ -30,8 +47,12 @@ export async function POST(request: NextRequest) {
         const durable = await runNextAgDurabilityStep({ cycleId: step.cycleId });
         return NextResponse.json({ ...durable, resumableResearch: true, durabilityEnabled: true, executionEnabled: false, transactionsWritten: false });
       }
+      const autonomous = step.action === "stage_step" || step.action === "wait"
+        ? await startAgAutonomousResearchContinuation(step.cycleId)
+        : { started: false as const };
       return NextResponse.json({
         ...step,
+        autonomousResearch: autonomous.started,
         resumableResearch: true,
         executionEnabled: false,
         transactionsWritten: false,

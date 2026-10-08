@@ -6,17 +6,20 @@ import {runAgDiscoveryStageWork} from "./discovery-stage-work";
 import {resumeAgDeepResearchFanout,resumeAgCommitteeFanout} from "./resumable-symbol-fanout";
 
 import {buildAgDiscoveryStagePayload} from "./research-stage-payloads";
+import type {AgSymbolCheckpointIo} from "./symbol-checkpoint-orchestrator";
+import type {AgStage,AgStageEnvelope} from "./stage-checkpoint-contract";
+type ResearchIo={createSymbolIo?:()=>Promise<AgSymbolCheckpointIo>;readCompletedStageOutput?:(input:{cycleId:string;stage:AgStage})=>Promise<AgStageEnvelope|null>};
 
-export async function executeAgDiscoveryStage(input:{cycleId:string;rpc:AgStageCheckpointRpc}){
+export async function executeAgDiscoveryStage(input:{cycleId:string;rpc:AgStageCheckpointRpc;workerContext?:any}){
  return executeAgClaimedStage({cycleId:input.cycleId,stage:"discovery",rpc:input.rpc,run:async()=>{
-  const result=await runAgDiscoveryStageWork();return {payload:buildAgDiscoveryStagePayload(result),result};
+  const result=await runAgDiscoveryStageWork({workerContext:input.workerContext});return {payload:buildAgDiscoveryStagePayload(result),result};
  }});
 }
-export async function executeAgCatalystDeepStage(input:{cycleId:string;rpc:AgStageCheckpointRpc;maxCandidates?:number}){
+export async function executeAgCatalystDeepStage(input:{cycleId:string;rpc:AgStageCheckpointRpc;maxCandidates?:number;io?:ResearchIo}){
  const claim=await input.rpc.claim(input.cycleId,"catalyst_deep_research");
- return resumeAgDeepResearchFanout({cycleId:input.cycleId,parentClaim:claim,rpc:input.rpc,maxCandidates:input.maxCandidates});
+ return resumeAgDeepResearchFanout({cycleId:input.cycleId,parentClaim:claim,rpc:input.rpc,maxCandidates:input.maxCandidates,io:input.io});
 }
-export async function executeAgCommitteeResearchStage(input:{cycleId:string;rpc:AgStageCheckpointRpc}){
+export async function executeAgCommitteeResearchStage(input:{cycleId:string;rpc:AgStageCheckpointRpc;io?:ResearchIo}){
  const claim=await input.rpc.claim(input.cycleId,"committee");
- return resumeAgCommitteeFanout({cycleId:input.cycleId,parentClaim:claim,rpc:input.rpc});
+ return resumeAgCommitteeFanout({cycleId:input.cycleId,parentClaim:claim,rpc:input.rpc,io:input.io});
 }

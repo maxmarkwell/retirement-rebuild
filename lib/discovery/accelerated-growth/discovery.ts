@@ -3,10 +3,14 @@ import {
   type DynamicUniverseStock,
   type MarketCapBucket as UniverseMarketCapBucket,
 } from "../dynamic-universe";
+import { preScreenDynamicUniverse } from "../pre-screen";
 import { evaluateAcceleratedGrowthCandidate } from "./evaluate";
+
+export type AgSelectorSignal = "market_quality_fallback";
 
 export type AgDiscoveryCandidate = Awaited<ReturnType<typeof evaluateAcceleratedGrowthCandidate>> & {
   selectorScore: number;
+  selectorSignal: AgSelectorSignal;
   sector: string | null;
   industry: string | null;
 };
@@ -21,17 +25,22 @@ export type AgDiscoveryResult = {
   insufficientDataCount: number;
   rateLimited: boolean;
   stoppedEarly: boolean;
+  broadPreScreenCount: number;
+  selectorSignal: "market_quality_fallback";
+  bulkGrowthCoverageCount: number;
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
   executionEvidenceInputs: Record<string,{volume:number|null;dollarVolume:number|null;sector:string|null}>;
 };
 
-type Preselected = { stock: DynamicUniverseStock; selectorScore: number };
+type Preselected = { stock: DynamicUniverseStock; selectorScore: number; selectorSignal: AgSelectorSignal };
 
 const DISCOVERY_SOFT_BUDGET_MS = 150_000;
 
-const BUCKET_LIMITS: Record<UniverseMarketCapBucket, number> = { small: 8, mid: 8, large: 4, mega: 2 };
+// Keep expensive quarterly evaluation bounded, but source those slots from the
+// broader diversified pre-screen rather than sampling the raw universe directly.
+const EVALUATION_LIMITS: Record<UniverseMarketCapBucket, number> = { small: 12, mid: 12, large: 8, mega: 4 };
 
 function clamp(value: number, min = 0, max = 100) { return Math.min(max, Math.max(min, value)); }
 function linear(value: number | null, bad: number, good: number, neutral = 45) {
@@ -49,15 +58,30 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
   if ((stock.marketCapBucket === "small" || stock.marketCapBucket === "mid") && stock.dollarVolume != null && stock.dollarVolume < 2_000_000) return false;
   return true;
 }
-function selectBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
-  const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }));
-  if (eligible.length <= limit) return eligible.sort((a, b) => b.selectorScore - a.selectorScore);
+function rankBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
+  const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock), selectorSignal: "market_quality_fallback" as const })).sort((a, b) => b.selectorScore - a.selectorScore);
+
+  // Preserve sector breadth inside each AG evaluation bucket. Liquidity still
+  // breaks ties, but one hot/liquid sector cannot consume the whole quota.
+  const sectorCap = Math.max(2, Math.ceil(limit * 0.34));
+  const sectorCounts = new Map<string, number>();
   const selected: Preselected[] = [];
-  const sliceSize = eligible.length / limit;
-  for (let i = 0; i < limit; i += 1) {
-    const start = Math.floor(i * sliceSize), end = Math.max(start + 1, Math.floor((i + 1) * sliceSize));
-    const slice = eligible.slice(start, end).sort((a, b) => b.selectorScore - a.selectorScore);
-    if (slice[0]) selected.push(slice[0]);
+  for (const item of eligible) {
+    if (selected.length >= limit) break;
+    const sector = item.stock.sector ?? "Unknown";
+    const count = sectorCounts.get(sector) ?? 0;
+    if (count >= sectorCap) continue;
+    selected.push(item);
+    sectorCounts.set(sector, count + 1);
+  }
+  if (selected.length < limit) {
+    const symbols = new Set(selected.map((item) => item.stock.ticker));
+    for (const item of eligible) {
+      if (selected.length >= limit) break;
+      if (symbols.has(item.stock.ticker)) continue;
+      selected.push(item);
+      symbols.add(item.stock.ticker);
+    }
   }
   return selected;
 }
@@ -69,14 +93,19 @@ function isRateLimitError(error: unknown) {
 export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?: string[] }): Promise<AgDiscoveryResult> {
   const discoveryStartedMs = Date.now();
   const universe = await getDynamicDiscoveryUniverse();
-  const byBucket = new Map<UniverseMarketCapBucket, DynamicUniverseStock[]>();
-  for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) byBucket.set(bucket, []);
-  for (const stock of universe) byBucket.get(stock.marketCapBucket)?.push(stock);
-
+  // The shared pre-screen examines the full dynamic universe and produces a
+  // liquid, sector-diversified shortlist (up to 300 names). AG then ranks only
+  // that shortlist to choose a bounded set for the expensive quarterly calls.
+  const broadPreScreen = preScreenDynamicUniverse(universe);
+  // The current FMP subscription returns 402 for the bulk growth endpoint.
+  // Do not spend eight guaranteed-failure calls on every cycle.
   const selected: Preselected[] = [];
   const bucketSelectionCounts = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
-  for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) {
-    const bucketSelected = selectBucket(byBucket.get(bucket) ?? [], BUCKET_LIMITS[bucket]);
+  for (const bucket of Object.keys(EVALUATION_LIMITS) as UniverseMarketCapBucket[]) {
+    const bucketSelected = rankBucket(
+      broadPreScreen.selected.filter((stock) => stock.marketCapBucket === bucket),
+      EVALUATION_LIMITS[bucket],
+    );
     bucketSelectionCounts[bucket] = bucketSelected.length;
     selected.push(...bucketSelected);
   }
@@ -91,7 +120,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     if (!symbol || selectedSymbols.has(symbol)) continue;
     const stock = universe.find((item) => item.ticker.toUpperCase() === symbol);
     if (!stock) continue;
-    selected.push({ stock, selectorScore: zeroCallSelectorScore(stock) });
+    selected.push({ stock, selectorScore: zeroCallSelectorScore(stock), selectorSignal: "market_quality_fallback" });
     selectedSymbols.add(symbol);
   }
 
@@ -111,8 +140,8 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
       break;
     }
     try {
-      const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker);
-      candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, sector: item.stock.sector, industry: item.stock.industry });
+      const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker, { companyName: item.stock.companyName, marketCap: item.stock.marketCap });
+      candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, selectorSignal: item.selectorSignal, sector: item.stock.sector, industry: item.stock.industry });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Evaluation failed.";
       errors.push({ symbol: item.stock.ticker, error: message });
@@ -123,7 +152,10 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   const statusOrder = { ADVANCE: 0, REVIEW: 1, REJECT: 2, INSUFFICIENT_DATA: 3 } as const;
   candidates.sort((a, b) => statusOrder[a.score.status] - statusOrder[b.score.status] || b.score.total - a.score.total);
   return {
-    universeCount: universe.length, preselectedCount: selected.length, evaluatedCount: candidates.length,
+    universeCount: universe.length, broadPreScreenCount: broadPreScreen.selectedCount,
+    selectorSignal: "market_quality_fallback",
+    bulkGrowthCoverageCount: 0,
+    preselectedCount: selected.length, evaluatedCount: candidates.length,
     advanceCount: candidates.filter((c) => c.score.status === "ADVANCE").length,
     reviewCount: candidates.filter((c) => c.score.status === "REVIEW").length,
     rejectCount: candidates.filter((c) => c.score.status === "REJECT").length,
