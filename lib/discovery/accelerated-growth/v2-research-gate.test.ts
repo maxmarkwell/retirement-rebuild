@@ -91,5 +91,5 @@ assert.equal(assess(opportunity, survival, sources, requirements.map(x =>
 
 assert.equal(assess(opportunity, survival, sources, [
   ...requirements,
-  { metric: "unknownMetric", expectedPeriod: "2026-Q2", allowedKinds: ["FILING"], expectedValue: 1, absoluteTolerance: 0 },
+  { metric: "unknownMetric", expectedPeriod: "2026-Q2", allowedKinds: ["FILING" as const], expectedValue: 1, absoluteTolerance: 0 },
 ]).status, "INSUFFICIENT_DATA", "Unknown independent audit requirements must fail closed");
