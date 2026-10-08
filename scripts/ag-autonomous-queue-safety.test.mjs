@@ -30,3 +30,12 @@ test("Vercel config registers isolated research and durability queue topics",asy
  assert.deepEqual(config.functions?.["app/api/queues/ag-autonomous-research/route.ts"]?.experimentalTriggers?.[0],{type:"queue/v2beta",topic:"ag-autonomous-research-v1",retryAfterSeconds:30});
  assert.deepEqual(config.functions?.["app/api/queues/ag-autonomous-durability/route.ts"]?.experimentalTriggers?.[0],{type:"queue/v2beta",topic:"ag-autonomous-durability-v1",retryAfterSeconds:60});
 });
+
+test("autonomous cycle start fails closed when durability is unavailable",async()=>{
+ const route=await readFile("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
+ const guard=route.indexOf("AG research durability is disabled; refusing to start");
+ const start=route.indexOf("await runNextAgResumableCycleStep");
+ assert.ok(guard>0 && guard<start);
+ assert.ok(route.includes('AG_AUTONOMOUS_DURABILITY_ENABLED !== "true"'));
+ assert.ok(route.includes('AG_RESUMABLE_DURABILITY_ENABLED !== "true"'));
+});
