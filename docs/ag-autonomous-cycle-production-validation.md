@@ -6,7 +6,7 @@
 - Four research checkpoints remain `completed`; no persistence/finalized checkpoint and no cycle-linked decision or WATCH write ledger rows.
 - Frozen intents: four reassessments of pre-existing research WATCH identities and one new WATCH intent. These were **not** committed for Attempt 5.
 - Supabase migration `ag_guard_manual_cycle_recovery_durability_evidence` installed; live function guards owner, active worker, durability checkpoint and write ledger.
-- Feature branch `feat/ag-autonomous-daily-cycle` has preview deployment; production application still requires separate promotion.
+- Production application was promoted on 2026-10-08 at commit `e8195c241f1f3ac08aad9537471fb491449187c5` (Vercel production deployment `dpl_FqhL32DUDT8TqyndqQXLrF7KZQqP`, READY). Subsequent feature-branch safety changes are preview-only until separately approved.
 - No trading, portfolio execution, or real-money operations authorized.
 
 ## Release prerequisites — do not skip
@@ -18,6 +18,14 @@
 5. Keep all paper transaction execution flags OFF. Do not run the real portfolio or any trade endpoint.
 6. Record baseline cycle count, paper holdings, research WATCH rows, decision rows, write ledgers, checkpoints, and worker authorizations before starting a new attempt.
 7. Obtain separate approval for production application promotion, changing research/durability flags, and starting a new cycle. Recovery-only approval does not cover those actions.
+
+## Production flag baseline after promotion (2026-10-08)
+
+- Enabled: `AG_DAILY_CYCLE_RUNS_ENABLED`, `AG_RESUMABLE_RESEARCH_RUNNER_ENABLED`, `AG_AUTONOMOUS_CYCLE_ENABLED`, `AG_AUTONOMOUS_QUEUE_ENABLED`, `AG_AUTONOMOUS_WORKER_ENABLED`.
+- Disabled: `AG_AUTONOMOUS_DURABILITY_ENABLED`, `AG_RESUMABLE_DURABILITY_ENABLED`.
+- This is intentionally fail-closed for new research starts; do not turn on durability or initiate a new cycle without separate approval.
+- Paper baseline: one Paper Active portfolio, zero paper holdings, zero paper transactions, five WATCH rows, five historical WATCH write-ledger rows, zero decision write-ledger rows, zero running cycles.
+- Preview-only regression commit `71992b955d56a0e88b93844cc54ffbaf809e85ef` has a READY build; it is not in production.
 
 ## Paper-only six-stage acceptance test
 
