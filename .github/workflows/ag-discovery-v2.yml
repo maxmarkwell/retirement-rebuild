@@ -22,6 +22,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Generate Next.js route types
+        run: npx next typegen
       - name: TypeScript typecheck
         run: npx tsc --noEmit --incremental false
       - name: Isolated Discovery v2 fixtures
