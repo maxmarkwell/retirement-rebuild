@@ -23,7 +23,7 @@ export function assessV2ResearchGate(
   if (survival?.status === "AT_RISK") reasons.push("SURVIVAL_AT_RISK");
   const required = opportunity.path === "TURNAROUND"
     ? ["operatingMargin", "freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"]
-    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "realizationMechanism"];
+    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "debtMaturities", "realizationMechanism"];
   for (const name of required) {
     if (sources.filter(source => source.name === name).length !== 1) {
       reasons.push("REQUIRED_SOURCE_MISSING_OR_DUPLICATE:" + name);
