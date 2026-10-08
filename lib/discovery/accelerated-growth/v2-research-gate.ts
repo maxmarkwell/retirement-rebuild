@@ -1,3 +1,4 @@
+import { V2_PATH_SOURCE_POLICY } from "./v2-path-source-policy";
 import { auditV2Evidence, type V2EvidenceRequirement } from "./v2-evidence-audit";
 import type { V2PathAssessment } from "./v2-path-evaluators";
 import type { SurvivalAssessment } from "./v2-financial-survival";
@@ -21,11 +22,7 @@ export function assessV2ResearchGate(
   if (opportunity.status !== "QUALIFIED") reasons.push("OPPORTUNITY_" + opportunity.status);
   if (!survival || survival.status === "UNVERIFIED") reasons.push("SURVIVAL_UNVERIFIED");
   if (survival?.status === "AT_RISK") reasons.push("SURVIVAL_AT_RISK");
-  const supportedPath = opportunity.path === "TURNAROUND" || opportunity.path === "VALUATION_DISLOCATION";
-  if (!supportedPath) reasons.push("PATH_SOURCE_POLICY_NOT_IMPLEMENTED");
-  const required = opportunity.path === "TURNAROUND"
-    ? ["operatingMargin", "freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"]
-    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "debtMaturities", "realizationMechanism"];
+  const required = Object.keys(V2_PATH_SOURCE_POLICY[opportunity.path]);
   for (const name of required) {
     if (sources.filter(source => source.name === name).length !== 1) {
       reasons.push("REQUIRED_SOURCE_MISSING_OR_DUPLICATE:" + name);
@@ -49,7 +46,7 @@ export function assessV2ResearchGate(
   reasons.push(...auditErrors);
   const status: V2ResearchGateResult["status"] =
     opportunity.status === "NOT_QUALIFIED" ? "NOT_QUALIFIED" :
-    opportunity.status !== "QUALIFIED" || !supportedPath || auditErrors.length > 0 || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH") || r.includes("REQUIREMENT") || r.includes("TOLERANCE") || r.includes("EXPECTED_VALUE") || r.includes("CORROBORATED"))
+    opportunity.status !== "QUALIFIED" || auditErrors.length > 0 || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH") || r.includes("REQUIREMENT") || r.includes("TOLERANCE") || r.includes("EXPECTED_VALUE") || r.includes("CORROBORATED"))
       ? "INSUFFICIENT_DATA" :
     survival?.status === "AT_RISK" ? "RISK_REVIEW" : "ELIGIBLE";
   return { eligible: status === "ELIGIBLE", status, reasons, opportunity, survival };
