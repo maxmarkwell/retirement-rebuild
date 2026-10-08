@@ -37,11 +37,12 @@ export function assessV2ResearchGate(
     }
     uniqueEvidence.set(fingerprint, source.name);
     const errors = validateAgV2SourcedNumber(source.evidence, source.allowed);
+    if (source.evidence.source?.metric !== source.name) errors.push("METRIC_MISMATCH");
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
   const status: V2ResearchGateResult["status"] =
     opportunity.status === "NOT_QUALIFIED" ? "NOT_QUALIFIED" :
-    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED"))
+    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH"))
       ? "INSUFFICIENT_DATA" :
     survival?.status === "AT_RISK" ? "RISK_REVIEW" : "ELIGIBLE";
   return { eligible: status === "ELIGIBLE", status, reasons, opportunity, survival };
