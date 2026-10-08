@@ -19,6 +19,22 @@ export async function POST(request: NextRequest) {
       transactionsWritten: false,
     }, { status: 503 });
   }
+  // A six-stage autonomous cycle cannot safely start unless its durability
+  // consumer is enabled. Reject before creating or advancing any cycle.
+  if (process.env.AG_RESUMABLE_RESEARCH_RUNNER_ENABLED === "true" &&
+      process.env.AG_AUTONOMOUS_CYCLE_ENABLED === "true" &&
+      process.env.AG_AUTONOMOUS_QUEUE_ENABLED === "true" &&
+      process.env.AG_AUTONOMOUS_WORKER_ENABLED === "true" &&
+      process.env.AG_AUTONOMOUS_DURABILITY_ENABLED !== "true" &&
+      process.env.AG_RESUMABLE_DURABILITY_ENABLED !== "true") {
+    return NextResponse.json({
+      reason: "AG research durability is disabled; refusing to start a cycle that cannot finalize.",
+      researchPaused: true,
+      retryAvailable: false,
+      executionEnabled: false,
+      transactionsWritten: false,
+    }, { status: 503 });
+  }
   try {
     const requested = Number(request.nextUrl.searchParams.get("max") ?? "5");
     const maxCandidates = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 5)) : 5;
