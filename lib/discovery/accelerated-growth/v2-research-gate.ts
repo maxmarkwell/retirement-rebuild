@@ -1,3 +1,4 @@
+import { auditV2Evidence, type V2EvidenceRequirement } from "./v2-evidence-audit";
 import type { V2PathAssessment } from "./v2-path-evaluators";
 import type { SurvivalAssessment } from "./v2-financial-survival";
 import { validateAgV2SourcedNumber, type AgV2SourcedNumber, type AgV2Source } from "./v2-source-contract";
@@ -14,6 +15,7 @@ export function assessV2ResearchGate(
   opportunity: V2PathAssessment,
   survival: SurvivalAssessment | null,
   sources: readonly { name: string; evidence: AgV2SourcedNumber; allowed: readonly AgV2Source["kind"][]; expectedPeriod: string }[],
+  requirements: readonly V2EvidenceRequirement[] = [],
 ): V2ResearchGateResult {
   const reasons: string[] = [];
   if (opportunity.status !== "QUALIFIED") reasons.push("OPPORTUNITY_" + opportunity.status);
@@ -41,9 +43,10 @@ export function assessV2ResearchGate(
     if (!source.expectedPeriod.trim() || source.evidence.source?.fiscalPeriod !== source.expectedPeriod) errors.push("PERIOD_MISMATCH");
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
+  reasons.push(...auditV2Evidence(opportunity, survival, sources, requirements));
   const status: V2ResearchGateResult["status"] =
     opportunity.status === "NOT_QUALIFIED" ? "NOT_QUALIFIED" :
-    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH"))
+    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH") || r.includes("REQUIREMENT") || r.includes("TOLERANCE") || r.includes("EXPECTED_VALUE") || r.includes("CORROBORATED"))
       ? "INSUFFICIENT_DATA" :
     survival?.status === "AT_RISK" ? "RISK_REVIEW" : "ELIGIBLE";
   return { eligible: status === "ELIGIBLE", status, reasons, opportunity, survival };
