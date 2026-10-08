@@ -21,7 +21,14 @@ export const POST=handleCallback(async(message,metadata)=>{
  }
  if(result.outcome==="needs_review")return;
  if(result.action==="persistence_ready"||result.action==="research_complete"){
-  if(process.env.AG_AUTONOMOUS_DURABILITY_ENABLED==="true")try{await enqueueAgDurabilityStep(message,{sequence:1});}catch(error){
+  if(process.env.AG_AUTONOMOUS_DURABILITY_ENABLED!=="true"){
+   // Do not acknowledge an unfinished six-stage cycle as successful.
+   // Retries are bounded; terminal delivery revokes worker authorization so
+   // the status reader exposes manual recovery instead of silent abandonment.
+   if(metadata.deliveryCount>=5)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
+   throw new Error("AG durability consumer disabled at research handoff; cycle requires reconciliation.");
+  }
+  try{await enqueueAgDurabilityStep(message,{sequence:1});}catch(error){
    if(metadata.deliveryCount>=5)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
    throw error;
   }
