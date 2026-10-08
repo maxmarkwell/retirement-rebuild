@@ -25,6 +25,8 @@ export function auditV2Evidence(
   requirements: readonly V2EvidenceRequirement[],
 ): string[] {
   const errors: string[] = [];
+  if (opportunity.path !== "TURNAROUND" && opportunity.path !== "VALUATION_DISLOCATION")
+    return ["PATH_SOURCE_POLICY_NOT_IMPLEMENTED"];
   const requiredNames = opportunity.path === "TURNAROUND"
     ? ["operatingMargin", "freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"]
     : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "debtMaturities", "realizationMechanism"];
