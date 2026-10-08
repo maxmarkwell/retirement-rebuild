@@ -11,8 +11,11 @@ function valid(message:unknown):message is AgResearchQueueMessage{
  return m.version===1&&typeof m.cycleId==="string"&&typeof m.token==="string"&&m.cycleId.length===36&&m.token.length>=32&&sequenceOk;
 }
 export const POST=handleCallback(async(message,metadata)=>{
- if(process.env.AG_AUTONOMOUS_QUEUE_ENABLED!=="true"||process.env.AG_AUTONOMOUS_WORKER_ENABLED!=="true")return;
  if(!valid(message))throw new Error("Invalid AG autonomous research message.");
+ if(process.env.AG_AUTONOMOUS_QUEUE_ENABLED!=="true"||process.env.AG_AUTONOMOUS_WORKER_ENABLED!=="true"){
+  if(metadata.deliveryCount>=5)try{await finishAgWorker(message.cycleId,message.token,"revoked");}catch{}
+  throw new Error("AG research queue or worker disabled during an active cycle; reconciliation required.");
+ }
  let result;
  try{ result=await runAuthorizedAgWorkerStep({cycleId:message.cycleId,token:message.token}); }
  catch(error){
