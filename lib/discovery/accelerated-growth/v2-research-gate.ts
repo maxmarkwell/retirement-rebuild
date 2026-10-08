@@ -43,10 +43,11 @@ export function assessV2ResearchGate(
     if (!source.expectedPeriod.trim() || source.evidence.source?.fiscalPeriod !== source.expectedPeriod) errors.push("PERIOD_MISMATCH");
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
-  reasons.push(...auditV2Evidence(opportunity, survival, sources, requirements));
+  const auditErrors = auditV2Evidence(opportunity, survival, sources, requirements);
+  reasons.push(...auditErrors);
   const status: V2ResearchGateResult["status"] =
     opportunity.status === "NOT_QUALIFIED" ? "NOT_QUALIFIED" :
-    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH") || r.includes("REQUIREMENT") || r.includes("TOLERANCE") || r.includes("EXPECTED_VALUE") || r.includes("CORROBORATED"))
+    opportunity.status !== "QUALIFIED" || auditErrors.length > 0 || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED") || r.includes("MISMATCH") || r.includes("REQUIREMENT") || r.includes("TOLERANCE") || r.includes("EXPECTED_VALUE") || r.includes("CORROBORATED"))
       ? "INSUFFICIENT_DATA" :
     survival?.status === "AT_RISK" ? "RISK_REVIEW" : "ELIGIBLE";
   return { eligible: status === "ELIGIBLE", status, reasons, opportunity, survival };
