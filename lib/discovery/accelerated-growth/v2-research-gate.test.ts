@@ -13,7 +13,7 @@ const survival: SurvivalAssessment = {
   version: "ag-survival-v2", status: "SUPPORTED", runwayQuarters: 8,
   availableLiquidity: 100, debtDueWithin12Months: 10, issues: [],
 };
-const sources = [{
+const singleSource = [{
   name: "operatingMargin",
   evidence: {
     value: 5,
@@ -29,6 +29,13 @@ const sources = [{
   },
   allowed: ["FILING" as const],
 }];
+const sources = [
+  ...singleSource,
+  ...["freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"].map(name => ({
+    ...singleSource[0], name,
+  })),
+];
+assert.equal(assessV2ResearchGate(opportunity, survival, singleSource).status, "INSUFFICIENT_DATA");
 assert.equal(assessV2ResearchGate(opportunity, survival, sources).status, "ELIGIBLE");
 assert.equal(assessV2ResearchGate(opportunity, { ...survival, status: "AT_RISK" }, sources).status, "RISK_REVIEW");
 assert.equal(assessV2ResearchGate(opportunity, { ...survival, status: "UNVERIFIED" }, sources).status, "INSUFFICIENT_DATA");
