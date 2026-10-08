@@ -1,3 +1,4 @@
+import { V2_PATH_SOURCE_POLICY } from "./v2-path-source-policy";
 import type { V2PathAssessment } from "./v2-path-evaluators";
 import type { SurvivalAssessment } from "./v2-financial-survival";
 import type { AgV2SourcedNumber, AgV2Source } from "./v2-source-contract";
@@ -25,11 +26,8 @@ export function auditV2Evidence(
   requirements: readonly V2EvidenceRequirement[],
 ): string[] {
   const errors: string[] = [];
-  if (opportunity.path !== "TURNAROUND" && opportunity.path !== "VALUATION_DISLOCATION")
-    return ["PATH_SOURCE_POLICY_NOT_IMPLEMENTED"];
-  const requiredNames = opportunity.path === "TURNAROUND"
-    ? ["operatingMargin", "freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"]
-    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "debtMaturities", "realizationMechanism"];
+  const policy = V2_PATH_SOURCE_POLICY[opportunity.path];
+  const requiredNames = Object.keys(policy);
   const requirementNames = new Set(requirements.map(x => x.metric));
   for (const metric of requiredNames) {
     if (!requirementNames.has(metric)) errors.push("MISSING_REQUIREMENT:" + metric);
@@ -39,6 +37,10 @@ export function auditV2Evidence(
     if (requirements.filter(x => x.metric === requirement.metric).length !== 1) errors.push("DUPLICATE_REQUIREMENT:" + requirement.metric);
     if (!Number.isFinite(requirement.absoluteTolerance) || requirement.absoluteTolerance < 0) errors.push("INVALID_TOLERANCE:" + requirement.metric);
     if (requirement.expectedValue == null || !Number.isFinite(requirement.expectedValue)) errors.push("UNVERIFIED_EXPECTED_VALUE:" + requirement.metric);
+    const permitted = policy[requirement.metric];
+    if (permitted && (requirement.allowedKinds.length !== permitted.length ||
+        requirement.allowedKinds.some(x => !permitted.includes(x))))
+      errors.push("SOURCE_KIND_POLICY_MISMATCH:" + requirement.metric);
     const matches = records.filter(x => x.name === requirement.metric);
     if (matches.length !== 1) continue;
     const record = matches[0];
