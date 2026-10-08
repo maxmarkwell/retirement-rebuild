@@ -1,0 +1,32 @@
+name: AG Discovery v2 validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/v2-*.ts'
+      - '.github/workflows/ag-discovery-v2.yml'
+  push:
+    branches:
+      - 'feat/ag-discovery-v2-evidence-foundation'
+
+permissions:
+  contents: read
+
+jobs:
+  v2-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit --incremental false
+      - name: Isolated Discovery v2 fixtures
+        run: |
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-evidence.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-path-evaluators.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-survival.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-gate.test.ts
