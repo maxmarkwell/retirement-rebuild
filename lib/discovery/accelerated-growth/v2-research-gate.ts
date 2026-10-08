@@ -27,13 +27,21 @@ export function assessV2ResearchGate(
       reasons.push("REQUIRED_SOURCE_MISSING_OR_DUPLICATE:" + name);
     }
   }
+  const uniqueEvidence = new Map<string, string>();
   for (const source of sources) {
+    const fingerprint = JSON.stringify([source.evidence.value, source.evidence.source?.url,
+      source.evidence.source?.fiscalPeriod, source.evidence.calculationMethod]);
+    const previous = uniqueEvidence.get(fingerprint);
+    if (previous && previous !== source.name) {
+      reasons.push("DUPLICATED_EVIDENCE:" + previous + ":" + source.name);
+    }
+    uniqueEvidence.set(fingerprint, source.name);
     const errors = validateAgV2SourcedNumber(source.evidence, source.allowed);
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
   const status: V2ResearchGateResult["status"] =
     opportunity.status === "NOT_QUALIFIED" ? "NOT_QUALIFIED" :
-    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED"))
+    opportunity.status !== "QUALIFIED" || reasons.some(r => r.includes("UNVERIFIED") || r.includes("MISSING") || r.includes("INVALID") || r.includes("DISALLOWED") || r.includes("DUPLICATED"))
       ? "INSUFFICIENT_DATA" :
     survival?.status === "AT_RISK" ? "RISK_REVIEW" : "ELIGIBLE";
   return { eligible: status === "ELIGIBLE", status, reasons, opportunity, survival };
