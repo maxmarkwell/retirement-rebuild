@@ -27,7 +27,7 @@ export function auditV2Evidence(
   const errors: string[] = [];
   const requiredNames = opportunity.path === "TURNAROUND"
     ? ["operatingMargin", "freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"]
-    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "realizationMechanism"];
+    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "debtMaturities", "realizationMechanism"];
   const requirementNames = new Set(requirements.map(x => x.metric));
   for (const metric of requiredNames) {
     if (!requirementNames.has(metric)) errors.push("MISSING_REQUIREMENT:" + metric);
