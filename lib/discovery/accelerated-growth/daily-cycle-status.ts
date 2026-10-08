@@ -39,7 +39,7 @@ export async function getAgDailyCycleStatus() {
   if (recentError) throw new Error(`Unable to load recent AG cycle diagnostics: ${recentError.message}`);
   const runningCycles = recentCycles ?? [];
   const activeCycle = runningCycles[0] ?? null;
-  const authoritativeCycle = activeCycle ?? cycle ?? null;
+  let authoritativeCycle = activeCycle ?? cycle ?? null;
   const staleCycles = runningCycles.filter(isAgCycleStale).map((item) => ({
     id: item.id, cycleDate: item.cycle_date, startedAt: item.started_at,
   }));
@@ -69,6 +69,35 @@ export async function getAgDailyCycleStatus() {
         (worker.status === "active" && worker.expires_at && Date.parse(worker.expires_at) <= Date.now()) ||
         (worker.status === "active" && worker.invocation_count >= worker.max_invocations)
       ));
+    }
+    // Autonomous workers persist authoritative stage outputs, while the legacy
+    // ag_daily_cycles summary counters may remain zero. Prefer completed-stage
+    // evidence for the displayed counters; never alter the cycle itself.
+    if (authoritativeCycle.status === "completed" && completedStages === ordered.length) {
+      const readOutput = async (stage: string): Promise<Record<string, unknown> | null> => {
+        const { data, error } = await supabase.rpc("ag_read_completed_stage_output", {
+          p_cycle_id: authoritativeCycle!.id, p_stage: stage,
+        });
+        if (error) throw new Error(`Unable to load AG ${stage} summary: ${error.message}`);
+        const row = Array.isArray(data) ? data[0] : null;
+        return row?.output && typeof row.output === "object" ? row.output as Record<string, unknown> : null;
+      };
+      const [discoveryOutput, deepOutput, committeeOutput] = await Promise.all([
+        readOutput("discovery"), readOutput("catalyst_deep_research"), readOutput("committee"),
+      ]);
+      const discovery = discoveryOutput?.discovery;
+      const discoveryCounts = discovery && typeof discovery === "object" ? discovery as Record<string, unknown> : null;
+      const count = (value: unknown, fallback: number | null) =>
+        typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : fallback;
+      authoritativeCycle = {
+        ...authoritativeCycle,
+        universe_count: count(discoveryCounts?.universeCount, authoritativeCycle.universe_count),
+        preselected_count: count(discoveryCounts?.preselectedCount, authoritativeCycle.preselected_count),
+        evaluated_count: count(discoveryCounts?.evaluatedCount, authoritativeCycle.evaluated_count),
+        discovery_advance_count: count(discoveryCounts?.advanceCount, authoritativeCycle.discovery_advance_count),
+        deep_research_completed_count: count(Array.isArray(deepOutput?.deep_research_results) ? deepOutput.deep_research_results.length : null, authoritativeCycle.deep_research_completed_count),
+        committee_decision_count: count(committeeOutput?.output_count, authoritativeCycle.committee_decision_count),
+      };
     }
     progress = {
       stage,
