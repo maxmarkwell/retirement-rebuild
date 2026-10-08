@@ -23,6 +23,7 @@ const singleSource = [{
       publishedAt: "2026-06-30",
       retrievedAt: "2026-07-01",
       fiscalPeriod: "2026-Q2",
+      metric: "operatingMargin",
       kind: "FILING" as const,
     },
     calculationMethod: "Operating income divided by revenue",
@@ -33,7 +34,8 @@ const sources = [
   ...singleSource,
   ...["freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"].map((name, index) => ({
     ...singleSource[0], name,
-    evidence: { ...singleSource[0].evidence, value: index + 10, calculationMethod: "Fixture calculation for " + name },
+    evidence: { ...singleSource[0].evidence, value: index + 10, calculationMethod: "Fixture calculation for " + name,
+      source: { ...singleSource[0].evidence.source, metric: name } },
   })),
 ];
 assert.equal(assessV2ResearchGate(opportunity, survival, singleSource).status, "INSUFFICIENT_DATA");
@@ -52,3 +54,9 @@ assert.equal(assessV2ResearchGate(opportunity, survival, [
     ...singleSource[0], name,
   })),
 ]).status, "INSUFFICIENT_DATA", "Duplicated source evidence cannot stand in for different metrics");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  ...sources.slice(0, 1),
+  { ...sources[1], evidence: { ...sources[1].evidence, source: { ...sources[1].evidence.source, metric: "cash" } } },
+  ...sources.slice(2),
+]).status, "INSUFFICIENT_DATA", "Mislabeled source metrics cannot satisfy eligibility");
