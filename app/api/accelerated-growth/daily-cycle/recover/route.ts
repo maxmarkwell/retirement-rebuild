@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
-    const reason = "Manual recovery after autonomous research failure. Failure evidence preserved; no persistence or transactions executed.";
+    const reason = "Manual recovery after abandoned autonomous research cycle. Frozen checkpoints retained; durability absence must be verified by database recovery guards.";
     const { data, error } = await supabase.rpc("ag_recover_cycle_to_failed", {
       p_cycle_id: cycleId,
       p_reason: reason,
