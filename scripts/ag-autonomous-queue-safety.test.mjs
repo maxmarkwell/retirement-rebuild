@@ -46,3 +46,12 @@ test("disabled durability handoff throws and revokes after bounded retries",asyn
  assert.ok(route.includes('AG durability consumer disabled at research handoff'));
  assert.ok(route.includes('if(metadata.deliveryCount>=5)try{await finishAgWorker'));
 });
+
+test("in-flight queue shutdowns do not silently acknowledge either stage",async()=>{
+ const research=await readFile("app/api/queues/ag-autonomous-research/route.ts","utf8");
+ const durability=await readFile("app/api/queues/ag-autonomous-durability/route.ts","utf8");
+ assert.ok(research.includes("AG research queue or worker disabled during an active cycle"));
+ assert.ok(durability.includes("AG durability queue or worker disabled during an active cycle"));
+ assert.ok(research.indexOf("if(!valid(message))")<research.indexOf("AG research queue or worker disabled"));
+ assert.ok(durability.indexOf("if(!valid(message))")<durability.indexOf("AG durability queue or worker disabled"));
+});
