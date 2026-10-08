@@ -21,6 +21,7 @@ test("one-click route can only start autonomous continuation behind all three re
  const start=await readFile("lib/discovery/accelerated-growth/autonomous-cycle-start.ts","utf8");
  const route=await readFile("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
  for(const gate of ["AG_AUTONOMOUS_CYCLE_ENABLED","AG_AUTONOMOUS_QUEUE_ENABLED","AG_AUTONOMOUS_WORKER_ENABLED"])assert.match(start,new RegExp(gate));
+ assert.match(start,/AG_AUTONOMOUS_DURABILITY_ENABLED/);
  assert.match(start,/authorizeAuthenticatedAgWorker/);assert.match(start,/enqueueAgResearchStep/);assert.match(start,/finishAgWorker/);
  assert.match(route,/startAgAutonomousResearchContinuation/);assert.match(route,/step\.action === "stage_step" \|\| step\.action === "wait"/);
  assert.doesNotMatch(start,/runNextAgDurabilityStep|executeAgDailyCycleTransactions|daily-cycle-execution/);
