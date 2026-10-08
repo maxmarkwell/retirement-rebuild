@@ -64,3 +64,14 @@ test("durability worker fails closed on ambiguous finalization and never execute
  assert.match(source,/AG worker finalization rejected; reconcile authoritative state/);
  assert.doesNotMatch(source,/cycle_already_finalized|executeAgDailyCycleTransactions|daily-cycle-execution/);
 });
+
+test("completed AG dashboard uses authenticated checkpoint outputs without changing execution",async()=>{
+ const source=await readFile("lib/discovery/accelerated-growth/daily-cycle-status.ts","utf8");
+ assert.match(source,/authoritativeCycle\.status === "completed" && completedStages === ordered\.length/);
+ assert.match(source,/rpc\("ag_read_completed_stage_output"/);
+ assert.match(source,/discoveryCounts\?\.universeCount/);
+ assert.match(source,/discoveryCounts\?\.advanceCount/);
+ assert.match(source,/deep_research_results\.length/);
+ assert.match(source,/committeeOutput\?\.output_count/);
+ assert.doesNotMatch(source,/executeAgDailyCycleTransactions|daily-cycle-execution|ag_commit_cycle/);
+});
