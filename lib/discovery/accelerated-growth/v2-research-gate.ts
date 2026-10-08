@@ -19,7 +19,14 @@ export function assessV2ResearchGate(
   if (opportunity.status !== "QUALIFIED") reasons.push("OPPORTUNITY_" + opportunity.status);
   if (!survival || survival.status === "UNVERIFIED") reasons.push("SURVIVAL_UNVERIFIED");
   if (survival?.status === "AT_RISK") reasons.push("SURVIVAL_AT_RISK");
-  if (sources.length === 0) reasons.push("SOURCES_MISSING");
+  const required = opportunity.path === "TURNAROUND"
+    ? ["operatingMargin", "freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"]
+    : ["marketCap", "independentEquityValue", "normalizedFreeCashFlow", "cash", "debt", "realizationMechanism"];
+  for (const name of required) {
+    if (sources.filter(source => source.name === name).length !== 1) {
+      reasons.push("REQUIRED_SOURCE_MISSING_OR_DUPLICATE:" + name);
+    }
+  }
   for (const source of sources) {
     const errors = validateAgV2SourcedNumber(source.evidence, source.allowed);
     for (const error of errors) reasons.push(source.name + ":" + error);
