@@ -39,3 +39,9 @@ test("autonomous cycle start fails closed when durability is unavailable",async(
  assert.ok(route.includes('AG_AUTONOMOUS_DURABILITY_ENABLED === "true"'));
  assert.ok(route.includes('AG_RESUMABLE_DURABILITY_ENABLED !== "true"'));
 });
+
+test("disabled durability handoff throws and revokes after bounded retries",async()=>{
+ const route=await readFile("app/api/queues/ag-autonomous-research/route.ts","utf8");
+ assert.ok(route.includes('AG durability consumer disabled at research handoff'));
+ assert.ok(route.includes('if(metadata.deliveryCount>=5)try{await finishAgWorker'));
+});
