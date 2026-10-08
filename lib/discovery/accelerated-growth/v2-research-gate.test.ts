@@ -94,3 +94,12 @@ assert.equal(assess(opportunity, survival, sources, [
   ...requirements,
   { metric: "unknownMetric", expectedPeriod: "2026-Q2", allowedKinds: ["FILING" as const], expectedValue: 1, absoluteTolerance: 0 },
 ]).status, "INSUFFICIENT_DATA", "Unknown independent audit requirements must fail closed");
+
+assert.equal(assess(opportunity, survival, [
+  ...sources,
+  { ...sources[0], name: "unapprovedMetric",
+    evidence: { ...sources[0].evidence, source: { ...sources[0].evidence.source, metric: "unapprovedMetric" } } },
+]).status, "INSUFFICIENT_DATA", "Unknown extra metric must not bypass path source policy");
+assert.equal(assess(opportunity, survival, [
+  { ...sources[0], allowed: ["MARKET_DATA" as const] }, ...sources.slice(1),
+]).status, "INSUFFICIENT_DATA", "Caller cannot relax required filing provenance");
