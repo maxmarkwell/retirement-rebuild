@@ -46,8 +46,7 @@ function assessment(
 ): V2PathAssessment {
   return {
     version: "ag-opportunity-v2", path, status,
-    evidenceStrength: status === "INSUFFICIENT_DATA" ? null :
-      Math.max(0, Math.min(100, Math.round(50 + supportingFacts.length * 12 - contradictingFacts.length * 20))),
+    evidenceStrength: null,
     evidenceCoverage, supportingFacts, contradictingFacts,
     missingCriticalEvidence, economicMechanism, invalidationConditions,
   };
