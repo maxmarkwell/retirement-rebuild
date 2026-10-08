@@ -28,7 +28,7 @@ export async function runAuthorizedAgDurabilityStep(input:{cycleId:string;token:
    return {cycleId:input.cycleId,outcome:"needs_review",stage:"persistence",action:"persistence_reconcile_required",invocationNumber:claim.invocationNumber,transactionsWritten:false};
   }
   const finalized=byStage.get("finalized");
-  if(finalized?.status==="completed"){\n   await finishAgWorker(input.cycleId,input.token,"consumed");\n   return {cycleId:input.cycleId,outcome:"completed",stage:"finalized",action:"cycle_already_finalized",invocationNumber:claim.invocationNumber,transactionsWritten:false};\n  }\n  if(finalized&&finalized.status!=="pending"){
+  if(finalized&&finalized.status!=="pending"){
    await finishAgWorker(input.cycleId,input.token,"revoked");
    return {cycleId:input.cycleId,outcome:"needs_review",stage:"finalized",action:"finalization_reconcile_required",invocationNumber:claim.invocationNumber,transactionsWritten:false};
   }
