@@ -22,9 +22,6 @@ export async function POST(request: NextRequest) {
   // A six-stage autonomous cycle cannot safely start unless its durability
   // consumer is enabled. Reject before creating or advancing any cycle.
   if (process.env.AG_RESUMABLE_RESEARCH_RUNNER_ENABLED === "true" &&
-      process.env.AG_AUTONOMOUS_CYCLE_ENABLED === "true" &&
-      process.env.AG_AUTONOMOUS_QUEUE_ENABLED === "true" &&
-      process.env.AG_AUTONOMOUS_WORKER_ENABLED === "true" &&
       process.env.AG_AUTONOMOUS_DURABILITY_ENABLED !== "true" &&
       process.env.AG_RESUMABLE_DURABILITY_ENABLED !== "true") {
     return NextResponse.json({
