@@ -13,7 +13,7 @@ export type V2ResearchGateResult = {
 export function assessV2ResearchGate(
   opportunity: V2PathAssessment,
   survival: SurvivalAssessment | null,
-  sources: readonly { name: string; evidence: AgV2SourcedNumber; allowed: readonly AgV2Source["kind"][] }[],
+  sources: readonly { name: string; evidence: AgV2SourcedNumber; allowed: readonly AgV2Source["kind"][]; expectedPeriod: string }[],
 ): V2ResearchGateResult {
   const reasons: string[] = [];
   if (opportunity.status !== "QUALIFIED") reasons.push("OPPORTUNITY_" + opportunity.status);
@@ -38,6 +38,7 @@ export function assessV2ResearchGate(
     uniqueEvidence.set(fingerprint, source.name);
     const errors = validateAgV2SourcedNumber(source.evidence, source.allowed);
     if (source.evidence.source?.metric !== source.name) errors.push("METRIC_MISMATCH");
+    if (!source.expectedPeriod.trim() || source.evidence.source?.fiscalPeriod !== source.expectedPeriod) errors.push("PERIOD_MISMATCH");
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
   const status: V2ResearchGateResult["status"] =
