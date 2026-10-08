@@ -22,3 +22,9 @@ test("AG manual recovery is not anonymous",()=>{
  assert.match(sql,/revoke all on function public\.ag_recover_cycle_to_failed\(uuid,text\) from public,anon/);
  assert.match(sql,/grant execute on function public\.ag_recover_cycle_to_failed\(uuid,text\) to authenticated,service_role/);
 });
+
+test("AG recovery refuses any durability checkpoint or write evidence",()=>{
+ for(const required of ["ag_cycle_decision_writes","ag_cycle_watch_writes","s.stage in ('persistence','finalized')","cycle worker remains authorized"]){
+  assert.ok(sql.includes(required), "missing recovery guard: "+required);
+ }
+});
