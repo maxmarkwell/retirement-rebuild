@@ -39,37 +39,52 @@ const sources = [
       source: { ...singleSource[0].evidence.source, metric: name } },
   })),
 ];
-assert.equal(assessV2ResearchGate(opportunity, survival, singleSource).status, "INSUFFICIENT_DATA");
-assert.equal(assessV2ResearchGate(opportunity, survival, sources).status, "ELIGIBLE");
-assert.equal(assessV2ResearchGate(opportunity, { ...survival, status: "AT_RISK" }, sources).status, "RISK_REVIEW");
-assert.equal(assessV2ResearchGate(opportunity, { ...survival, status: "UNVERIFIED" }, sources).status, "INSUFFICIENT_DATA");
-assert.equal(assessV2ResearchGate(opportunity, survival, []).status, "INSUFFICIENT_DATA");
-assert.equal(assessV2ResearchGate({ ...opportunity, status: "NOT_QUALIFIED" }, survival, sources).status, "NOT_QUALIFIED");
-assert.equal(assessV2ResearchGate(opportunity, survival, [{
+const requirements = sources.map(x => ({
+  metric: x.name, expectedPeriod: x.expectedPeriod, allowedKinds: x.allowed,
+  expectedValue: x.evidence.value, absoluteTolerance: 0,
+}));
+const assess = (o: V2PathAssessment, v: SurvivalAssessment | null, entries: typeof sources, req = requirements) =>
+  assessV2ResearchGate(o, v, entries, req);
+assert.equal(assess(opportunity, survival, singleSource).status, "INSUFFICIENT_DATA");
+assert.equal(assess(opportunity, survival, sources).status, "ELIGIBLE");
+assert.equal(assess(opportunity, { ...survival, status: "AT_RISK" }, sources).status, "RISK_REVIEW");
+assert.equal(assess(opportunity, { ...survival, status: "UNVERIFIED" }, sources).status, "INSUFFICIENT_DATA");
+assert.equal(assess(opportunity, survival, []).status, "INSUFFICIENT_DATA");
+assert.equal(assess({ ...opportunity, status: "NOT_QUALIFIED" }, survival, sources).status, "NOT_QUALIFIED");
+assert.equal(assess(opportunity, survival, [{
   ...sources[0], evidence: { ...sources[0].evidence, source: null },
 }]).status, "INSUFFICIENT_DATA");
 
-assert.equal(assessV2ResearchGate(opportunity, survival, [
+assert.equal(assess(opportunity, survival, [
   singleSource[0],
   ...["freeCashFlow", "cash", "debt", "debtMaturities", "creditAvailability"].map(name => ({
     ...singleSource[0], name,
   })),
 ]).status, "INSUFFICIENT_DATA", "Duplicated source evidence cannot stand in for different metrics");
 
-assert.equal(assessV2ResearchGate(opportunity, survival, [
+assert.equal(assess(opportunity, survival, [
   ...sources.slice(0, 1),
   { ...sources[1], evidence: { ...sources[1].evidence, source: { ...sources[1].evidence.source, metric: "cash" } } },
   ...sources.slice(2),
 ]).status, "INSUFFICIENT_DATA", "Mislabeled source metrics cannot satisfy eligibility");
 
-assert.equal(assessV2ResearchGate(opportunity, survival, [
+assert.equal(assess(opportunity, survival, [
   ...sources.slice(0, 1),
   { ...sources[1], evidence: { ...sources[1].evidence,
     source: { ...sources[1].evidence.source, fiscalPeriod: "2026-Q1" } } },
   ...sources.slice(2),
 ]).status, "INSUFFICIENT_DATA", "Prior-quarter evidence cannot masquerade as current-quarter evidence");
-assert.equal(assessV2ResearchGate(opportunity, survival, [
+assert.equal(assess(opportunity, survival, [
   ...sources.slice(0, 1),
   { ...sources[1], expectedPeriod: "" },
   ...sources.slice(2),
 ]).status, "INSUFFICIENT_DATA", "Missing expected period must fail closed");
+
+assert.equal(assess(opportunity, survival, sources, []).status, "INSUFFICIENT_DATA",
+  "No independent requirements must fail closed");
+assert.equal(assess(opportunity, survival, sources, requirements.map(x =>
+  x.metric === "cash" ? { ...x, expectedValue: 999 } : x
+)).status, "INSUFFICIENT_DATA", "A mismatched independently expected value must fail closed");
+assert.equal(assess(opportunity, survival, sources, requirements.map(x =>
+  x.metric === "cash" ? { ...x, expectedPeriod: "2026-Q1" } : x
+)).status, "INSUFFICIENT_DATA", "A mismatched independently expected period must fail closed");
