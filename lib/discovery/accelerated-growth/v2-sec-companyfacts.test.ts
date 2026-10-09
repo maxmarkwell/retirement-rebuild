@@ -50,3 +50,14 @@ assert.ok(normalizeV2SecCompanyFacts({ ...input,
     OperatingIncomeLoss: { units: { USD: [fact(20, { frame: "CY2026Q1" })] } },
   } } },
 }).issues.includes("SEC_MISSING_OR_AMBIGUOUS_QUARTERLY_FACT:operatingIncome"));
+
+assert.ok(normalizeV2SecCompanyFacts({ ...input,
+  sourceUrl: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000000002.json",
+}).issues.includes("SEC_SOURCE_CIK_MISMATCH"));
+assert.ok(normalizeV2SecCompanyFacts({ ...input,
+  accession: "0000000002-26-000001",
+}).issues.includes("SEC_ACCESSION_CIK_MISMATCH"));
+assert.ok(normalizeV2SecCompanyFacts({ ...input,
+  calendarFrameAligned: false,
+}).issues.some(x => x.startsWith("SEC_MISSING_OR_AMBIGUOUS_QUARTERLY_FACT")),
+  "Off-calendar issuers require verified fiscal mapping");
