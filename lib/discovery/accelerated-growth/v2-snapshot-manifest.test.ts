@@ -2,9 +2,9 @@ import { strict as assert } from "node:assert";
 import { verifyV2SnapshotManifests, type V2SnapshotManifest } from "./v2-snapshot-manifest";
 const v1: V2SnapshotManifest = { version: "v1", snapshotId: "cycle_v1",
   capturedAt: "2026-10-08T20:00:00Z", universeId: "universe_42",
-  universeSymbols: ["MSFT", "ADBE"], researchAsOf: "2026-10-08T19:00:00Z" };
+  universeSymbols: ["MSFT", "ADBE"], researchAsOf: "2026-10-08T19:00:00Z", pipelineVersion: "ag-v1", fiscalPeriod: "2026-Q3" };
 const v2: V2SnapshotManifest = { ...v1, version: "v2",
-  snapshotId: "cycle_v2", capturedAt: "2026-10-08T20:30:00Z",
+  snapshotId: "cycle_v2", pipelineVersion: "ag-v2", capturedAt: "2026-10-08T20:30:00Z",
   universeSymbols: ["ADBE", "MSFT"] };
 assert.deepEqual(verifyV2SnapshotManifests(v1, v2, ["MSFT", "ADBE"]), { valid: true, issues: [] });
 assert.ok(verifyV2SnapshotManifests(v1, { ...v2,
