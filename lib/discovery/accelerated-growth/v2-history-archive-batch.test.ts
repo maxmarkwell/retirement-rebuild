@@ -205,3 +205,42 @@ assert.equal(evaluateV2HistoricalPilotBundle(JSON.stringify({
   schemaVersion: "ag-history-pilot-bundle-v1", archives: [first],
   unreviewedMetadata: true,
 })).accepted, false);
+
+function addSecondPath(original: V2HistoricalCycleArchive): V2HistoricalCycleArchive {
+  const cycle = original.envelope.history.cycles[0];
+  const candidates = cycle.candidates.map(c => ({
+    ...c, assessments: [...c.assessments, {
+      ...c.assessments[0], path: "VALUATION_DISLOCATION" as const,
+    }],
+  }));
+  const payloads = original.payloads.map(p => p.id === "assessments"
+    ? { ...p, utf8: JSON.stringify({
+      runId: cycle.runId, researchAsOf: cycle.researchAsOf, candidates,
+    }) } : p);
+  const manifest = JSON.parse(original.manifestUtf8) as {
+    schemaVersion: string; researchAsOf: string; sources: V2ArchivedSource[];
+  };
+  const manifestUtf8 = JSON.stringify({ ...manifest,
+    sources: manifest.sources.map(source => ({
+      ...source, sha256: hash(payloads.find(p => p.id === source.id)!.utf8),
+    })),
+  });
+  return {
+    payloads, manifestUtf8, envelope: {
+      ...original.envelope, sourceManifestSha256: hash(manifestUtf8),
+      history: { ...original.envelope.history,
+        cycles: [{ ...cycle, candidates }],
+      },
+    },
+  };
+}
+const multiPath = buildV2HistoricalPilotReport([
+  first, addSecondPath(addNovelIssuer(second)),
+]);
+assert.equal(multiPath.accepted, true);
+if (multiPath.accepted) {
+  assert.equal(multiPath.uniqueIncrementalIssuers, 1);
+  assert.deepEqual(multiPath.v2PathIncrementalIssuerCounts, {
+    CATALYST: 1, VALUATION_DISLOCATION: 1,
+  });
+}
