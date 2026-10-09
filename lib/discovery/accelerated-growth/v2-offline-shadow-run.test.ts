@@ -4,7 +4,7 @@ const base = {
   runId: "shadow_20261008", capturedAt: "2026-10-08T20:00:00Z",
   v1SnapshotId: "v1:cycle-1", v2SnapshotId: "v2:cycle-1",
   v1Manifest: { version: "v1" as const, snapshotId: "v1:cycle-1", capturedAt: "2026-10-08T20:00:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z", pipelineVersion: "ag-v1", fiscalPeriod: "2026-Q3" },
-  v2Manifest: { version: "v2" as const, snapshotId: "v2:cycle-1", pipelineVersion: "ag-v2", capturedAt: "2026-10-08T20:15:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z" },
+  v2Manifest: { version: "v2" as const, snapshotId: "v2:cycle-1", pipelineVersion: "ag-v2", fiscalPeriod: "2026-Q3", capturedAt: "2026-10-08T20:15:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z" },
   rows: [{ symbol: "MSFT", v1Status: "ADVANCE",
     v2Path: "ACCELERATING_FUNDAMENTALS", v2Gate: null }],
 };
