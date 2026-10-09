@@ -71,12 +71,18 @@ export async function retrieveV2VendorQuarters(options: V2VendorTransportOptions
       new URL(options.incomeUrl).searchParams.get("symbol") !==
         new URL(options.cashFlowUrl).searchParams.get("symbol"))
     return { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] };
+  const symbol = new URL(options.incomeUrl).searchParams.get("symbol")!;
   const fetcher = options.fetcher ?? fetch;
   try {
     const [income, cashFlow] = await Promise.all([
       readQuarters(fetcher, options.incomeUrl),
       readQuarters(fetcher, options.cashFlowUrl),
     ]);
+    // Each returned row must belong to the requested symbol. A valid URL
+    // alone does not establish that the provider returned the right issuer.
+    if ([...income, ...cashFlow].some(row =>
+      (row as V2VendorQuarter & { symbol?: unknown }).symbol !== symbol))
+      return { ok: false, issues: ["VENDOR_TRANSPORT_SYMBOL_MISMATCH"] };
     // The provider must explicitly declare USD on each row. We do not infer currency.
     // Provider monetary scale is not authenticated by these payloads, so do not
     // fabricate a scale declaration or emit normalized observations.
