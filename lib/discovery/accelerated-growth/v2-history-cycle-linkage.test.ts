@@ -33,6 +33,8 @@ const records = [
     runId: cycle.runId, researchAsOf: asOf, symbols: ["AAA"] } },
   { kind: "ISSUER_MAPPING" as const, id: "identity", value: {
     runId: cycle.runId, researchAsOf: asOf, identities: [identity] } },
+  { kind: "V2_ASSESSMENTS" as const, id: "assessments", value: {
+    runId: cycle.runId, researchAsOf: asOf, candidates: cycle.candidates } },
 ];
 function check(data: typeof records, cycleOverride = cycle) {
   const payloads = data.map(x => ({ id: x.id, utf8: JSON.stringify(x.value) }));
@@ -72,3 +74,8 @@ rejected([...records, { ...records[0], id: "duplicate" }],
 const invalid = check(records, { ...cycle, runId: "linkage_002" });
 assert.equal(invalid.accepted, false);
 if (!invalid.accepted) assert.ok(invalid.issues.includes("LINKAGE_V1_MISMATCH"));
+
+rejected(records.map(x => x.id === "assessments" ? {
+  ...x, value: { ...x.value, candidates: [] },
+} : x) as typeof records, "LINKAGE_V2_ASSESSMENTS_MISMATCH");
+rejected(records.slice(0, 3), "LINKAGE_SOURCE_KIND_COUNT:V2_ASSESSMENTS");
