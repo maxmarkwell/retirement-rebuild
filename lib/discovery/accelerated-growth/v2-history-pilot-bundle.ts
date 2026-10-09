@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { buildV2HistoricalPilotReport, type V2HistoricalPilotReport } from "./v2-history-pilot-report";
 import type { V2HistoricalCycleArchive } from "./v2-history-archive-batch";
+import { inspectV2PilotEvidenceReadiness, type V2PilotEvidenceReadiness } from "./v2-pilot-evidence-readiness";
 
 /**
  * Portable offline pilot bundle. The caller supplies archived UTF-8 bytes;
@@ -12,7 +13,8 @@ export type V2HistoricalPilotBundle = {
 };
 export type V2HistoricalPilotBundleResult =
   | { accepted: false; issues: string[] }
-  | { accepted: true; bundleSha256: string; report: Extract<V2HistoricalPilotReport, { accepted: true }> };
+  | { accepted: true; bundleSha256: string; report: Extract<V2HistoricalPilotReport, { accepted: true }>;
+      evidenceInventory: Extract<V2PilotEvidenceReadiness, { accepted: true }> };
 
 const MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
 const MAX_ARCHIVES = 100;
@@ -61,9 +63,12 @@ export function evaluateV2HistoricalPilotBundle(
     const report = buildV2HistoricalPilotReport(
       raw.archives as V2HistoricalCycleArchive[]);
     if (!report.accepted) return report;
+    const evidenceInventory = inspectV2PilotEvidenceReadiness(
+      raw.archives as V2HistoricalCycleArchive[]);
+    if (!evidenceInventory.accepted) return evidenceInventory;
     return { accepted: true,
       bundleSha256: createHash("sha256").update(rawUtf8, "utf8").digest("hex"),
-      report };
+      report, evidenceInventory };
   } catch {
     return { accepted: false, issues: ["PILOT_BUNDLE_INVALID_NESTED_DATA"] };
   }
