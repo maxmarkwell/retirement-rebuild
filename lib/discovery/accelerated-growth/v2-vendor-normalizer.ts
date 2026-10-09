@@ -9,6 +9,7 @@ export type V2VendorQuarter = {
   fiscalYear?: string | number;
   period?: string;
   date?: string;
+  reportedCurrency?: string;
   revenue?: number;
   operatingIncome?: number;
   freeCashFlow?: number;
@@ -23,6 +24,9 @@ export type V2QuarterlyNormalizationInput = {
   extractionId: string;
   sourceUrl: string;
   publisher: string;
+  /** Explicit source units; vendor monetary figures must be unscaled USD. */
+  currency: string;
+  monetaryScale: "ONES" | "THOUSANDS" | "MILLIONS";
 };
 export type V2QuarterlyNormalizationResult = {
   observations: V2VerifiedObservation[];
@@ -49,6 +53,8 @@ export function normalizeV2VendorQuarters(input: V2QuarterlyNormalizationInput):
   const issues: string[] = [];
   if (!input.issuerId.trim() || !input.documentId.trim() || !input.extractionId.trim())
     issues.push("MISSING_TRANSPORT_PROVENANCE");
+  if (input.currency !== "USD") issues.push("UNSUPPORTED_VENDOR_CURRENCY");
+  if (input.monetaryScale !== "ONES") issues.push("UNSUPPORTED_VENDOR_MONETARY_SCALE");
   const income = unique(input.income, "INCOME", issues);
   const cash = unique(input.cashFlow, "CASH_FLOW", issues);
   const observations: V2VerifiedObservation[] = [];
@@ -58,6 +64,10 @@ export function normalizeV2VendorQuarters(input: V2QuarterlyNormalizationInput):
     if (row.date && matched.date && row.date !== matched.date) {
       issues.push("FISCAL_END_DATE_MISMATCH:" + period);
       continue;
+    }
+    for (const candidate of [row, matched]) {
+      if (candidate.reportedCurrency !== input.currency)
+        issues.push("VENDOR_ROW_CURRENCY_MISMATCH:" + period);
     }
     const metrics = [
       ["revenue", row.revenue],
