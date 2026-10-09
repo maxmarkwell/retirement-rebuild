@@ -19,7 +19,7 @@ export function verifyV2HistoricalCycleLinkage(
   const cycle = envelope.history.cycles[0];
   const mappings = envelope.history.issuerIdentitiesByCycle[0];
   const byId = new Map(payloads.map(p => [p.id, p.utf8]));
-  const get = (kind: "V1_CYCLE" | "UNIVERSE" | "ISSUER_MAPPING"): unknown => {
+  const get = (kind: "V1_CYCLE" | "UNIVERSE" | "ISSUER_MAPPING" | "V2_ASSESSMENTS"): unknown => {
     const entries = manifest.sources.filter(s => s.kind === kind);
     if (entries.length !== 1) {
       issues.push("LINKAGE_SOURCE_KIND_COUNT:" + kind);
@@ -31,6 +31,7 @@ export function verifyV2HistoricalCycleLinkage(
   const v1 = get("V1_CYCLE");
   const universe = get("UNIVERSE");
   const identity = get("ISSUER_MAPPING");
+  const assessments = get("V2_ASSESSMENTS");
   const symbols = cycle.candidates.map(c => c.symbol.trim().toUpperCase()).sort();
   const selected = cycle.v1SelectedSymbols.map(s => s.trim().toUpperCase());
   const sameStrings = (a: unknown, b: string[]) =>
@@ -58,5 +59,9 @@ export function verifyV2HistoricalCycleLinkage(
         row.symbol !== expected[i].symbol || row.issuerId !== expected[i].issuerId ||
         row.effectiveAt !== expected[i].effectiveAt))
     issues.push("LINKAGE_ISSUER_MISMATCH");
+  if (!record(assessments) || assessments.runId !== cycle.runId ||
+      assessments.researchAsOf !== cycle.researchAsOf ||
+      JSON.stringify(assessments.candidates) !== JSON.stringify(cycle.candidates))
+    issues.push("LINKAGE_V2_ASSESSMENTS_MISMATCH");
   return { accepted: issues.length === 0, issues };
 }
