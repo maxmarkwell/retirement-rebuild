@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { retrieveV2VendorQuarters } from "./v2-vendor-transport";
-const incomeUrl = "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT";
-const cashFlowUrl = "https://financialmodelingprep.com/stable/cash-flow-statement?symbol=MSFT";
+const incomeUrl = "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT&period=quarter";
+const cashFlowUrl = "https://financialmodelingprep.com/stable/cash-flow-statement?symbol=MSFT&period=quarter";
 const row = { symbol: "MSFT", fiscalYear: 2026, period: "Q2", date: "2026-06-30",
   reportedCurrency: "USD", revenue: 100, operatingIncome: 20, freeCashFlow: 12 };
 let calls = 0;
@@ -26,9 +26,12 @@ async function main() {
     ...base, incomeUrl: incomeUrl + "&apikey=secret",
   }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] });
   for (const invalid of [
+    incomeUrl.replace("&period=quarter", ""),
+    incomeUrl.replace("period=quarter", "period=annual"),
+    incomeUrl + "&period=quarter",
     incomeUrl + "&APIKEY=secret",
     incomeUrl + "&redirect=https://example.org",
-    "https://financialmodelingprep.com/stable/profile?symbol=MSFT",
+    "https://financialmodelingprep.com/stable/profile?symbol=MSFT&period=quarter",
     "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT&symbol=AAPL",
     "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT%26apikey%3Dsecret",
   ]) {
