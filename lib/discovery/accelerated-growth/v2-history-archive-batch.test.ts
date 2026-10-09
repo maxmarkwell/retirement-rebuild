@@ -96,6 +96,7 @@ if (pilot.accepted) {
   assert.equal(pilot.totalNewlySelectedSlots, 0);
   assert.equal(pilot.totalDisplacedV1Slots, 0);
   assert.equal(pilot.uniqueIncrementalIssuers, 0);
+  assert.deepEqual(pilot.v2PathIncrementalIssuerCounts, { CATALYST: 0 });
   assert.equal(pilot.uniqueDisplacedIssuers, 0);
   assert.equal(pilot.cyclesWithIncrementalIssuers, 0);
   assert.deepEqual(pilot.cycles.map(c => c.runId), ["batch_002", "batch_003"]);
@@ -163,6 +164,7 @@ if (novelPilot.accepted) {
   assert.equal(novelPilot.totalNewlySelectedSlots, 1);
   assert.equal(novelPilot.totalDisplacedV1Slots, 1);
   assert.equal(novelPilot.uniqueIncrementalIssuers, 1);
+  assert.deepEqual(novelPilot.v2PathIncrementalIssuerCounts, { CATALYST: 1 });
   assert.equal(novelPilot.uniqueDisplacedIssuers, 0);
   assert.equal(novelPilot.cyclesWithIncrementalIssuers, 1);
   assert.deepEqual(novelPilot.cycles[1].incrementalIssuerIds, ["CIK-456"]);
@@ -178,6 +180,7 @@ assert.equal(bundle.accepted, true);
 if (bundle.accepted) {
   assert.equal(bundle.bundleSha256, hash(bundleBytes));
   assert.equal(bundle.report.uniqueIncrementalIssuers, 1);
+  assert.deepEqual(bundle.report.v2PathIncrementalIssuerCounts, { CATALYST: 1 });
   assert.equal(bundle.report.cycleCount, 2);
 }
 assert.deepEqual(evaluateV2HistoricalPilotBundle("not json"), {
