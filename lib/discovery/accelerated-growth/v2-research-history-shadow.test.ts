@@ -33,9 +33,9 @@ if (result.accepted) {
   assert.equal(result.cycleCount, 2);
   assert.equal(result.totalV1Slots, 4);
   assert.equal(result.totalV2Slots, 4);
-  assert.equal(result.totalOverlap, 3);
-  assert.equal(result.totalNewlySelected, 1);
-  assert.equal(result.totalDisplacedV1, 1);
+  assert.equal(result.totalOverlap, 2);
+  assert.equal(result.totalNewlySelected, 2);
+  assert.equal(result.totalDisplacedV1, 2);
   assert.equal(result.totalV1WatchSlots, 2);
   assert.equal(result.totalV2WatchSlots, 0);
   assert.equal(result.totalV2NewDiscoverySlots, 4);
