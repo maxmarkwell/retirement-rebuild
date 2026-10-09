@@ -40,6 +40,7 @@ jobs:
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-scale-policy.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-scale-audit.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-scale-diagnostic.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-scale-evidence-bridge.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-companyfacts.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-cross-source-reconciliation.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-transport.test.ts
