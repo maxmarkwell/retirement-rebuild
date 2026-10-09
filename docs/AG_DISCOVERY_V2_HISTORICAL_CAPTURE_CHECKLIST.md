@@ -58,3 +58,7 @@ npx tsx lib/discovery/accelerated-growth/v2-history-pilot-cli.ts /absolute/path/
 ```
 
 The command prints an accepted/rejected JSON report to standard output and exits nonzero on failure. It performs **no automatic historical acquisition**, database reads, network requests, or writes. The bundle SHA-256 identifies the exact supplied file bytes and does not authenticate their origin. The pilot still requires independently reviewed real source snapshots and authentic as-of provenance; synthetic fixtures do not establish discovery lift.
+
+## Archived v2 assessment linkage
+
+The single-cycle linkage gate now requires exactly one `V2_ASSESSMENTS` source alongside `V1_CYCLE`, `UNIVERSE`, and `ISSUER_MAPPING`. Its archived JSON must contain the matching `runId`, `researchAsOf`, and **exact ordered `candidates` array**, including origin and five-path assessment contents. The source bytes must match their manifest SHA-256. This prevents a researcher from substituting unarchived or changed v2 assessments while retaining a valid v1 archive. Equality and hashes establish internal consistency only; a separate reviewer must still validate the assessments' independent, point-in-time evidentiary basis. Previously prepared three-source pilot bundles must be recaptured under this stronger four-source contract.
