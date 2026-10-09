@@ -66,3 +66,7 @@ The single-cycle linkage gate now requires exactly one `V2_ASSESSMENTS` source a
 ## Path-level incremental discovery breadth
 
 The pilot report also emits `v2PathIncrementalIssuerCounts`: for each v2 path, the number of distinct CIKs selected through that path that **never appeared in any v1 selected research slot across the supplied historical window**. A company qualifying for multiple paths counts once within each path, so these path totals must **not** be summed to claim unique overall discoveries. `v2PathUniqueIssuerCounts` includes all selected issuers, including those also researched by v1. These are descriptive research-coverage metrics only; they are not per-path performance or investment merit.
+
+## External evidence inventory (not authenticity certification)
+
+The portable pilot output now includes `evidenceInventory` with per-batch counts of cycles containing SEC filing bytes, vendor raw bytes, both source kinds, or neither. The `bothExternalKindsPresentEveryCycle` boolean means **only** that each cycle has at least one archived source of each kind; it does not establish complete candidate coverage, source authenticity, contemporaneous availability, independence, correct metrics, or investment outcomes. A valid synthetic pilot may pass internal integrity while reporting zero external evidence; never describe such a pilot as historically verified.
