@@ -48,7 +48,13 @@ export function auditV2VendorScaleArtifacts(
         try {
           const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(sample));
           if (!Array.isArray(parsed) || !parsed.length ||
-              parsed.some(row => !row || typeof row !== "object" || Array.isArray(row)))
+              parsed.some(row => !row || typeof row !== "object" || Array.isArray(row) ||
+                typeof row.symbol !== "string" || !/^[A-Z][A-Z0-9.-]{0,11}$/.test(row.symbol) ||
+                !/^\\d{4}$/.test(String(row.fiscalYear ?? "")) ||
+                !/^Q[1-4]$/.test(String(row.period ?? "")) ||
+                typeof row.date !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(row.date) ||
+                new Date(row.date).toISOString().slice(0, 10) !== row.date ||
+                row.reportedCurrency !== "USD"))
             throw Error("invalid");
         } catch {
           issues.push("SCALE_AUDIT_INVALID_SAMPLE_JSON:" + endpoint);
