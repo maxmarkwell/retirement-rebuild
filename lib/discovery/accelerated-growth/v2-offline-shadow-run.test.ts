@@ -75,3 +75,21 @@ const excessiveTolerance = runV2OfflineShadow({ ...base,
 assert.equal(excessiveTolerance.accepted, false);
 if (!excessiveTolerance.accepted)
   assert.ok(excessiveTolerance.issues.includes("SHADOW_EXCESSIVE_TOLERANCE:MSFT:revenue"));
+
+const missingTolerance = runV2OfflineShadow({ ...base,
+  reconciliationTolerances: {},
+  evidence: [{ ...base.evidence[0], observations: [
+    ...base.evidence[0].observations, vendor,
+  ] }],
+});
+assert.equal(missingTolerance.accepted, false);
+if (!missingTolerance.accepted)
+  assert.ok(missingTolerance.issues.some(x => x.includes("INVALID_TOLERANCE")));
+const nonIndependent = runV2OfflineShadow({ ...base,
+  evidence: [{ ...base.evidence[0], observations: [
+    ...base.evidence[0].observations, { ...vendor, extractionId: "extract-q3" },
+  ] }],
+});
+assert.equal(nonIndependent.accepted, false);
+if (!nonIndependent.accepted)
+  assert.ok(nonIndependent.issues.some(x => x.includes("NOT_INDEPENDENT_EXTRACTION")));
