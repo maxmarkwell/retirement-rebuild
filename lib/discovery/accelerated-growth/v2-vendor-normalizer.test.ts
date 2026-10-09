@@ -52,3 +52,13 @@ assert.ok(normalizeV2VendorQuarters({ ...base, income: [
 assert.ok(normalizeV2VendorQuarters({ ...base, cashFlow: [
   { ...base.cashFlow[0], date: "2026-02-30" },
 ] }).issues.includes("MISSING_OR_INVALID_FISCAL_END:2026-Q2"));
+
+assert.ok(normalizeV2VendorQuarters({ ...base, sourceUrl: "http://example.com/data" })
+  .issues.includes("INVALID_VENDOR_SOURCE_URL"));
+assert.ok(normalizeV2VendorQuarters({ ...base, sourceUrl: "https://user:pass@example.com/data" })
+  .issues.includes("INVALID_VENDOR_SOURCE_URL"));
+assert.ok(normalizeV2VendorQuarters({ ...base, publishedAt: "2026-09-01" })
+  .issues.includes("INVALID_VENDOR_SOURCE_TIMESTAMPS"));
+assert.ok(normalizeV2VendorQuarters({ ...base, retrievedAt: "invalid" })
+  .issues.includes("INVALID_VENDOR_SOURCE_TIMESTAMPS"));
+assert.deepEqual(normalizeV2VendorQuarters({ ...base, publisher: " " }).observations, []);
