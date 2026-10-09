@@ -22,6 +22,8 @@ export type V2SecNormalizationInput = {
   retrievedAt: string;
   sourceUrl: string;
   extractionId: string;
+  /** Explicitly verified mapping from calendar frame to issuer fiscal quarter. */
+  calendarFrameAligned: boolean;
 };
 export type V2SecNormalizationResult = { observations: V2VerifiedObservation[]; issues: string[] };
 
@@ -62,7 +64,7 @@ export function normalizeV2SecCompanyFacts(input: V2SecNormalizationInput): V2Se
         if (fact.accn !== input.accession || fact.end !== input.fiscalEnd ||
             !["10-Q", "10-K", "10-Q/A", "10-K/A"].includes(fact.form) ||
             !fact.start || !Number.isFinite(fact.val) ||
-            !quarterFrameMatches(fact.frame, input.fiscalPeriod)) continue;
+            (fact.frame && (!input.calendarFrameAligned || !quarterFrameMatches(fact.frame, input.fiscalPeriod)))) continue;
         const duration = daySpan(fact.start, fact.end);
         if (!Number.isFinite(duration) || duration < 70 || duration > 110) continue;
         matching.push({ fact, tag });
