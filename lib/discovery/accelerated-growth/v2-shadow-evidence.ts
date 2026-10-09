@@ -44,6 +44,8 @@ export function verifyV2ShadowEvidence(
         unit: obs.unit, allowedKinds: ["FILING", "MARKET_DATA"],
       });
       for (const error of errors) issues.push(symbol + ":" + error);
+      if (obs.source.kind === "FILING" && !/^(https:\/\/)(www\.)?sec\.gov\//.test(obs.source.url))
+        issues.push("SHADOW_EVIDENCE_UNVERIFIED_FILING_HOST:" + symbol + ":" + obs.metric);
       const published = Date.parse(obs.source.publishedAt);
       const retrieved = Date.parse(obs.source.retrievedAt);
       if (Number.isFinite(asOf) && (published > asOf || retrieved > asOf))
