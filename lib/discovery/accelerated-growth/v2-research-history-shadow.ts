@@ -26,9 +26,10 @@ const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 function validTimestamp(value: string): boolean {
   if (!TIMESTAMP.test(value)) return false;
   const parsed = Date.parse(value);
+  const canonical = value.replace(/\.(\d{1,3})Z$/, (_, ms: string) =>
+    "." + ms.padEnd(3, "0") + "Z").replace(/\.000Z$/, "Z");
   return Number.isFinite(parsed) &&
-    new Date(parsed).toISOString().replace(/\.000Z$/, "Z") ===
-      value.replace(/\.000Z$/, "Z");
+    new Date(parsed).toISOString().replace(/\.000Z$/, "Z") === canonical;
 }
 export function compareV2ResearchHistory(
   request: V2ResearchHistoryRequest,
