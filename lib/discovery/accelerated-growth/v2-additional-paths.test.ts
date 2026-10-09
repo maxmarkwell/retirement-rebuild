@@ -33,6 +33,10 @@ const c = assessV2Catalyst(catalyst);
 assert.equal(c.status, "QUALIFIED");
 assert.equal(assessV2Catalyst({ ...catalyst, eventDate: "2026-09-01" }).status, "INSUFFICIENT_DATA");
 assert.equal(assessV2Catalyst({ ...catalyst, independentlyCorroborated: false }).status, "INSUFFICIENT_DATA");
+for (const eventDate of ["2026-02-30", "2026-13-01", "2026-12-01T00:00:00Z", "2026-10-08"]) {
+  assert.equal(assessV2Catalyst({ ...catalyst, eventDate }).status, "INSUFFICIENT_DATA");
+}
+assert.equal(assessV2Catalyst({ ...catalyst, assessmentDate: "2026-02-30" }).status, "INSUFFICIENT_DATA");
 assert.equal(assessV2ResearchGate(c, null, []).eligible, false);
 
 const survival = { version: "ag-survival-v2" as const, status: "SUPPORTED" as const,
