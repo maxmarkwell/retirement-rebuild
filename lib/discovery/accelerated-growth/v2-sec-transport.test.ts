@@ -22,6 +22,7 @@ const base = {
   userAgent: "Retirement Rebuild research contact@example.org",
   calendarFrameAligned: true,
 };
+async function run(): Promise<void> {
 let calls = 0;
 const fetcher: typeof fetch = async (url, init) => {
   calls++;
@@ -69,3 +70,6 @@ const notAligned = await retrieveV2SecCompanyFacts({
   ...base, calendarFrameAligned: false, fetcher,
 });
 assert.equal(notAligned.ok, false, "Unverified fiscal-calendar alignment must fail closed");
+
+}
+void run().catch(error => { console.error(error); process.exitCode = 1; });
