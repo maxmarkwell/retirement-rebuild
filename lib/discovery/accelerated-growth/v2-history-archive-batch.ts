@@ -23,7 +23,7 @@ export function verifyV2HistoricalArchiveBatch(
   archives: readonly V2HistoricalCycleArchive[],
 ): V2HistoricalBatchResult {
   const issues: string[] = [];
-  if (!archives.length || archives.length > 100)
+  if (!Array.isArray(archives) || !archives.length || archives.length > 100)
     return { accepted: false, issues: ["BATCH_INVALID_COUNT"] };
   const cycles: V2IdentityHistoryRequest["cycles"][number][] = [];
   let previousCutoff = -Infinity;
@@ -32,14 +32,30 @@ export function verifyV2HistoricalArchiveBatch(
   const seenDigests = new Set<string>();
   for (const [index, archive] of archives.entries()) {
     const prefix = "BATCH_" + index + ":";
-    const cycle = archive.envelope.history.cycles[0];
-    if (archive.envelope.history.cycles.length !== 1 || !cycle) {
+    const envelope = archive?.envelope;
+    const history = envelope?.history;
+    if (!history || !Array.isArray(history.cycles) ||
+        !Array.isArray(history.issuerIdentitiesByCycle) ||
+        history.issuerIdentitiesByCycle.length !== 1 ||
+        !Array.isArray(history.issuerIdentitiesByCycle[0]) ||
+        typeof archive.manifestUtf8 !== "string" ||
+        !Array.isArray(archive.payloads)) {
+      issues.push(prefix + "INVALID_ARCHIVE_SHAPE");
+      continue;
+    }
+    const cycle = history.cycles[0];
+    if (history.cycles.length !== 1 || !cycle || typeof cycle !== "object") {
       issues.push(prefix + "REQUIRES_SINGLE_CYCLE_ENVELOPE");
       continue;
     }
-    const result = verifyV2HistoricalCycleLinkage(
-      archive.envelope, archive.manifestUtf8, archive.payloads);
-    if (!result.accepted) issues.push(...result.issues.map(issue => prefix + issue));
+    try {
+      const result = verifyV2HistoricalCycleLinkage(
+        envelope, archive.manifestUtf8, archive.payloads);
+      if (!result.accepted) issues.push(...result.issues.map(issue => prefix + issue));
+    } catch {
+      issues.push(prefix + "INVALID_NESTED_ARCHIVE_DATA");
+      continue;
+    }
     const cutoff = Date.parse(cycle.researchAsOf);
     if (Number.isFinite(cutoff) && cutoff <= previousCutoff)
       issues.push(prefix + "NONMONOTONIC_ASOF");
