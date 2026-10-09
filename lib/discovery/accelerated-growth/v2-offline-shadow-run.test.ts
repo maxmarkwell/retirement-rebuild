@@ -5,6 +5,7 @@ const base = {
   v1SnapshotId: "v1:cycle-1", v2SnapshotId: "v2:cycle-1",
   v1Manifest: { version: "v1" as const, snapshotId: "v1:cycle-1", capturedAt: "2026-10-08T20:00:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z", pipelineVersion: "ag-v1", fiscalPeriod: "2026-Q3" },
   v2Manifest: { version: "v2" as const, snapshotId: "v2:cycle-1", pipelineVersion: "ag-v2", fiscalPeriod: "2026-Q3", capturedAt: "2026-10-08T20:15:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z" },
+  reconciliationTolerances: { revenue: 0.5 },
   evidence: [{ symbol: "MSFT", issuerId: "CIK-0000000001", fiscalPeriod: "2026-Q3", observations: [{
     metric: "revenue", value: 100, unit: "USD" as const, fiscalPeriod: "2026-Q3",
     issuerId: "CIK-0000000001", documentId: "sec-q3", extractionId: "extract-q3",
@@ -48,3 +49,19 @@ const lookahead = runV2OfflineShadow({ ...base, evidence: [{
 }] });
 assert.equal(lookahead.accepted, false);
 if (!lookahead.accepted) assert.ok(lookahead.issues.includes("SHADOW_EVIDENCE_LOOKAHEAD:MSFT:revenue"));
+
+const vendor = { ...base.evidence[0].observations[0], value: 100.1,
+  documentId: "vendor-q3", extractionId: "extract-vendor-q3",
+  source: { ...base.evidence[0].observations[0].source,
+    kind: "MARKET_DATA" as const, publisher: "Vendor",
+    url: "https://example.org/financials" } };
+const corroborated = runV2OfflineShadow({ ...base, evidence: [{
+  ...base.evidence[0], observations: [...base.evidence[0].observations, vendor],
+}] });
+assert.equal(corroborated.accepted, true);
+const disagreement = runV2OfflineShadow({ ...base, evidence: [{
+  ...base.evidence[0], observations: [...base.evidence[0].observations,
+    { ...vendor, value: 120 }],
+}] });
+assert.equal(disagreement.accepted, false);
+if (!disagreement.accepted) assert.ok(disagreement.issues.some(x => x.includes("VALUE_DISAGREEMENT")));
