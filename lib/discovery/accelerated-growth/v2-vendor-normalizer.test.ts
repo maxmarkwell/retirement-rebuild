@@ -1,3 +1,4 @@
+import { verifyV2Observation } from "./v2-data-lineage";
 import { strict as assert } from "node:assert";
 import { normalizeV2VendorQuarters } from "./v2-vendor-normalizer";
 const base = {
@@ -25,3 +26,10 @@ assert.ok(normalizeV2VendorQuarters({ ...base,
   cashFlow: [{ ...base.cashFlow[0], freeCashFlow: undefined }] }).issues.some(x => x.startsWith("MISSING_OR_INVALID_METRIC")));
 assert.ok(normalizeV2VendorQuarters({ ...base,
   income: [{ ...base.income[0], fiscalYear: undefined }] }).issues.some(x => x.startsWith("INVALID_FISCAL_QUARTER")));
+
+assert.equal(ok.observations[0].source.kind, "MARKET_DATA");
+assert.ok(verifyV2Observation(ok.observations[0], {
+  metric: ok.observations[0].metric, fiscalPeriod: "2026-Q2",
+  issuerId: "CIK-1", unit: "USD", allowedKinds: ["FILING"],
+}).includes("LINEAGE_SOURCE_KIND_DISALLOWED"),
+  "Vendor data cannot masquerade as authenticated primary filing evidence");
