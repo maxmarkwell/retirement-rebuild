@@ -55,9 +55,10 @@ export function verifyV2ArchivedSources(
       payloads.length > 2000)
     return { accepted: false, issues: [...issues, "ARCHIVE_INVALID_MANIFEST"], verifiedSources: 0 };
   const asOf = time(manifest.researchAsOf);
-  if (asOf === null || envelope.history.cycles.some(c =>
-    Date.parse(c.researchAsOf) !== asOf))
+  if (asOf === null || Date.parse(envelope.history.cycles[0]?.researchAsOf ?? "") !== asOf)
     issues.push("ARCHIVE_ASOF_MISMATCH");
+  // A shared archive is conservatively limited to evidence available at the first cycle.
+  // Later-cycle evidence requires a separately captured archive, not this contract.
   const seen = new Set<string>();
   const byId = new Map<string, string>();
   for (const payload of payloads) {
