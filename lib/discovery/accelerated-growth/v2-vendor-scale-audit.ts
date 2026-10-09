@@ -54,7 +54,10 @@ export function auditV2VendorScaleArtifacts(
                 !/^Q[1-4]$/.test(String(row.period ?? "")) ||
                 typeof row.date !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(row.date) ||
                 new Date(row.date).toISOString().slice(0, 10) !== row.date ||
-                row.reportedCurrency !== "USD"))
+                row.reportedCurrency !== "USD" ||
+                (endpoint === "income-statement" &&
+                  (!Number.isFinite(row.revenue) || !Number.isFinite(row.operatingIncome))) ||
+                (endpoint === "cash-flow-statement" && !Number.isFinite(row.freeCashFlow))))
             throw Error("invalid");
         } catch {
           issues.push("SCALE_AUDIT_INVALID_SAMPLE_JSON:" + endpoint);
