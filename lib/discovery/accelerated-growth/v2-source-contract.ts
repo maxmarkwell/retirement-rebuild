@@ -9,6 +9,9 @@ export type AgV2Source = {
   metric: string;
   /** Stable underlying document/dataset identity, not merely a URL. */
   documentId?: string;
+  issuerId?: string;
+  unit?: "USD" | "USD_MILLIONS" | "PERCENT" | "COUNT" | "BOOLEAN" | "EPOCH_DAY";
+  extractionId?: string;
   kind: "FILING" | "MARKET_DATA" | "INDEPENDENT_ANALYSIS";
 };
 export type AgV2SourcedNumber = {
