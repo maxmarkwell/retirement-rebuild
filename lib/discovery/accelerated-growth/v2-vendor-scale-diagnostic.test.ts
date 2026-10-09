@@ -25,3 +25,17 @@ assert.ok(check([a, { ...b, issuerId: "CIK-1" }])
   .issues.includes("SCALE_INSUFFICIENT_ISSUER_COVERAGE"));
 assert.ok(check([a, { ...b, fiscalPeriod: "2026-Q1" }])
   .issues.includes("SCALE_INSUFFICIENT_PERIOD_COVERAGE"));
+
+assert.equal(check([
+  { ...a, filingUsd: -100_000_000, vendorAmount: -100_000_000 },
+  { ...b, filingUsd: -110_000_000, vendorAmount: -110_000_000 },
+]).candidateScale, 1);
+assert.ok(check([{ ...a, vendorAmount: -100_000_000 }, b])
+  .issues.some(x => x.startsWith("SCALE_NO_MATCH:")));
+assert.equal(check([{ ...a, vendorAmount: 99_500_000 }, b]).candidateScale, 1);
+assert.ok(check([{ ...a, vendorAmount: 98_000_000 }, b])
+  .issues.some(x => x.startsWith("SCALE_NO_MATCH:")));
+assert.ok(check([{ ...a, filingUsd: Number.NaN }, b])
+  .issues.some(x => x.startsWith("SCALE_UNCOMPARABLE_VALUES:")));
+assert.ok(check([{ ...a, fiscalPeriod: "FY" }, b])
+  .issues.some(x => x.startsWith("SCALE_INVALID_PAIR:")));
