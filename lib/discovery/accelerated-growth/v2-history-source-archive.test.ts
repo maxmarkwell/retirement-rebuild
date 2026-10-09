@@ -58,7 +58,7 @@ rejects({ ...manifest, sources: sources.map((s, i) => i === 0 ?
   { ...s, publishedAt: "2026-08-04T00:00:00Z" } : s) },
   payloads, "ARCHIVE_LOOKAHEAD_OR_INVALID_TIME");
 rejects({ ...manifest, sources: sources.map((s, i) => i === 0 ?
-  { ...s, sourceUrl: "https://example.org.evil.test/" } : s) },
+  { ...s, sourceUrl: "https://user:password@example.org/" } : s) },
   payloads, "ARCHIVE_INVALID_SOURCE" );
 rejects({ ...manifest, researchAsOf: "2026-08-03T12:00:00Z" },
   payloads, "ARCHIVE_ASOF_MISMATCH");
