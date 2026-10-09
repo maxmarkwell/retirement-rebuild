@@ -96,6 +96,8 @@ if (pilot.accepted) {
   assert.equal(pilot.totalOverlapSlots, 2);
   assert.equal(pilot.sameCycleFirstSeenIssuers, 1);
   assert.equal(pilot.firstSeenV2BeforeV1Issuers, 0);
+  assert.deepEqual(pilot.v2FirstLeadDays, []);
+  assert.deepEqual(pilot.v1FirstLeadDays, []);
   assert.equal(pilot.firstSeenV1BeforeV2Issuers, 0);
   assert.deepEqual(pilot.cycles[0].firstSeenV1IssuerIds, ["CIK-123"]);
   assert.deepEqual(pilot.cycles[1].firstSeenV1IssuerIds, []);
@@ -309,6 +311,8 @@ assert.equal(earlyV2.accepted, true);
 if (earlyV2.accepted) {
   assert.equal(earlyV2.uniqueIncrementalIssuers, 0);
   assert.equal(earlyV2.firstSeenV2BeforeV1Issuers, 1);
+  assert.deepEqual(earlyV2.v2FirstLeadDays, [1]);
+  assert.deepEqual(earlyV2.v1FirstLeadDays, []);
   assert.equal(earlyV2.firstSeenV1BeforeV2Issuers, 0);
   assert.equal(earlyV2.cyclesWithV2OnlySelections, 1);
   assert.equal(earlyV2.cyclesWithGloballyIncrementalIssuers, 0);
