@@ -11,7 +11,7 @@ export type V2PilotEvidenceReadiness =
   | { accepted: true; cycleCount: number; cyclesWithSecFilings: number;
       cyclesWithVendorRaw: number; cyclesWithBothExternalKinds: number;
       cyclesWithoutExternalEvidence: number; totalSecFilingSources: number;
-      totalVendorRawSources: number; externalEvidenceComplete: boolean };
+      totalVendorRawSources: number; bothExternalKindsPresentEveryCycle: boolean };
 
 export function inspectV2PilotEvidenceReadiness(
   archives: readonly V2HistoricalCycleArchive[],
@@ -40,6 +40,6 @@ export function inspectV2PilotEvidenceReadiness(
     cyclesWithSecFilings, cyclesWithVendorRaw,
     cyclesWithBothExternalKinds, cyclesWithoutExternalEvidence,
     totalSecFilingSources, totalVendorRawSources,
-    externalEvidenceComplete: cyclesWithBothExternalKinds === result.cycleCount,
+    bothExternalKindsPresentEveryCycle: cyclesWithBothExternalKinds === result.cycleCount,
   };
 }
