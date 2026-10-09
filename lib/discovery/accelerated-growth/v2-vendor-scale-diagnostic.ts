@@ -26,6 +26,8 @@ export function diagnoseV2VendorMonetaryScale(
   if (pairs.length < 2 || pairs.length > 500)
     issues.push("SCALE_INSUFFICIENT_COMPARISONS");
   const keys = new Set<string>();
+  const issuers = new Set<string>();
+  const periods = new Set<string>();
   const candidates = [1, 1000, 1000000] as const;
   let common: (typeof candidates)[number][] = [...candidates];
   for (const pair of pairs) {
@@ -33,6 +35,8 @@ export function diagnoseV2VendorMonetaryScale(
     if (!pair.issuerId.trim() || !/^\d{4}-Q[1-4]$/.test(pair.fiscalPeriod) ||
         !pair.metric.trim() || keys.has(key)) issues.push("SCALE_INVALID_PAIR:" + key);
     keys.add(key);
+    issuers.add(pair.issuerId);
+    periods.add(pair.fiscalPeriod);
     if (!Number.isFinite(pair.filingUsd) || !Number.isFinite(pair.vendorAmount) ||
         pair.filingUsd === 0 || pair.vendorAmount === 0) {
       issues.push("SCALE_UNCOMPARABLE_VALUES:" + key);
@@ -44,6 +48,8 @@ export function diagnoseV2VendorMonetaryScale(
     if (!matches.length) issues.push("SCALE_NO_MATCH:" + key);
     common = common.filter(scale => matches.includes(scale));
   }
+  if (issuers.size < 2) issues.push("SCALE_INSUFFICIENT_ISSUER_COVERAGE");
+  if (periods.size < 2) issues.push("SCALE_INSUFFICIENT_PERIOD_COVERAGE");
   if (!common.length) issues.push("SCALE_INCONSISTENT_ACROSS_PAIRS");
   if (common.length > 1) issues.push("SCALE_AMBIGUOUS");
   return {
