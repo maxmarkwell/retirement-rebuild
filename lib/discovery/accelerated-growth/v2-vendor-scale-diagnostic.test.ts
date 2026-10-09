@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { diagnoseV2VendorMonetaryScale } from "./v2-vendor-scale-diagnostic";
 const a = { issuerId: "CIK-1", fiscalPeriod: "2026-Q1", metric: "revenue",
   filingUsd: 100_000_000, vendorAmount: 100_000_000 };
-const b = { ...a, fiscalPeriod: "2026-Q2", filingUsd: 110_000_000,
+const b = { ...a, issuerId: "CIK-2", fiscalPeriod: "2026-Q2", filingUsd: 110_000_000,
   vendorAmount: 110_000_000 };
 const check = (rows = [a, b], tolerance?: number) =>
   diagnoseV2VendorMonetaryScale(rows, tolerance);
@@ -20,3 +20,8 @@ assert.ok(check([{ ...a, vendorAmount: 0 }, b])
 assert.ok(check([a, { ...b, vendorAmount: 3 }])
   .issues.some(x => x.startsWith("SCALE_NO_MATCH:")));
 assert.ok(check([a, b], 0.2).issues.includes("SCALE_INVALID_TOLERANCE"));
+
+assert.ok(check([a, { ...b, issuerId: "CIK-1" }])
+  .issues.includes("SCALE_INSUFFICIENT_ISSUER_COVERAGE"));
+assert.ok(check([a, { ...b, fiscalPeriod: "2026-Q1" }])
+  .issues.includes("SCALE_INSUFFICIENT_PERIOD_COVERAGE"));
