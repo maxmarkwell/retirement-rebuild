@@ -74,3 +74,7 @@ The portable pilot output now includes `evidenceInventory` with per-batch counts
 ## Chronological first-seen comparison
 
 The pilot report additionally tracks first-selected CIKs in each cycle (`firstSeenV1IssuerIds`, `firstSeenV2IssuerIds`) and counts issuers selected by v2 before v1, by v1 before v2, or first selected by both in the same cycle. These first-seen comparisons use the supplied, strictly increasing `researchAsOf` order and are distinct from **retrospective** `uniqueIncrementalIssuers` (never selected by v1 anywhere in the whole period). First-seen does not imply true market discovery, economic merit, or contemporaneous evidence authenticity.
+
+## Pilot metric naming and interpretation
+
+`totalV2OnlyIssuerSlots` and `cyclesWithV2OnlySelections` measure **within-cycle** research substitutions; the same issuer may appear in v1 on another date. `cyclesWithGloballyIncrementalIssuers` counts cycles with a v2-only selected issuer that v1 **never** selected in any supplied cycle. `uniqueIncrementalIssuers` counts distinct such CIKs over the entire window. None of these measures prove market-beating performance, and research selection should not be conflated with Committee BUY decisions or execution.
