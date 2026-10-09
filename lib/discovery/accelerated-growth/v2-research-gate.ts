@@ -17,6 +17,7 @@ export function assessV2ResearchGate(
   survival: SurvivalAssessment | null,
   sources: readonly { name: string; evidence: AgV2SourcedNumber; allowed: readonly AgV2Source["kind"][]; expectedPeriod: string }[],
   requirements: readonly V2EvidenceRequirement[] = [],
+  options: { requireLineage?: boolean } = {},
 ): V2ResearchGateResult {
   const reasons: string[] = [];
   if (opportunity.status !== "QUALIFIED") reasons.push("OPPORTUNITY_" + opportunity.status);
@@ -47,7 +48,7 @@ export function assessV2ResearchGate(
     if (!source.expectedPeriod.trim() || source.evidence.source?.fiscalPeriod !== source.expectedPeriod) errors.push("PERIOD_MISMATCH");
     for (const error of errors) reasons.push(source.name + ":" + error);
   }
-  const auditErrors = auditV2Evidence(opportunity, survival, sources, requirements);
+  const auditErrors = auditV2Evidence(opportunity, survival, sources, requirements, options.requireLineage === true);
   if (reasons.some(reason => reason.startsWith("UNEXPECTED_SOURCE_METRIC:") || reason.startsWith("SOURCE_KIND_POLICY_MISMATCH:")))
     auditErrors.push("SOURCE_POLICY_VIOLATION");
   reasons.push(...auditErrors);
