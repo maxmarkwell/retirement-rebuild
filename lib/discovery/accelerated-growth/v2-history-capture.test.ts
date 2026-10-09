@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { verifyV2HistoryCapture, type V2HistoryCaptureEnvelope } from "./v2-history-capture";
+import { compareV2HistoryCaptureReplay } from "./v2-history-capture-replay";
 const assessment = {
   version: "ag-opportunity-v2" as const, path: "CATALYST" as const,
   status: "QUALIFIED" as const, evidenceCoverage: 90, evidenceStrength: null,
@@ -55,3 +56,26 @@ rejects({ ...base, history: { ...base.history, cycles: [{
   ...cycle, candidates: [{ ...cycle.candidates[0],
     assessments: [{ ...assessment, evidenceCoverage: Number.NaN }] }],
 }] } }, "HISTORY_CYCLE_0:RESEARCH_INVALID_ASSESSMENT:AAA");
+
+const replaySame = compareV2HistoryCaptureReplay(base, {
+  ...base, history: { ...base.history, cycles: [...base.history.cycles] },
+});
+assert.equal(replaySame.accepted, true);
+if (replaySame.accepted) {
+  assert.equal(replaySame.reproducible, true);
+  assert.deepEqual(replaySame.changed, []);
+}
+const replayDifferent = compareV2HistoryCaptureReplay(base, {
+  ...base, sourceManifestSha256: "c".repeat(64),
+});
+assert.equal(replayDifferent.accepted, true);
+if (replayDifferent.accepted) {
+  assert.equal(replayDifferent.reproducible, false);
+  assert.deepEqual(replayDifferent.changed, ["SOURCE_MANIFEST"]);
+}
+const replayInvalid = compareV2HistoryCaptureReplay(base, {
+  ...base, sourceRevision: "invalid",
+});
+assert.equal(replayInvalid.accepted, false);
+if (!replayInvalid.accepted)
+  assert.ok(replayInvalid.issues.includes("REPLAY:CAPTURE_INVALID_REVISION"));
