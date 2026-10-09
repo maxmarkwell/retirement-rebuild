@@ -27,6 +27,7 @@ export function auditV2Evidence(
   survival: SurvivalAssessment | null,
   records: readonly V2EvidenceRecord[],
   requirements: readonly V2EvidenceRequirement[],
+  requireLineage = false,
 ): string[] {
   const errors: string[] = [];
   const policy = V2_PATH_SOURCE_POLICY[opportunity.path];
@@ -40,6 +41,8 @@ export function auditV2Evidence(
     if (requirements.filter(x => x.metric === requirement.metric).length !== 1) errors.push("DUPLICATE_REQUIREMENT:" + requirement.metric);
     if (!Number.isFinite(requirement.absoluteTolerance) || requirement.absoluteTolerance < 0) errors.push("INVALID_TOLERANCE:" + requirement.metric);
     if (requirement.expectedValue == null || !Number.isFinite(requirement.expectedValue)) errors.push("UNVERIFIED_EXPECTED_VALUE:" + requirement.metric);
+    if (requireLineage && (!requirement.observation || !requirement.lineageExpectation))
+      errors.push("LINEAGE_REQUIRED:" + requirement.metric);
     if (requirement.observation || requirement.lineageExpectation) {
       if (!requirement.observation || !requirement.lineageExpectation)
         errors.push("LINEAGE_INCOMPLETE:" + requirement.metric);
