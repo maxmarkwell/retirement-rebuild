@@ -46,3 +46,15 @@ the entire comparison. It remains a caller-supplied metadata and lineage
 check: source authenticity, fiscal-calendar interpretation and independent
 reconciliation of values require separate verification. No network or
 production integration is enabled.
+
+## Filing/vendor reconciliation
+
+The offline request includes `reconciliationTolerances`, keyed by metric in
+the metric's normalized unit. Whenever vendor observations are supplied,
+the preflight requires corresponding filing observations and runs the existing
+issuer/period/unit/value and independent-extraction reconciliation checks.
+Missing, invalid or exceeded tolerances reject the run. Filing-only evidence
+remains valid for paths that do not require vendor corroboration; this layer
+does not yet enforce path-specific source requirements or authenticate the
+documents. Tolerances are caller supplied and must be approved by the
+research policy before relying on comparison outcomes.
