@@ -1,4 +1,6 @@
 import { strict as assert } from "node:assert";
+import { createHash } from "node:crypto";
+import { verifyV2HistorySourceManifest } from "./v2-history-manifest-verifier";
 import { verifyV2HistoryCapture, type V2HistoryCaptureEnvelope } from "./v2-history-capture";
 import { compareV2HistoryCaptureReplay } from "./v2-history-capture-replay";
 const assessment = {
@@ -79,3 +81,14 @@ const replayInvalid = compareV2HistoryCaptureReplay(base, {
 assert.equal(replayInvalid.accepted, false);
 if (!replayInvalid.accepted)
   assert.ok(replayInvalid.issues.includes("REPLAY:CAPTURE_INVALID_REVISION"));
+
+const manifest = '{"documents":["sec-filing","vendor-sample"],"reviewed":false}';
+const manifestEnvelope = { ...base, sourceManifestSha256:
+  createHash("sha256").update(manifest, "utf8").digest("hex") };
+assert.equal(verifyV2HistorySourceManifest(manifestEnvelope, manifest).accepted, true);
+assert.ok(verifyV2HistorySourceManifest(manifestEnvelope, manifest + " ").issues
+  .includes("MANIFEST_DIGEST_MISMATCH"));
+assert.ok(verifyV2HistorySourceManifest(manifestEnvelope, "").issues
+  .includes("MANIFEST_INVALID_BYTES"));
+assert.ok(verifyV2HistorySourceManifest(manifestEnvelope, "x".repeat(1048577)).issues
+  .includes("MANIFEST_INVALID_BYTES"));
