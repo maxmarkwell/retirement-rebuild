@@ -58,15 +58,6 @@ export function verifyV2HistoricalArchiveBatch(
     issuerIdentitiesByCycle: identities,
   });
   if (!history.accepted) return { accepted: false, issues: history.issues };
-  const byPath = new Map<string, Set<string>>();
-  for (const [index, cycle] of history.comparison.cycles.entries()) {
-    const issuerBySymbol = new Map(identities[index].map(x => [
-      x.symbol.trim().toUpperCase(), x.issuerId]));
-    for (const selected of cycle.v2Selected) for (const path of selected.paths) {
-      if (!byPath.has(path)) byPath.set(path, new Set());
-      byPath.get(path)!.add(issuerBySymbol.get(selected.symbol)!);
-    }
-  }
   return {
     accepted: true, cycleCount: history.comparison.cycleCount,
     uniqueV1Issuers: history.uniqueV1Issuers,
@@ -74,7 +65,6 @@ export function verifyV2HistoricalArchiveBatch(
     totalV2Slots: history.comparison.totalV2Slots,
     totalV2NewDiscoverySlots: history.comparison.totalV2NewDiscoverySlots,
     totalV2WatchSlots: history.comparison.totalV2WatchSlots,
-    v2PathUniqueIssuerCounts: Object.fromEntries(
-      [...byPath.entries()].map(([path, issuers]) => [path, issuers.size])),
+    v2PathUniqueIssuerCounts: history.v2PathUniqueIssuerCounts,
   };
 }
