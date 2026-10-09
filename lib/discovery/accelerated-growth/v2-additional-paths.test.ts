@@ -17,7 +17,12 @@ const emerging = { commercialRevenue: 150, priorCommercialRevenue: 100,
   repeatableUnitEconomicsVerified: true, consecutiveFiscalPeriodsVerified: true };
 const e = assessV2EmergingOpportunity(emerging);
 assert.equal(e.status, "QUALIFIED");
-assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCommercialRevenue: 0 }).status, "INSUFFICIENT_DATA");
+assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCommercialRevenue: 0 }).status, "WATCH");
+assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCustomerCount: 0 }).status, "WATCH");
+assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCommercialRevenue: 0, commercialRevenue: 0 }).status, "NOT_QUALIFIED");
+assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCommercialRevenue: null }).status, "INSUFFICIENT_DATA");
+assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCustomerCount: null }).status, "INSUFFICIENT_DATA");
+assert.equal(assessV2EmergingOpportunity({ ...emerging, priorCustomerCount: 0, customerCount: 0 }).status, "NOT_QUALIFIED");
 assert.equal(assessV2EmergingOpportunity({ ...emerging, repeatableUnitEconomicsVerified: false }).status, "INSUFFICIENT_DATA");
 assert.equal(assessV2ResearchGate(e, null, []).eligible, false);
 
