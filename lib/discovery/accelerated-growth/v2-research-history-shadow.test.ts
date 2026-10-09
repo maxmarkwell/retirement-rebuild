@@ -56,3 +56,9 @@ rejected([{ ...first, capturedAt: "not-a-date" }], "INVALID_TIMESTAMP");
 rejected([{ ...first, v1SelectedSymbols: ["MISSING"] }], "SLOT_SHADOW_MISSING_V1_CANDIDATE");
 rejected([{ ...first, pipelineVersion: "ag-opportunity-v1" as typeof first.pipelineVersion }],
   "SLOT_SHADOW_INVALID_VERSION");
+
+const milliseconds = compareV2ResearchHistory({
+  ...base, cycles: [{ ...first, capturedAt: "2026-08-03T12:00:00.1Z",
+    researchAsOf: "2026-08-02T12:00:00.12Z" }],
+});
+assert.equal(milliseconds.accepted, true);
