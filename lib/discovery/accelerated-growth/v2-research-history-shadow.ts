@@ -20,6 +20,8 @@ export type V2ResearchHistoryResult =
       totalV1WatchSlots: number; totalV2WatchSlots: number;
       totalV2NewDiscoverySlots: number;
       uniqueV1Symbols: number; uniqueV2Symbols: number;
+      v2PathSlotCounts: Record<string, number>;
+      cyclesWithNewDiscovery: number; cyclesWithWatchReassessment: number;
       cycles: Extract<V2ResearchSlotShadowResult, { accepted: true }>[] };
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
@@ -75,6 +77,13 @@ export function compareV2ResearchHistory(
     totalV2NewDiscoverySlots: sum(c => c.v2NewDiscoveryCount),
     uniqueV1Symbols: new Set(accepted.flatMap(c => c.v1SelectedSymbols)).size,
     uniqueV2Symbols: new Set(accepted.flatMap(c => c.v2Selected.map(x => x.symbol))).size,
+    v2PathSlotCounts: accepted.flatMap(c => c.v2Selected).reduce<Record<string, number>>(
+      (counts, candidate) => {
+        for (const path of candidate.paths) counts[path] = (counts[path] ?? 0) + 1;
+        return counts;
+      }, {}),
+    cyclesWithNewDiscovery: accepted.filter(c => c.v2NewDiscoveryCount > 0).length,
+    cyclesWithWatchReassessment: accepted.filter(c => c.v2WatchCount > 0).length,
     cycles: accepted,
   };
 }
