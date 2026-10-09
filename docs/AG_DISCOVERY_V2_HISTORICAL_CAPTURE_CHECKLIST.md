@@ -78,3 +78,7 @@ The pilot report additionally tracks first-selected CIKs in each cycle (`firstSe
 ## Pilot metric naming and interpretation
 
 `totalV2OnlyIssuerSlots` and `cyclesWithV2OnlySelections` measure **within-cycle** research substitutions; the same issuer may appear in v1 on another date. `cyclesWithGloballyIncrementalIssuers` counts cycles with a v2-only selected issuer that v1 **never** selected in any supplied cycle. `uniqueIncrementalIssuers` counts distinct such CIKs over the entire window. None of these measures prove market-beating performance, and research selection should not be conflated with Committee BUY decisions or execution.
+
+## Lead-time interpretation
+
+For issuers eventually researched by **both** pipelines, `v2FirstLeadDays` and `v1FirstLeadDays` are sorted elapsed calendar-day gaps between their first respective `researchAsOf` selections. These arrays exclude same-cycle first selections and issuers never selected by the other pipeline. They measure research timing, not predictive returns or investable lead time. Interpret with actual cadence, source cutoff integrity, and changing issuer identifiers in mind.
