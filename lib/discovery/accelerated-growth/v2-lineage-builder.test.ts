@@ -27,7 +27,8 @@ const records = observations.map(x => ({
   name: x.metric, expectedPeriod: x.fiscalPeriod, allowed: policy[x.metric],
   evidence: { value: x.value, calculationMethod: "Independently computed",
     source: { ...x.source, url: "https://research.example.org/" + x.metric,
-      documentId: "research-document-" + x.metric } },
+      documentId: "research-document-" + x.metric,
+      issuerId, unit: x.unit, extractionId: "candidate-research-extractor-v1" } },
 }));
 const opportunity: V2PathAssessment = {
   version: "ag-opportunity-v2", path, status: "QUALIFIED",
@@ -73,3 +74,22 @@ assert.equal(assessV2ResearchGate(opportunity, survival, [
   ...records.slice(1),
 ], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
   "Strict mode requires candidate document identity");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence,
+    source: { ...records[0].evidence.source!, issuerId: "WRONG-ISSUER" } } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Candidate issuer must match normalized observation");
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence,
+    source: { ...records[0].evidence.source!, unit: "USD" } } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Candidate unit must match normalized observation");
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence,
+    source: { ...records[0].evidence.source!, extractionId: undefined } } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Candidate extraction identity must be present");
