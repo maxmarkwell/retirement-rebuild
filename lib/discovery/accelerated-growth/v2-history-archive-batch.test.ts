@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { buildV2HistoricalPilotReport } from "./v2-history-pilot-report";
+import { evaluateV2HistoricalPilotBundle } from "./v2-history-pilot-bundle";
 import { createHash } from "node:crypto";
 import { verifyV2HistoricalArchiveBatch, type V2HistoricalCycleArchive } from "./v2-history-archive-batch";
 import type { V2ArchivedSource } from "./v2-history-source-archive";
@@ -159,3 +160,37 @@ if (novelPilot.accepted) {
   assert.deepEqual(novelPilot.cycles[1].incrementalIssuerIds, ["CIK-456"]);
   assert.deepEqual(novelPilot.v2PathUniqueIssuerCounts, { CATALYST: 2 });
 }
+
+const bundleBytes = JSON.stringify({
+  schemaVersion: "ag-history-pilot-bundle-v1",
+  archives: [first, addNovelIssuer(second)],
+});
+const bundle = evaluateV2HistoricalPilotBundle(bundleBytes);
+assert.equal(bundle.accepted, true);
+if (bundle.accepted) {
+  assert.equal(bundle.bundleSha256, hash(bundleBytes));
+  assert.equal(bundle.report.uniqueIncrementalIssuers, 1);
+  assert.equal(bundle.report.cycleCount, 2);
+}
+assert.deepEqual(evaluateV2HistoricalPilotBundle("not json"), {
+  accepted: false, issues: ["PILOT_BUNDLE_INVALID_JSON"],
+});
+assert.deepEqual(evaluateV2HistoricalPilotBundle(JSON.stringify({
+  schemaVersion: "ag-history-pilot-bundle-v1", archives: [],
+})), { accepted: false, issues: ["PILOT_BUNDLE_INVALID_SCHEMA"] });
+assert.deepEqual(evaluateV2HistoricalPilotBundle(JSON.stringify({
+  schemaVersion: "ag-history-pilot-bundle-v1",
+  archives: [{ envelope: {}, manifestUtf8: "{}", payloads: [] }],
+})), { accepted: false, issues: ["PILOT_BUNDLE_INVALID_ARCHIVE:0"] });
+assert.equal(evaluateV2HistoricalPilotBundle(JSON.stringify({
+  schemaVersion: "ag-history-pilot-bundle-v1",
+  archives: [first, { ...second, envelope: {
+    ...second.envelope, history: { ...second.envelope.history,
+      cycles: [{ ...second.envelope.history.cycles[0], candidates: [null] }],
+    },
+  } }],
+})).accepted, false);
+assert.equal(evaluateV2HistoricalPilotBundle(JSON.stringify({
+  schemaVersion: "ag-history-pilot-bundle-v1", archives: [first],
+  unreviewedMetadata: true,
+})).accepted, false);
