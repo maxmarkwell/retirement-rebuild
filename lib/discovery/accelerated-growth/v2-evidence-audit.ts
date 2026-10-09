@@ -62,6 +62,9 @@ export function auditV2Evidence(
     const matches = records.filter(x => x.name === requirement.metric);
     if (matches.length !== 1) continue;
     const record = matches[0];
+    if (requireLineage && requirement.observation &&
+        record.evidence.source?.url === requirement.observation.source.url)
+      errors.push("LINEAGE_NOT_INDEPENDENT_SOURCE:" + requirement.metric);
     if (record.expectedPeriod !== requirement.expectedPeriod || record.evidence.source?.fiscalPeriod !== requirement.expectedPeriod)
       errors.push("EXPECTED_PERIOD_MISMATCH:" + requirement.metric);
     if (record.allowed.length !== requirement.allowedKinds.length ||
