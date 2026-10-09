@@ -70,3 +70,7 @@ The pilot report also emits `v2PathIncrementalIssuerCounts`: for each v2 path, t
 ## External evidence inventory (not authenticity certification)
 
 The portable pilot output now includes `evidenceInventory` with per-batch counts of cycles containing SEC filing bytes, vendor raw bytes, both source kinds, or neither. The `bothExternalKindsPresentEveryCycle` boolean means **only** that each cycle has at least one archived source of each kind; it does not establish complete candidate coverage, source authenticity, contemporaneous availability, independence, correct metrics, or investment outcomes. A valid synthetic pilot may pass internal integrity while reporting zero external evidence; never describe such a pilot as historically verified.
+
+## Chronological first-seen comparison
+
+The pilot report additionally tracks first-selected CIKs in each cycle (`firstSeenV1IssuerIds`, `firstSeenV2IssuerIds`) and counts issuers selected by v2 before v1, by v1 before v2, or first selected by both in the same cycle. These first-seen comparisons use the supplied, strictly increasing `researchAsOf` order and are distinct from **retrospective** `uniqueIncrementalIssuers` (never selected by v1 anywhere in the whole period). First-seen does not imply true market discovery, economic merit, or contemporaneous evidence authenticity.
