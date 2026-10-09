@@ -103,3 +103,7 @@ assert.equal(assess(opportunity, survival, [
 assert.equal(assess(opportunity, survival, [
   { ...sources[0], allowed: ["MARKET_DATA" as const] }, ...sources.slice(1),
 ]).status, "INSUFFICIENT_DATA", "Caller cannot relax required filing provenance");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, sources, requirements,
+  { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Strict mode rejects legacy requirements without independently identified lineage");
