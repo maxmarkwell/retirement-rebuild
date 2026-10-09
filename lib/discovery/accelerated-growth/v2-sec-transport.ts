@@ -34,8 +34,6 @@ export async function retrieveV2SecCompanyFacts(options: V2SecTransportOptions):
   if (!options.userAgent.trim() || !/\S+@\S+\.\S+/.test(options.userAgent))
     return { ok: false, issues: ["SEC_TRANSPORT_CONTACT_REQUIRED"] };
   const cik = String(options.cik).padStart(10, "0");
-  if (!options.accession.startsWith(cik + "-"))
-    return { ok: false, issues: ["SEC_TRANSPORT_ACCESSION_CIK_MISMATCH"] };
   const url = "https://data.sec.gov/api/xbrl/companyfacts/CIK" + cik + ".json";
   const fetcher = options.fetcher ?? fetch;
   try {
