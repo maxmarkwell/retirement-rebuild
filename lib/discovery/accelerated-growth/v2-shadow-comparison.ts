@@ -11,9 +11,12 @@ export type V2ShadowRow = {
 };
 export type V2ShadowSummary = {
   total: number;
+  /** Exact string equality only; v1 and v2 status taxonomies differ. */
   agreement: number;
   disagreements: number;
   v2Insufficient: number;
+  /** Status labels cannot be treated as semantically equivalent across versions. */
+  comparableStatusTaxonomy: false;
   rows: V2ShadowRow[];
   issues: string[];
 };
@@ -37,6 +40,6 @@ export function summarizeV2Shadow(rows: readonly V2ShadowRow[]): V2ShadowSummary
   }
   return {
     total: copy.length, agreement, disagreements: copy.length - agreement,
-    v2Insufficient, rows: issues.length ? [] : copy, issues,
+    v2Insufficient, comparableStatusTaxonomy: false, rows: issues.length ? [] : copy, issues,
   };
 }
