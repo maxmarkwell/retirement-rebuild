@@ -57,3 +57,10 @@ assert.ok(check(filings, [{ ...vendors[0], source: { ...vendors[0].source,
 assert.ok(check(filings, [{ ...vendors[0], source: { ...vendors[0].source,
   issuerId: "CIK-OTHER" } }, vendors[1]])
   .issues.some(x => x.startsWith("SCALE_BRIDGE_SOURCE_IDENTITY_MISMATCH:")));
+
+assert.ok(check(filings, [{ ...vendors[0], source: { ...vendors[0].source,
+  url: "https://financialmodelingprep.com.evil.example/stable/income-statement" } }, vendors[1]])
+  .issues.some(x => x.startsWith("SCALE_BRIDGE_UNTRUSTED_SOURCE_URL:")));
+assert.ok(check([{ ...filings[0], source: { ...filings[0].source,
+  url: "https://example.com/filing" } }, filings[1]], vendors)
+  .issues.some(x => x.startsWith("SCALE_BRIDGE_UNTRUSTED_SOURCE_URL:")));
