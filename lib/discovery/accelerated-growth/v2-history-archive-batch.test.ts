@@ -28,6 +28,8 @@ function archive(day: number): V2HistoricalCycleArchive {
       value: { runId, researchAsOf, symbols: ["AAA"] } },
     { id: "identity", kind: "ISSUER_MAPPING" as const,
       value: { runId, researchAsOf, identities: [identity] } },
+    { id: "assessments", kind: "V2_ASSESSMENTS" as const,
+      value: { runId, researchAsOf, candidates: cycle.candidates } },
   ];
   const payloads = records.map(r => ({ id: r.id, utf8: JSON.stringify(r.value) }));
   const sources: V2ArchivedSource[] = records.map((r, i) => ({
@@ -119,6 +121,12 @@ function addNovelIssuer(original: V2HistoricalCycleArchive): V2HistoricalCycleAr
       ...p, utf8: JSON.stringify({
         runId: cycle.runId, researchAsOf: cycle.researchAsOf,
         symbols: ["AAA", "BBB"],
+      }),
+    };
+    if (p.id === "assessments") return {
+      ...p, utf8: JSON.stringify({
+        runId: cycle.runId, researchAsOf: cycle.researchAsOf,
+        candidates,
       }),
     };
     if (p.id === "identity") return {
