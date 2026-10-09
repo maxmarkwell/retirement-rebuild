@@ -13,6 +13,7 @@ export type V2SecTransportOptions = {
   fiscalEnd: string;
   userAgent: string;
   retrievedAt: string;
+  calendarFrameAligned: boolean;
   fetcher?: typeof fetch;
 };
 
@@ -81,6 +82,7 @@ export async function retrieveV2SecCompanyFacts(options: V2SecTransportOptions):
       companyfacts: data as V2SecCompanyFacts,
       accession: options.accession, fiscalPeriod: options.fiscalPeriod,
       fiscalEnd: options.fiscalEnd, retrievedAt: options.retrievedAt,
+      calendarFrameAligned: options.calendarFrameAligned,
       sourceUrl: url, extractionId: "sec-companyfacts-transport-v2",
     });
     if (normalized.issues.length) return { ok: false, issues: normalized.issues };
