@@ -67,6 +67,9 @@ export function verifyV2ShadowEvidence(
             tolerance < 0 || tolerance > maximum))
           issues.push("SHADOW_EXCESSIVE_TOLERANCE:" + symbol + ":" + filing.metric);
       }
+      for (const metric of Object.keys(tolerances))
+        if (!filings.some(x => x.metric === metric))
+          issues.push("SHADOW_UNUSED_TOLERANCE:" + symbol + ":" + metric);
       const result = reconcileV2FilingAndVendor(filings, vendors, tolerances);
       for (const issue of result.issues) issues.push("SHADOW_RECONCILIATION:" + symbol + ":" + issue);
     }
