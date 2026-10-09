@@ -77,3 +77,7 @@ rejects([first, { ...second, envelope: { ...second.envelope,
     ...second.envelope.history.cycles[0], v1SelectedSymbols: ["BBB"],
   }] },
 } }], "SLOT_SHADOW_MISSING_V1_CANDIDATE");
+
+rejects([first, second, first], "BATCH_2:NONMONOTONIC_ASOF");
+rejects([first, { ...second, payloads: second.payloads.slice(1) }],
+  "ARCHIVE_MISSING_PAYLOAD:v1");
