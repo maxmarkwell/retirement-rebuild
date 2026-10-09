@@ -75,7 +75,7 @@ export function normalizeV2VendorQuarters(input: V2QuarterlyNormalizationInput):
         source: {
           url: input.sourceUrl, publisher: input.publisher,
           publishedAt: input.publishedAt, retrievedAt: input.retrievedAt,
-          fiscalPeriod: period, metric, kind: "FILING",
+          fiscalPeriod: period, metric, kind: "MARKET_DATA",
           documentId: input.documentId, issuerId: input.issuerId,
           unit: "USD", extractionId: input.extractionId,
         },
