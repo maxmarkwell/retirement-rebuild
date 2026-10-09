@@ -94,6 +94,11 @@ if (pilot.accepted) {
   assert.equal(pilot.totalV1Slots, 2);
   assert.equal(pilot.totalV2Slots, 2);
   assert.equal(pilot.totalOverlapSlots, 2);
+  assert.equal(pilot.sameCycleFirstSeenIssuers, 1);
+  assert.equal(pilot.firstSeenV2BeforeV1Issuers, 0);
+  assert.equal(pilot.firstSeenV1BeforeV2Issuers, 0);
+  assert.deepEqual(pilot.cycles[0].firstSeenV1IssuerIds, ["CIK-123"]);
+  assert.deepEqual(pilot.cycles[1].firstSeenV1IssuerIds, []);
   assert.equal(pilot.totalNewlySelectedSlots, 0);
   assert.equal(pilot.totalDisplacedV1Slots, 0);
   assert.equal(pilot.uniqueIncrementalIssuers, 0);
@@ -165,6 +170,9 @@ if (novelPilot.accepted) {
   assert.equal(novelPilot.totalNewlySelectedSlots, 1);
   assert.equal(novelPilot.totalDisplacedV1Slots, 1);
   assert.equal(novelPilot.uniqueIncrementalIssuers, 1);
+  assert.equal(novelPilot.sameCycleFirstSeenIssuers, 1);
+  assert.equal(novelPilot.firstSeenV2BeforeV1Issuers, 0);
+  assert.deepEqual(novelPilot.cycles[1].firstSeenV2IssuerIds, ["CIK-456"]);
   assert.deepEqual(novelPilot.v2PathIncrementalIssuerCounts, { CATALYST: 1 });
   assert.equal(novelPilot.uniqueDisplacedIssuers, 0);
   assert.equal(novelPilot.cyclesWithIncrementalIssuers, 1);
