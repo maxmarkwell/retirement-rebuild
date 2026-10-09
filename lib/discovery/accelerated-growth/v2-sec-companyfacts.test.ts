@@ -55,8 +55,8 @@ assert.ok(normalizeV2SecCompanyFacts({ ...input,
   sourceUrl: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000000002.json",
 }).issues.includes("SEC_SOURCE_CIK_MISMATCH"));
 assert.ok(normalizeV2SecCompanyFacts({ ...input,
-  accession: "0000000002-26-000001",
-}).issues.includes("SEC_ACCESSION_CIK_MISMATCH"));
+  accession: "bad-accession",
+}).issues.includes("SEC_INVALID_ACCESSION_FORMAT"));
 assert.ok(normalizeV2SecCompanyFacts({ ...input,
   calendarFrameAligned: false,
 }).issues.some(x => x.startsWith("SEC_MISSING_OR_AMBIGUOUS_QUARTERLY_FACT")),
