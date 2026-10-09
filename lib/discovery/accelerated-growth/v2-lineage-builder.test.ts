@@ -53,3 +53,9 @@ assert.equal(buildV2LineageRequirements({ ...input, tolerances: {} }).ready, fal
 assert.equal(buildV2LineageRequirements({ ...input, expectations: [
   { ...expectations[0], allowedKinds: ["MARKET_DATA"] }, ...expectations.slice(1),
 ] }).ready, false);
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence, source: observations[0].source } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Strict audit must reject comparison records sourced from the candidate's same URL");
