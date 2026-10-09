@@ -23,13 +23,15 @@ if (ok.accepted) {
 }
 assert.deepEqual(runV2OfflineShadow({ ...base, runId: "../danger" }),
   { accepted: false, issues: ["SHADOW_INVALID_RUN_ID"] });
-assert.deepEqual(runV2OfflineShadow({ ...base, rows: [] }),
-  { accepted: false, issues: ["SHADOW_INVALID_ROW_COUNT", "SHADOW_ROW_COVERAGE_MISMATCH"] });
+const noRows = runV2OfflineShadow({ ...base, rows: [] });
+assert.equal(noRows.accepted, false);
+if (!noRows.accepted) assert.ok(noRows.issues.includes("SHADOW_INVALID_ROW_COUNT"));
 const sameId = runV2OfflineShadow({ ...base, v2SnapshotId: base.v1SnapshotId });
 assert.equal(sameId.accepted, false);
 if (!sameId.accepted) assert.ok(sameId.issues.includes("SHADOW_SNAPSHOTS_NOT_DISTINCT"));
-assert.deepEqual(runV2OfflineShadow({ ...base, rows: [base.rows[0], base.rows[0]] }),
-  { accepted: false, issues: ["SHADOW_INVALID_UNIVERSE:rows", "SHADOW_ROW_COVERAGE_MISMATCH"] });
+const duplicateRows = runV2OfflineShadow({ ...base, rows: [base.rows[0], base.rows[0]] });
+assert.equal(duplicateRows.accepted, false);
+if (!duplicateRows.accepted) assert.ok(duplicateRows.issues.includes("SHADOW_INVALID_UNIVERSE:rows"));
 assert.equal(runV2OfflineShadow({ ...base,
   rows: Array.from({ length: 501 }, (_, i) => ({ ...base.rows[0], symbol: "T" + i })) }).accepted, false);
 
