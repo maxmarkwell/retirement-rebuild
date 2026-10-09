@@ -66,6 +66,14 @@ export function auditV2Evidence(
       const candidateDocument = record.evidence.source?.documentId?.trim();
       const independentDocument = requirement.observation.documentId.trim();
       if (!candidateDocument) errors.push("LINEAGE_CANDIDATE_DOCUMENT_REQUIRED:" + requirement.metric);
+      if (!record.evidence.source?.issuerId ||
+          record.evidence.source.issuerId !== requirement.lineageExpectation?.issuerId)
+        errors.push("LINEAGE_CANDIDATE_ISSUER_MISMATCH:" + requirement.metric);
+      if (!record.evidence.source?.unit ||
+          record.evidence.source.unit !== requirement.lineageExpectation?.unit)
+        errors.push("LINEAGE_CANDIDATE_UNIT_MISMATCH:" + requirement.metric);
+      if (!record.evidence.source?.extractionId?.trim())
+        errors.push("LINEAGE_CANDIDATE_EXTRACTION_REQUIRED:" + requirement.metric);
       if (record.evidence.source?.url === requirement.observation.source.url ||
           (candidateDocument && candidateDocument === independentDocument))
         errors.push("LINEAGE_NOT_INDEPENDENT_SOURCE:" + requirement.metric);
