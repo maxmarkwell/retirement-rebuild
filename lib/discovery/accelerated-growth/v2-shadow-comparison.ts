@@ -1,3 +1,4 @@
+import { countV2ShadowOutcomes, type V2ShadowOutcome } from "./v2-shadow-outcomes";
 /**
  * Read-only comparison of existing AG v1 and research-only v2 screening.
  * No persistence, execution, or mutation of either result.
@@ -17,6 +18,7 @@ export type V2ShadowSummary = {
   v2Insufficient: number;
   /** Status labels cannot be treated as semantically equivalent across versions. */
   comparableStatusTaxonomy: false;
+  outcomes: Record<V2ShadowOutcome, number>;
   rows: V2ShadowRow[];
   issues: string[];
 };
@@ -40,6 +42,7 @@ export function summarizeV2Shadow(rows: readonly V2ShadowRow[]): V2ShadowSummary
   }
   return {
     total: copy.length, agreement, disagreements: copy.length - agreement,
-    v2Insufficient, comparableStatusTaxonomy: false, rows: issues.length ? [] : copy, issues,
+    v2Insufficient, comparableStatusTaxonomy: false,
+    outcomes: countV2ShadowOutcomes(copy), rows: issues.length ? [] : copy, issues,
   };
 }
