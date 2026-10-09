@@ -31,6 +31,8 @@ export function compareV2ResearchSlots(
   if (!Number.isSafeInteger(request.capacity) || request.capacity < 1 ||
       request.capacity > 100)
     issues.push("SLOT_SHADOW_INVALID_CAPACITY");
+  if (request.v1SelectedSymbols.length > 100)
+    issues.push("SLOT_SHADOW_V1_TOO_MANY_SYMBOLS");
   if (request.v1SelectedSymbols.length > request.capacity)
     issues.push("SLOT_SHADOW_V1_EXCEEDS_CAPACITY");
   const v1 = request.v1SelectedSymbols.map(s => s.trim().toUpperCase());
