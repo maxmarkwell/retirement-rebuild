@@ -7,6 +7,8 @@ export type AgV2Source = {
   fiscalPeriod: string;
   /** Canonical metric label asserted by the source extraction process. */
   metric: string;
+  /** Stable underlying document/dataset identity, not merely a URL. */
+  documentId?: string;
   kind: "FILING" | "MARKET_DATA" | "INDEPENDENT_ANALYSIS";
 };
 export type AgV2SourcedNumber = {
