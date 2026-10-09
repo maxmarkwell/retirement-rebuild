@@ -21,6 +21,7 @@ export type V2ResearchHistoryResult =
       totalV2NewDiscoverySlots: number;
       uniqueV1Symbols: number; uniqueV2Symbols: number;
       v2PathSlotCounts: Record<string, number>;
+      v2PathUniqueIssuerCounts: Record<string, number>;
       cyclesWithNewDiscovery: number; cyclesWithWatchReassessment: number;
       v1RepeatSlots: number; v2RepeatSlots: number;
       v1FirstSeenByCycle: number[]; v2FirstSeenByCycle: number[];
@@ -85,6 +86,13 @@ export function compareV2ResearchHistory(
     v1FirstSeenByCycle.push(v1First);
     v2FirstSeenByCycle.push(v2First);
   }
+  const pathIssuers = new Map<string, Set<string>>();
+  for (const cycle of accepted) for (const candidate of cycle.v2Selected) {
+    for (const path of candidate.paths) {
+      if (!pathIssuers.has(path)) pathIssuers.set(path, new Set());
+      pathIssuers.get(path)!.add(candidate.symbol);
+    }
+  }
   const sum = (fn: (cycle: (typeof accepted)[number]) => number) =>
     accepted.reduce((total, cycle) => total + fn(cycle), 0);
   return {
@@ -105,6 +113,8 @@ export function compareV2ResearchHistory(
         for (const path of candidate.paths) counts[path] = (counts[path] ?? 0) + 1;
         return counts;
       }, {}),
+    v2PathUniqueIssuerCounts: Object.fromEntries(
+      [...pathIssuers.entries()].map(([path, issuers]) => [path, issuers.size])),
     cyclesWithNewDiscovery: accepted.filter(c => c.v2NewDiscoveryCount > 0).length,
     cyclesWithWatchReassessment: accepted.filter(c => c.v2WatchCount > 0).length,
     cyclesWithNoV2NewDiscovery: accepted.filter(c => c.v2NewDiscoveryCount === 0).length,
