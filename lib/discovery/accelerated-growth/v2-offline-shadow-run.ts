@@ -1,3 +1,4 @@
+import { verifyV2SnapshotManifests, type V2SnapshotManifest } from "./v2-snapshot-manifest";
 import { evaluateV2ShadowSnapshots, type V2ShadowInput } from "./v2-shadow-evaluator";
 import type { V2ShadowSummary } from "./v2-shadow-comparison";
 
@@ -11,6 +12,8 @@ export type V2ShadowRunRequest = {
   v1SnapshotId: string;
   v2SnapshotId: string;
   rows: readonly V2ShadowInput[];
+  v1Manifest: V2SnapshotManifest;
+  v2Manifest: V2SnapshotManifest;
 };
 export type V2ShadowRunResult =
   | { accepted: false; issues: string[] }
@@ -34,6 +37,13 @@ export function runV2OfflineShadow(request: V2ShadowRunRequest): V2ShadowRunResu
     issues.push("SHADOW_SNAPSHOTS_NOT_DISTINCT");
   if (request.rows.length === 0 || request.rows.length > MAX_ROWS)
     issues.push("SHADOW_INVALID_ROW_COUNT");
+  if (request.v1Manifest.snapshotId !== request.v1SnapshotId ||
+      request.v2Manifest.snapshotId !== request.v2SnapshotId)
+    issues.push("SHADOW_MANIFEST_SNAPSHOT_ID_MISMATCH");
+  if (request.v1Manifest.capturedAt !== request.capturedAt)
+    issues.push("SHADOW_CAPTURE_IDENTITY_MISMATCH");
+  issues.push(...verifyV2SnapshotManifests(request.v1Manifest, request.v2Manifest,
+    request.rows.map(row => row.symbol)).issues);
   if (issues.length) return { accepted: false, issues };
   const summary = evaluateV2ShadowSnapshots(request.rows);
   if (summary.issues.length) return { accepted: false, issues: summary.issues };
