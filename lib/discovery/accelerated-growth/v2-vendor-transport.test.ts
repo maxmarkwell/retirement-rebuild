@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { retrieveV2VendorQuarters } from "./v2-vendor-transport";
 const incomeUrl = "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT";
 const cashFlowUrl = "https://financialmodelingprep.com/stable/cash-flow-statement?symbol=MSFT";
-const row = { fiscalYear: 2026, period: "Q2", date: "2026-06-30",
+const row = { symbol: "MSFT", fiscalYear: 2026, period: "Q2", date: "2026-06-30",
   reportedCurrency: "USD", revenue: 100, operatingIncome: 20, freeCashFlow: 12 };
 let calls = 0;
 const fetcher = async () => {
@@ -42,6 +42,18 @@ async function main() {
   assert.deepEqual(await retrieveV2VendorQuarters(base),
     { ok: false, issues: ["VENDOR_TRANSPORT_SCALE_UNVERIFIED"] });
   assert.equal(calls, 2);
+  const wrongSymbol = async () => new Response(JSON.stringify([
+    { ...row, symbol: "AAPL" },
+  ]), { headers: { "content-type": "application/json" } });
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, fetcher: wrongSymbol as typeof fetch,
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_SYMBOL_MISMATCH"] });
+  const missingSymbol = async () => new Response(JSON.stringify([
+    { ...row, symbol: undefined },
+  ]), { headers: { "content-type": "application/json" } });
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, fetcher: missingSymbol as typeof fetch,
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_SYMBOL_MISMATCH"] });
   const wrongCurrency = async () => new Response(JSON.stringify([
     { ...row, reportedCurrency: "EUR" },
   ]), { headers: { "content-type": "application/json" } });
