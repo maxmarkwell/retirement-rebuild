@@ -67,3 +67,9 @@ absolute value. A zero filing value therefore requires an exact match. This
 is a conservative interim safety ceiling, not a validated metric-specific
 materiality policy. The research team must establish metric-specific
 thresholds before production consideration.
+
+## Offline research prioritization (provisional)
+
+`selectV2ResearchCandidates` is a deterministic, side-effect-free research shortlist utility, not connected to the production daily cycle. It evaluates all five opportunity paths without per-path quotas; ranks QUALIFIED ahead of WATCH, then evidence coverage, then NEW_DISCOVERY ahead of WATCH_REASSESSMENT only when evidence priority ties, then symbol for reproducibility. It deduplicates issuer symbols and fails closed on malformed inputs. This does not guarantee new-discovery slots and does not make investment or position-sizing decisions. A separate, version-bound integration and shadow evaluation are required before replacing the existing daily-cycle research selector.
+
+The emerging-opportunity screen now keeps evidence-backed first commercialization from a zero revenue or customer baseline as WATCH rather than automatically declaring it insufficient; zero baseline does not imply an infinite growth rate or a QUALIFIED decision. Catalyst dates must be strict valid YYYY-MM-DD calendar dates and strictly future to the assessment date.
