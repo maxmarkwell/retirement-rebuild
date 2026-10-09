@@ -100,3 +100,62 @@ if (pilot.accepted) {
 const failedPilot = buildV2HistoricalPilotReport([second, first]);
 assert.equal(failedPilot.accepted, false);
 if (!failedPilot.accepted) assert.ok(failedPilot.issues.some(x => x.includes("NONMONOTONIC_ASOF")));
+
+function addNovelIssuer(original: V2HistoricalCycleArchive): V2HistoricalCycleArchive {
+  const cycle = original.envelope.history.cycles[0];
+  const originalCandidate = cycle.candidates[0];
+  const novel = { symbol: "BBB", issuerId: "CIK-456",
+    effectiveAt: "2026-07-01T00:00:00Z" };
+  const candidates = [originalCandidate, {
+    ...originalCandidate, symbol: "BBB",
+    assessments: originalCandidate.assessments.map(a => ({
+      ...a, evidenceCoverage: 99,
+    })),
+  }];
+  const identities = [...original.envelope.history.issuerIdentitiesByCycle[0], novel];
+  const payloads = original.payloads.map(p => {
+    if (p.id === "universe") return {
+      ...p, utf8: JSON.stringify({
+        runId: cycle.runId, researchAsOf: cycle.researchAsOf,
+        symbols: ["AAA", "BBB"],
+      }),
+    };
+    if (p.id === "identity") return {
+      ...p, utf8: JSON.stringify({
+        runId: cycle.runId, researchAsOf: cycle.researchAsOf,
+        identities,
+      }),
+    };
+    return p;
+  });
+  const parsed = JSON.parse(original.manifestUtf8) as {
+    schemaVersion: string; researchAsOf: string; sources: V2ArchivedSource[];
+  };
+  const manifestUtf8 = JSON.stringify({
+    ...parsed, sources: parsed.sources.map(source => ({
+      ...source, sha256: hash(payloads.find(p => p.id === source.id)!.utf8),
+    })),
+  });
+  return {
+    manifestUtf8, payloads,
+    envelope: {
+      ...original.envelope, sourceManifestSha256: hash(manifestUtf8),
+      history: {
+        ...original.envelope.history,
+        cycles: [{ ...cycle, candidates }],
+        issuerIdentitiesByCycle: [identities],
+      },
+    },
+  };
+}
+const novelPilot = buildV2HistoricalPilotReport([first, addNovelIssuer(second)]);
+assert.equal(novelPilot.accepted, true);
+if (novelPilot.accepted) {
+  assert.equal(novelPilot.totalNewlySelectedSlots, 1);
+  assert.equal(novelPilot.totalDisplacedV1Slots, 1);
+  assert.equal(novelPilot.uniqueIncrementalIssuers, 1);
+  assert.equal(novelPilot.uniqueDisplacedIssuers, 0);
+  assert.equal(novelPilot.cyclesWithIncrementalIssuers, 1);
+  assert.deepEqual(novelPilot.cycles[1].incrementalIssuerIds, ["CIK-456"]);
+  assert.deepEqual(novelPilot.v2PathUniqueIssuerCounts, { CATALYST: 2 });
+}
