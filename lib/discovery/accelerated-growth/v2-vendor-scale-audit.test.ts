@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { auditV2VendorScaleArtifacts } from "./v2-vendor-scale-audit";
 import type { V2VendorScaleAttestation } from "./v2-vendor-scale-policy";
 const bytes = new TextEncoder().encode("archived specification sample");
-const sample = new TextEncoder().encode('[{"symbol":"MSFT","period":"Q2"}]');
+const sample = new TextEncoder().encode('[{"symbol":"MSFT","fiscalYear":2026,"period":"Q2","date":"2026-06-30","reportedCurrency":"USD"}]');
 const sha = createHash("sha256").update(bytes).digest("hex");
 const income: V2VendorScaleAttestation = {
   provider: "FMP", endpoint: "income-statement", unit: "USD", scale: "ONES",
@@ -13,7 +13,7 @@ const income: V2VendorScaleAttestation = {
   effectiveFrom: "2026-01-01", effectiveThrough: "2026-12-31",
 };
 const cash: V2VendorScaleAttestation = { ...income, endpoint: "cash-flow-statement" };
-const sample2 = new TextEncoder().encode('[{"symbol":"AAPL","period":"Q1"}]');
+const sample2 = new TextEncoder().encode('[{"symbol":"AAPL","fiscalYear":2026,"period":"Q1","date":"2026-03-31","reportedCurrency":"USD"}]');
 const a = { endpoint: "income-statement" as const, specificationBytes: bytes,
   sampleResponses: [sample, sample2] };
 const b = { ...a, endpoint: "cash-flow-statement" as const };
@@ -30,3 +30,11 @@ assert.ok(check([a]).includes("SCALE_AUDIT_MISSING_OR_DUPLICATE_ARTIFACT:cash-fl
 
 assert.ok(check([{ ...a, sampleResponses: [sample, sample] }, b])
   .includes("SCALE_AUDIT_DUPLICATE_SAMPLES:income-statement"));
+
+assert.ok(check([{ ...a, sampleResponses: [
+  new TextEncoder().encode('[{"symbol":"MSFT","period":"Q2"}]'), sample2,
+] }, b]).includes("SCALE_AUDIT_INVALID_SAMPLE_JSON:income-statement"));
+assert.ok(check([{ ...a, sampleResponses: [
+  new TextEncoder().encode('[{"symbol":"MSFT","fiscalYear":2026,"period":"Q2","date":"2026-02-30","reportedCurrency":"USD"}]'),
+  sample2,
+] }, b]).includes("SCALE_AUDIT_INVALID_SAMPLE_JSON:income-statement"));
