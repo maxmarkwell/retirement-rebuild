@@ -9,6 +9,7 @@ The `v2-offline-shadow-run.ts` entry point compares already-computed, caller-pro
 - `runId`: unique caller-supplied label; the function does **not** enforce uniqueness across runs.
 - `capturedAt`: UTC timestamp; caller must establish actual source capture time.
 - `v1SnapshotId`, `v2SnapshotId`: distinct caller-supplied labels. Distinct labels do **not** prove independent snapshots or their authenticity.
+- `v1Manifest` and `v2Manifest`: version-pinned (`ag-v1` and `ag-v2`), matching fiscal-period and universe metadata, UTC capture times within one hour, and matching research-as-of timestamps. The validator checks declared metadata, not original source documents.
 - `rows`: 1–500 company entries; one row per symbol; v1 status, v2 path and optional already-evaluated v2 research gate.
 - A missing v2 gate is classified `INSUFFICIENT_DATA`; never silently counted as a qualifying investment.
 
