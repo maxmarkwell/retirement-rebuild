@@ -26,6 +26,7 @@ export function verifyV2HistoricalArchiveBatch(
   if (!archives.length || archives.length > 100)
     return { accepted: false, issues: ["BATCH_INVALID_COUNT"] };
   const cycles: V2IdentityHistoryRequest["cycles"][number][] = [];
+  let previousCutoff = -Infinity;
   const identities: V2IdentityHistoryRequest["issuerIdentitiesByCycle"][number][] = [];
   const seenRunIds = new Set<string>();
   const seenDigests = new Set<string>();
@@ -39,6 +40,10 @@ export function verifyV2HistoricalArchiveBatch(
     const result = verifyV2HistoricalCycleLinkage(
       archive.envelope, archive.manifestUtf8, archive.payloads);
     if (!result.accepted) issues.push(...result.issues.map(issue => prefix + issue));
+    const cutoff = Date.parse(cycle.researchAsOf);
+    if (Number.isFinite(cutoff) && cutoff <= previousCutoff)
+      issues.push(prefix + "NONMONOTONIC_ASOF");
+    if (Number.isFinite(cutoff)) previousCutoff = cutoff;
     if (seenRunIds.has(cycle.runId)) issues.push(prefix + "DUPLICATE_RUN_ID");
     seenRunIds.add(cycle.runId);
     if (seenDigests.has(archive.envelope.sourceManifestSha256))
