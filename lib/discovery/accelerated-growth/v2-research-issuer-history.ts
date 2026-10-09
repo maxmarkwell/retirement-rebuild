@@ -18,7 +18,8 @@ export type V2IdentityHistoryResult =
   | { accepted: false; issues: string[] }
   | { accepted: true; comparison: Extract<V2ResearchHistoryResult, { accepted: true }>;
       uniqueV1Issuers: number; uniqueV2Issuers: number;
-      v1IssuerRepeatSlots: number; v2IssuerRepeatSlots: number };
+      v1IssuerRepeatSlots: number; v2IssuerRepeatSlots: number;
+      v2PathUniqueIssuerCounts: Record<string, number> };
 
 const CIK = /^CIK-\d{1,10}$/;
 const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
@@ -44,6 +45,7 @@ export function compareV2ResearchHistoryWithIssuers(
   let v2IssuerRepeatSlots = 0;
   const symbolIssuer = new Map<string, string>();
   const issuerSymbols = new Map<string, string>();
+  const pathIssuers = new Map<string, Set<string>>();
   for (const [index, cycle] of request.cycles.entries()) {
     const rows = request.issuerIdentitiesByCycle[index];
     if (!rows) continue;
@@ -87,6 +89,10 @@ export function compareV2ResearchHistoryWithIssuers(
     for (const candidate of selected.v2Selected) {
       const issuer = bySymbol.get(candidate.symbol);
       if (!issuer) continue;
+      for (const path of candidate.paths) {
+        if (!pathIssuers.has(path)) pathIssuers.set(path, new Set());
+        pathIssuers.get(path)!.add(issuer);
+      }
       if (v2Seen.has(issuer)) v2IssuerRepeatSlots++;
       else v2Seen.add(issuer);
     }
@@ -94,5 +100,7 @@ export function compareV2ResearchHistoryWithIssuers(
   if (issues.length || !comparison.accepted) return { accepted: false, issues };
   return { accepted: true, comparison,
     uniqueV1Issuers: v1Seen.size, uniqueV2Issuers: v2Seen.size,
-    v1IssuerRepeatSlots, v2IssuerRepeatSlots };
+    v1IssuerRepeatSlots, v2IssuerRepeatSlots,
+    v2PathUniqueIssuerCounts: Object.fromEntries(
+      [...pathIssuers.entries()].map(([path, issuers]) => [path, issuers.size])) };
 }
