@@ -278,3 +278,39 @@ rejects([{ ...first, envelope: {
     issuerIdentitiesByCycle: [],
   },
 } }], "INVALID_ARCHIVE_SHAPE");
+
+function selectV1Bbb(original: V2HistoricalCycleArchive): V2HistoricalCycleArchive {
+  const cycle = original.envelope.history.cycles[0];
+  const payloads = original.payloads.map(p => p.id === "v1" ? {
+    ...p, utf8: JSON.stringify({
+      runId: cycle.runId, capacity: cycle.capacity,
+      researchAsOf: cycle.researchAsOf, selectedSymbols: ["BBB"],
+    }),
+  } : p);
+  const manifest = JSON.parse(original.manifestUtf8) as {
+    schemaVersion: string; researchAsOf: string; sources: V2ArchivedSource[];
+  };
+  const manifestUtf8 = JSON.stringify({ ...manifest,
+    sources: manifest.sources.map(source => ({
+      ...source, sha256: hash(payloads.find(p => p.id === source.id)!.utf8),
+    })),
+  });
+  return { manifestUtf8, payloads, envelope: {
+    ...original.envelope, sourceManifestSha256: hash(manifestUtf8),
+    history: { ...original.envelope.history, cycles: [{
+      ...cycle, v1SelectedSymbols: ["BBB"],
+    }] },
+  } };
+}
+const earlyV2 = buildV2HistoricalPilotReport([
+  first, addNovelIssuer(second), selectV1Bbb(addNovelIssuer(archive(4))),
+]);
+assert.equal(earlyV2.accepted, true);
+if (earlyV2.accepted) {
+  assert.equal(earlyV2.uniqueIncrementalIssuers, 0);
+  assert.equal(earlyV2.firstSeenV2BeforeV1Issuers, 1);
+  assert.equal(earlyV2.firstSeenV1BeforeV2Issuers, 0);
+  assert.equal(earlyV2.cyclesWithV2OnlySelections, 1);
+  assert.equal(earlyV2.cyclesWithGloballyIncrementalIssuers, 0);
+  assert.deepEqual(earlyV2.v2PathIncrementalIssuerCounts, { CATALYST: 0 });
+}
