@@ -45,3 +45,10 @@ assert.ok(normalizeV2VendorQuarters({ ...base, income: [
 assert.ok(normalizeV2VendorQuarters({ ...base, cashFlow: [
   { ...base.cashFlow[0], reportedCurrency: undefined },
 ] }).issues.includes("VENDOR_ROW_CURRENCY_MISMATCH:2026-Q2"));
+
+assert.ok(normalizeV2VendorQuarters({ ...base, income: [
+  { ...base.income[0], date: undefined },
+] }).issues.includes("MISSING_OR_INVALID_FISCAL_END:2026-Q2"));
+assert.ok(normalizeV2VendorQuarters({ ...base, cashFlow: [
+  { ...base.cashFlow[0], date: "2026-02-30" },
+] }).issues.includes("MISSING_OR_INVALID_FISCAL_END:2026-Q2"));
