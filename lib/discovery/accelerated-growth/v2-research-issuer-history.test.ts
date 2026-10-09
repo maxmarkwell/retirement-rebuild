@@ -29,6 +29,7 @@ if (result.accepted) {
   assert.equal(result.uniqueV2Issuers, 1);
   assert.equal(result.v1IssuerRepeatSlots, 1);
   assert.equal(result.v2IssuerRepeatSlots, 1);
+  assert.deepEqual(result.v2PathUniqueIssuerCounts, { CATALYST: 1 });
 }
 function rejects(request: typeof base, issue: string) {
   const result = compareV2ResearchHistoryWithIssuers(request);
