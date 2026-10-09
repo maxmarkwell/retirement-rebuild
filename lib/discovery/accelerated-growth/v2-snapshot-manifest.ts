@@ -10,6 +10,8 @@ export type V2SnapshotManifest = {
   universeId: string;
   universeSymbols: readonly string[];
   researchAsOf: string;
+  pipelineVersion: string;
+  fiscalPeriod: string;
 };
 export type V2SnapshotManifestCheck = { valid: boolean; issues: string[] };
 const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
@@ -31,6 +33,11 @@ export function verifyV2SnapshotManifests(
     issues.push("SHADOW_MANIFEST_ID");
   if (!v1.universeId.trim() || v1.universeId !== v2.universeId)
     issues.push("SHADOW_UNIVERSE_ID_MISMATCH");
+  if (v1.pipelineVersion !== "ag-v1" || v2.pipelineVersion !== "ag-v2")
+    issues.push("SHADOW_UNSUPPORTED_PIPELINE_VERSION");
+  if (!/^\\d{4}-Q[1-4]$/.test(v1.fiscalPeriod) ||
+      v1.fiscalPeriod !== v2.fiscalPeriod)
+    issues.push("SHADOW_FISCAL_PERIOD_MISMATCH");
   const t1 = parseUtc(v1.capturedAt), t2 = parseUtc(v2.capturedAt);
   const a1 = parseUtc(v1.researchAsOf), a2 = parseUtc(v2.researchAsOf);
   if (![t1,t2,a1,a2].every(Number.isFinite)) issues.push("SHADOW_MANIFEST_INVALID_TIME");
