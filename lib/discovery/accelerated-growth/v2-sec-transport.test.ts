@@ -42,9 +42,9 @@ assert.equal(success.ok, true);
 if (success.ok) assert.equal(success.data.observations.length, 4);
 assert.equal(calls, 1);
 assert.deepEqual(await retrieveV2SecCompanyFacts({
-  ...base, accession: "0000000002-26-000001", fetcher,
-}), { ok: false, issues: ["SEC_TRANSPORT_ACCESSION_CIK_MISMATCH"] });
-assert.equal(calls, 1, "Mismatched accession must fail before fetch");
+  ...base, accession: "invalid", fetcher,
+}), { ok: false, issues: ["SEC_TRANSPORT_INVALID_REQUEST"] });
+assert.equal(calls, 1, "Malformed accession must fail before fetch");
 const invalidCik = await retrieveV2SecCompanyFacts({
   ...base, fetcher: async () => new Response(JSON.stringify({ ...payload, cik: 2 }),
     { headers: { "content-type": "application/json" } }),
