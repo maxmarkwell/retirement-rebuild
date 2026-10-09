@@ -26,3 +26,7 @@
 ## Stop conditions
 
 Stop and mark **NOT EVALUABLE** if original run timestamps, full historical candidate-universe membership, issuer identities, or historical evidence publication times cannot be established. Never silently fill missing cycles or treat today's surviving tickers as the historical universe. Do not merge the feature branch or enable the production scheduler on the strength of an offline report alone.
+
+## Offline capture envelope
+
+`verifyV2HistoryCapture` checks a versioned `ag-history-capture-v1` envelope containing the 40-character source-code revision, independently named operator and reviewer, a 64-character SHA-256 source-manifest digest, and the complete versioned historical issuer-identity comparison input. It produces a deterministic SHA-256 digest of the canonical JSON-compatible envelope after the existing history and identity preflights pass. Reordering object keys does not change the digest; changing captured evidence or metadata does. The digest is an integrity fingerprint **only**. It does not authenticate the operator, reviewer, manifest, source documents, SEC issuer mapping, capture timestamp, or whether evidence was genuinely available historically. An external, independently reviewed archival process must establish those claims before a historical study is trusted.
