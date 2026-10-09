@@ -75,6 +75,20 @@ async function main() {
   assert.deepEqual(await retrieveV2VendorQuarters({
     ...base, fetcher: wrongCurrency as typeof fetch,
   }), { ok: false, issues: ["VENDOR_TRANSPORT_CURRENCY_UNVERIFIED"] });
+  for (const badRow of [
+    { ...row, period: "FY" },
+    { ...row, date: "2026-02-30" },
+    { ...row, revenue: undefined },
+    { ...row, operatingIncome: "20" },
+    { ...row, freeCashFlow: undefined },
+  ]) {
+    const malformed = async () => new Response(JSON.stringify([badRow]), {
+      headers: { "content-type": "application/json" },
+    });
+    assert.deepEqual(await retrieveV2VendorQuarters({
+      ...base, fetcher: malformed as typeof fetch,
+    }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_QUARTERLY_FIELDS"] });
+  }
   const oversized = async () => new Response("[]", {
     headers: { "content-type": "application/json", "content-length": "2000001" },
   });
