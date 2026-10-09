@@ -40,3 +40,4 @@ jobs:
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-cross-source-reconciliation.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-transport.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-comparison.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-evaluator.test.ts
