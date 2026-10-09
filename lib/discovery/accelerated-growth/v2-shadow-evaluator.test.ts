@@ -11,3 +11,11 @@ assert.deepEqual(result.rows[0].v2Reasons, ["SHADOW_MISSING_V2_GATE"]);
 assert.equal(result.comparableStatusTaxonomy, false);
 assert.equal(input[0].v2Gate, null);
 assert.equal(evaluateV2ShadowSnapshots([...input, input[0]]).rows.length, 0);
+
+const inconsistent = evaluateV2ShadowSnapshots([{
+  ...input[0],
+  v2Gate: { eligible: true, status: "NOT_QUALIFIED", reasons: [],
+    opportunity: {} as never, survival: null },
+}]);
+assert.equal(inconsistent.rows[0].v2Status, "INSUFFICIENT_DATA");
+assert.deepEqual(inconsistent.rows[0].v2Reasons, ["SHADOW_INCONSISTENT_GATE_ELIGIBILITY"]);
