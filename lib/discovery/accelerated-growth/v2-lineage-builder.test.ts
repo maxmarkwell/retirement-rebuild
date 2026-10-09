@@ -93,3 +93,10 @@ assert.equal(assessV2ResearchGate(opportunity, survival, [
   ...records.slice(1),
 ], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
   "Candidate extraction identity must be present");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence,
+    source: { ...records[0].evidence.source!, extractionId: observations[0].extractionId } } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Candidate and independent observation cannot reuse the same extraction process");
