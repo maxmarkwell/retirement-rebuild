@@ -62,3 +62,7 @@ The command prints an accepted/rejected JSON report to standard output and exits
 ## Archived v2 assessment linkage
 
 The single-cycle linkage gate now requires exactly one `V2_ASSESSMENTS` source alongside `V1_CYCLE`, `UNIVERSE`, and `ISSUER_MAPPING`. Its archived JSON must contain the matching `runId`, `researchAsOf`, and **exact ordered `candidates` array**, including origin and five-path assessment contents. The source bytes must match their manifest SHA-256. This prevents a researcher from substituting unarchived or changed v2 assessments while retaining a valid v1 archive. Equality and hashes establish internal consistency only; a separate reviewer must still validate the assessments' independent, point-in-time evidentiary basis. Previously prepared three-source pilot bundles must be recaptured under this stronger four-source contract.
+
+## Path-level incremental discovery breadth
+
+The pilot report also emits `v2PathIncrementalIssuerCounts`: for each v2 path, the number of distinct CIKs selected through that path that **never appeared in any v1 selected research slot across the supplied historical window**. A company qualifying for multiple paths counts once within each path, so these path totals must **not** be summed to claim unique overall discoveries. `v2PathUniqueIssuerCounts` includes all selected issuers, including those also researched by v1. These are descriptive research-coverage metrics only; they are not per-path performance or investment merit.
