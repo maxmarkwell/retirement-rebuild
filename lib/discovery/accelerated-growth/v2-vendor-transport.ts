@@ -72,6 +72,15 @@ export async function retrieveV2VendorQuarters(options: V2VendorTransportOptions
         new URL(options.cashFlowUrl).searchParams.get("symbol"))
     return { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] };
   const symbol = new URL(options.incomeUrl).searchParams.get("symbol")!;
+  // Caller-supplied metadata must be internally coherent before any HTTP request.
+  if (!options.issuerId.trim() || !options.documentId.trim() ||
+      !options.extractionId.trim() || !options.publisher.trim())
+    return { ok: false, issues: ["VENDOR_TRANSPORT_MISSING_PROVENANCE"] };
+  const published = Date.parse(options.publishedAt);
+  const retrieved = Date.parse(options.retrievedAt);
+  if (!Number.isFinite(published) || !Number.isFinite(retrieved) ||
+      published > retrieved)
+    return { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_TIMESTAMPS"] };
   const fetcher = options.fetcher ?? fetch;
   try {
     const [income, cashFlow] = await Promise.all([
