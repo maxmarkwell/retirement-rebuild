@@ -58,6 +58,15 @@ export function verifyV2ShadowEvidence(
       for (const vendor of vendors)
         if (!filingMetrics.has(vendor.metric))
           issues.push("SHADOW_VENDOR_WITHOUT_FILING:" + symbol + ":" + vendor.metric);
+      // Shadow comparisons use a conservative relative tolerance policy.
+      // Absolute tolerances must not exceed 1% of the filing magnitude.
+      for (const filing of filings) {
+        const tolerance = tolerances[filing.metric];
+        const maximum = Math.abs(filing.value) * 0.01;
+        if (tolerance != null && (!Number.isFinite(tolerance) ||
+            tolerance < 0 || tolerance > maximum))
+          issues.push("SHADOW_EXCESSIVE_TOLERANCE:" + symbol + ":" + filing.metric);
+      }
       const result = reconcileV2FilingAndVendor(filings, vendors, tolerances);
       for (const issue of result.issues) issues.push("SHADOW_RECONCILIATION:" + symbol + ":" + issue);
     }
