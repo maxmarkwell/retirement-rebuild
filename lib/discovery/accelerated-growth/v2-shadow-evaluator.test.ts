@@ -19,3 +19,11 @@ const inconsistent = evaluateV2ShadowSnapshots([{
 }]);
 assert.equal(inconsistent.rows[0].v2Status, "INSUFFICIENT_DATA");
 assert.deepEqual(inconsistent.rows[0].v2Reasons, ["SHADOW_INCONSISTENT_GATE_ELIGIBILITY"]);
+
+const reverseInconsistent = evaluateV2ShadowSnapshots([{
+  ...input[0],
+  v2Gate: { eligible: false, status: "ELIGIBLE", reasons: [],
+    opportunity: {} as never, survival: null },
+}]);
+assert.equal(reverseInconsistent.rows[0].v2Status, "INSUFFICIENT_DATA");
+assert.deepEqual(reverseInconsistent.rows[0].v2Reasons, ["SHADOW_INCONSISTENT_GATE_ELIGIBILITY"]);
