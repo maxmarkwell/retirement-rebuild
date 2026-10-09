@@ -47,3 +47,12 @@ assert.ok(check([a, { ...b, sampleResponses: [
   new TextEncoder().encode('[{"symbol":"MSFT","fiscalYear":2026,"period":"Q2","date":"2026-06-30","reportedCurrency":"USD","revenue":100,"operatingIncome":20}]'),
   sample2,
 ] }]).includes("SCALE_AUDIT_INVALID_SAMPLE_JSON:cash-flow-statement"));
+
+assert.ok(check([{ ...a, sampleResponses: [
+  new TextEncoder().encode('[{"symbol":"MSFT","fiscalYear":2026,"period":"Q2","date":"not-a-date","reportedCurrency":"USD","revenue":100,"operatingIncome":20}]'),
+  sample2,
+] }, b]).includes("SCALE_AUDIT_INVALID_SAMPLE_JSON:income-statement"));
+assert.ok(check([{ ...a, sampleResponses: [
+  new TextEncoder().encode('[{"symbol":"MSFT","fiscalYear":2026,"period":"Q2","date":"2026-06-30","reportedCurrency":"USD","revenue":"100","operatingIncome":20}]'),
+  sample2,
+] }, b]).includes("SCALE_AUDIT_INVALID_SAMPLE_JSON:income-statement"));
