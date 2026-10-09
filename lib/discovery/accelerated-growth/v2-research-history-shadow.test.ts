@@ -42,7 +42,7 @@ if (result.accepted) {
   assert.equal(result.uniqueV1Symbols, 3);
   assert.equal(result.uniqueV2Symbols, 2);
   assert.deepEqual(result.v2PathSlotCounts, { CATALYST: 4 });
-  assert.deepEqual(result.v2PathUniqueIssuerCounts, { CATALYST: 2 });
+  assert.deepEqual(result.v2PathUniqueSymbolCounts, { CATALYST: 2 });
   assert.equal(result.cyclesWithNewDiscovery, 2);
   assert.equal(result.cyclesWithWatchReassessment, 0);
   assert.equal(result.cyclesWithNoV2NewDiscovery, 0);
