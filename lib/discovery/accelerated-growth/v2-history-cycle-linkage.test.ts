@@ -79,3 +79,20 @@ rejected(records.map(x => x.id === "assessments" ? {
   ...x, value: { ...x.value, candidates: [] },
 } : x) as typeof records, "LINKAGE_V2_ASSESSMENTS_MISMATCH");
 rejected(records.slice(0, 3), "LINKAGE_SOURCE_KIND_COUNT:V2_ASSESSMENTS");
+
+const reordered = records.map(x => x.id === "assessments" ? {
+  ...x, value: { ...x.value, candidates: [{
+    assessments: cycle.candidates[0].assessments.map(a => ({
+      invalidationConditions: a.invalidationConditions,
+      economicMechanism: a.economicMechanism,
+      missingCriticalEvidence: a.missingCriticalEvidence,
+      contradictingFacts: a.contradictingFacts,
+      supportingFacts: a.supportingFacts,
+      evidenceStrength: a.evidenceStrength,
+      evidenceCoverage: a.evidenceCoverage,
+      status: a.status, path: a.path, version: a.version,
+    })),
+    origin: cycle.candidates[0].origin, symbol: cycle.candidates[0].symbol,
+  }] },
+} : x) as typeof records;
+assert.deepEqual(check(reordered), { accepted: true, issues: [] });
