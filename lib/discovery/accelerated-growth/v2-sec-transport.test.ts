@@ -20,6 +20,7 @@ const base = {
   enabled: true, cik, accession, fiscalPeriod: "2026-Q2",
   fiscalEnd: "2026-06-30", retrievedAt: "2026-08-02",
   userAgent: "Retirement Rebuild research contact@example.org",
+  calendarFrameAligned: true,
 };
 let calls = 0;
 const fetcher: typeof fetch = async (url, init) => {
@@ -63,3 +64,8 @@ const failed = await retrieveV2SecCompanyFacts({
   ...base, fetcher: async () => new Response("no", { status: 429 }),
 });
 assert.deepEqual(failed, { ok: false, issues: ["SEC_HTTP_STATUS:429"] });
+
+const notAligned = await retrieveV2SecCompanyFacts({
+  ...base, calendarFrameAligned: false, fetcher,
+});
+assert.equal(notAligned.ok, false, "Unverified fiscal-calendar alignment must fail closed");
