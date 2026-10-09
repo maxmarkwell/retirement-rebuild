@@ -28,3 +28,7 @@ assert.equal(compare([filing], [{ ...vendor, extractionId: "sec-extractor" }]).r
 assert.equal(compare([filing, filing]).reconciled, false);
 assert.equal(compare([], []).reconciled, false);
 assert.equal(compare([filing], [vendor], { revenue: Number.POSITIVE_INFINITY }).reconciled, false);
+
+assert.equal(compare([filing], [{ ...vendor, documentId: "" }]).reconciled, false);
+assert.equal(compare([{ ...filing, extractionId: "" }], [vendor]).reconciled, false);
+assert.equal(compare([filing], [{ ...vendor, extractionId: " " }]).reconciled, false);
