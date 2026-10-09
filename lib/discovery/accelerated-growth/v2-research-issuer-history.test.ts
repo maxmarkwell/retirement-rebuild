@@ -55,3 +55,7 @@ rejects({ ...base, issuerIdentitiesByCycle: [identities, [
   identities[0], { ...identities[1], issuerId: "invalid" }]] },
   "INVALID_IDENTITY");
 rejects({ ...base, cycles: [second, first] }, "NONMONOTONIC_ASOF");
+
+rejects({ ...base, issuerIdentitiesByCycle: [identities,
+  Array.from({ length: 2001 }, () => identities[0])] },
+  "TOO_MANY_IDENTITIES");
