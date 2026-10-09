@@ -40,3 +40,13 @@ assert.deepEqual(selectV2ResearchCandidates([{
   assessments: [assessment("CATALYST", "WATCH", 60),
     assessment("TURNAROUND", "QUALIFIED", 90)],
 }], 1).selected[0].paths, ["CATALYST", "TURNAROUND"]);
+
+assert.equal(selectV2ResearchCandidates([{
+  symbol: "MULTI", origin: "NEW_DISCOVERY",
+  assessments: [assessment("CATALYST", "WATCH", 60),
+    assessment("CATALYST", "QUALIFIED", 90)],
+}], 1).issues[0], "RESEARCH_INVALID_ASSESSMENT:MULTI");
+assert.equal(selectV2ResearchCandidates([{
+  symbol: "BADPATH", origin: "NEW_DISCOVERY",
+  assessments: [assessment("UNKNOWN" as V2PathAssessment["path"], "QUALIFIED", 90)],
+}], 1).issues[0], "RESEARCH_INVALID_ASSESSMENT:BADPATH");
