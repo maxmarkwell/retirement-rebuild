@@ -22,7 +22,9 @@ function allowedUrl(value: string, endpoint: "income-statement" | "cash-flow-sta
     return url.protocol === "https:" && url.hostname === "financialmodelingprep.com" &&
       url.pathname === "/stable/" + endpoint &&
       !url.username && !url.password && !url.hash &&
-      url.searchParams.size === 1 &&
+      url.searchParams.size === 2 &&
+      url.searchParams.getAll("period").length === 1 &&
+      url.searchParams.get("period") === "quarter" &&
       url.searchParams.getAll("symbol").length === 1 &&
       /^[A-Z][A-Z0-9.-]{0,11}$/.test(url.searchParams.get("symbol") ?? "");
   } catch { return false; }
