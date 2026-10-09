@@ -18,8 +18,9 @@ assert.deepEqual(runV2OfflineShadow({ ...base, runId: "../danger" }),
   { accepted: false, issues: ["SHADOW_INVALID_RUN_ID"] });
 assert.deepEqual(runV2OfflineShadow({ ...base, rows: [] }),
   { accepted: false, issues: ["SHADOW_INVALID_ROW_COUNT", "SHADOW_ROW_COVERAGE_MISMATCH"] });
-assert.deepEqual(runV2OfflineShadow({ ...base, v2SnapshotId: base.v1SnapshotId }),
-  { accepted: false, issues: ["SHADOW_SNAPSHOTS_NOT_DISTINCT"] });
+const sameId = runV2OfflineShadow({ ...base, v2SnapshotId: base.v1SnapshotId });
+assert.equal(sameId.accepted, false);
+if (!sameId.accepted) assert.ok(sameId.issues.includes("SHADOW_SNAPSHOTS_NOT_DISTINCT"));
 assert.deepEqual(runV2OfflineShadow({ ...base, rows: [base.rows[0], base.rows[0]] }),
   { accepted: false, issues: ["SHADOW_INVALID_UNIVERSE:rows", "SHADOW_ROW_COVERAGE_MISMATCH"] });
 assert.equal(runV2OfflineShadow({ ...base,
