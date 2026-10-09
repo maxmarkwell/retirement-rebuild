@@ -104,7 +104,9 @@ if (pilot.accepted) {
   assert.equal(pilot.uniqueIncrementalIssuers, 0);
   assert.deepEqual(pilot.v2PathIncrementalIssuerCounts, { CATALYST: 0 });
   assert.equal(pilot.uniqueDisplacedIssuers, 0);
-  assert.equal(pilot.cyclesWithIncrementalIssuers, 0);
+  assert.equal(pilot.cyclesWithV2OnlySelections, 0);
+  assert.equal(pilot.cyclesWithGloballyIncrementalIssuers, 0);
+  assert.equal(pilot.totalV2OnlyIssuerSlots, 0);
   assert.deepEqual(pilot.cycles.map(c => c.runId), ["batch_002", "batch_003"]);
 }
 const failedPilot = buildV2HistoricalPilotReport([second, first]);
@@ -175,7 +177,9 @@ if (novelPilot.accepted) {
   assert.deepEqual(novelPilot.cycles[1].firstSeenV2IssuerIds, ["CIK-456"]);
   assert.deepEqual(novelPilot.v2PathIncrementalIssuerCounts, { CATALYST: 1 });
   assert.equal(novelPilot.uniqueDisplacedIssuers, 0);
-  assert.equal(novelPilot.cyclesWithIncrementalIssuers, 1);
+  assert.equal(novelPilot.cyclesWithV2OnlySelections, 1);
+  assert.equal(novelPilot.cyclesWithGloballyIncrementalIssuers, 1);
+  assert.equal(novelPilot.totalV2OnlyIssuerSlots, 1);
   assert.deepEqual(novelPilot.cycles[1].incrementalIssuerIds, ["CIK-456"]);
   assert.deepEqual(novelPilot.v2PathUniqueIssuerCounts, { CATALYST: 2 });
 }
