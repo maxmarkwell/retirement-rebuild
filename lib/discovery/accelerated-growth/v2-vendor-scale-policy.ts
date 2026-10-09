@@ -11,6 +11,10 @@ export type V2VendorScaleAttestation = {
   specificationUrl: string;
   reviewedAt: string;
   reviewer: string;
+  /** SHA-256 digest of the independently archived specification artifact. */
+  specificationSha256: string;
+  /** Number of separately inspected real provider response samples. */
+  reviewedSampleCount: number;
   effectiveFrom: string;
   effectiveThrough: string;
 };
@@ -39,6 +43,9 @@ export function verifyV2VendorScaleAttestations(
          url.hostname.endsWith(".financialmodelingprep.com"));
     } catch { /* invalid */ }
     if (!validUrl) issues.push("SCALE_UNTRUSTED_SPECIFICATION:" + endpoint);
+    if (!/^[a-f0-9]{64}$/.test(x.specificationSha256) ||
+        !Number.isSafeInteger(x.reviewedSampleCount) || x.reviewedSampleCount < 2)
+      issues.push("SCALE_MISSING_AUDIT_ARTIFACTS:" + endpoint);
     const reviewed = Date.parse(x.reviewedAt);
     const from = Date.parse(x.effectiveFrom);
     const through = Date.parse(x.effectiveThrough);
