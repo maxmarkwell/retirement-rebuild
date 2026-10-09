@@ -22,6 +22,9 @@ export type V2ResearchHistoryResult =
       uniqueV1Symbols: number; uniqueV2Symbols: number;
       v2PathSlotCounts: Record<string, number>;
       cyclesWithNewDiscovery: number; cyclesWithWatchReassessment: number;
+      v1RepeatSlots: number; v2RepeatSlots: number;
+      v1FirstSeenByCycle: number[]; v2FirstSeenByCycle: number[];
+      cyclesWithNoV2NewDiscovery: number;
       cycles: Extract<V2ResearchSlotShadowResult, { accepted: true }>[] };
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
@@ -62,6 +65,26 @@ export function compareV2ResearchHistory(
     else accepted.push(result);
   }
   if (issues.length) return { accepted: false, issues };
+  const v1Seen = new Set<string>();
+  const v2Seen = new Set<string>();
+  const v1FirstSeenByCycle: number[] = [];
+  const v2FirstSeenByCycle: number[] = [];
+  let v1RepeatSlots = 0;
+  let v2RepeatSlots = 0;
+  for (const cycle of accepted) {
+    let v1First = 0;
+    let v2First = 0;
+    for (const symbol of cycle.v1SelectedSymbols) {
+      if (v1Seen.has(symbol)) v1RepeatSlots++;
+      else { v1Seen.add(symbol); v1First++; }
+    }
+    for (const candidate of cycle.v2Selected) {
+      if (v2Seen.has(candidate.symbol)) v2RepeatSlots++;
+      else { v2Seen.add(candidate.symbol); v2First++; }
+    }
+    v1FirstSeenByCycle.push(v1First);
+    v2FirstSeenByCycle.push(v2First);
+  }
   const sum = (fn: (cycle: (typeof accepted)[number]) => number) =>
     accepted.reduce((total, cycle) => total + fn(cycle), 0);
   return {
@@ -84,6 +107,8 @@ export function compareV2ResearchHistory(
       }, {}),
     cyclesWithNewDiscovery: accepted.filter(c => c.v2NewDiscoveryCount > 0).length,
     cyclesWithWatchReassessment: accepted.filter(c => c.v2WatchCount > 0).length,
+    cyclesWithNoV2NewDiscovery: accepted.filter(c => c.v2NewDiscoveryCount === 0).length,
+    v1RepeatSlots, v2RepeatSlots, v1FirstSeenByCycle, v2FirstSeenByCycle,
     cycles: accepted,
   };
 }
