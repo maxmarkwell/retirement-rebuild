@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { buildV2HistoricalPilotReport } from "./v2-history-pilot-report";
 import { createHash } from "node:crypto";
 import { verifyV2HistoricalArchiveBatch, type V2HistoricalCycleArchive } from "./v2-history-archive-batch";
 import type { V2ArchivedSource } from "./v2-history-source-archive";
@@ -81,3 +82,21 @@ rejects([first, { ...second, envelope: { ...second.envelope,
 rejects([first, second, first], "BATCH_2:NONMONOTONIC_ASOF");
 rejects([first, { ...second, payloads: second.payloads.slice(1) }],
   "ARCHIVE_MISSING_PAYLOAD:v1");
+
+const pilot = buildV2HistoricalPilotReport([first, second]);
+assert.equal(pilot.accepted, true);
+if (pilot.accepted) {
+  assert.equal(pilot.cycleCount, 2);
+  assert.equal(pilot.totalV1Slots, 2);
+  assert.equal(pilot.totalV2Slots, 2);
+  assert.equal(pilot.totalOverlapSlots, 2);
+  assert.equal(pilot.totalNewlySelectedSlots, 0);
+  assert.equal(pilot.totalDisplacedV1Slots, 0);
+  assert.equal(pilot.uniqueIncrementalIssuers, 0);
+  assert.equal(pilot.uniqueDisplacedIssuers, 0);
+  assert.equal(pilot.cyclesWithIncrementalIssuers, 0);
+  assert.deepEqual(pilot.cycles.map(c => c.runId), ["batch_002", "batch_003"]);
+}
+const failedPilot = buildV2HistoricalPilotReport([second, first]);
+assert.equal(failedPilot.accepted, false);
+if (!failedPilot.accepted) assert.ok(failedPilot.issues.some(x => x.includes("NONMONOTONIC_ASOF")));
