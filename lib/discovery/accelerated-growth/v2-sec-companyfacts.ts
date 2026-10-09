@@ -58,9 +58,8 @@ export function normalizeV2SecCompanyFacts(input: V2SecNormalizationInput): V2Se
   const expectedUrl = "https://data.sec.gov/api/xbrl/companyfacts/CIK" +
     String(input.companyfacts.cik).padStart(10, "0") + ".json";
   if (input.sourceUrl !== expectedUrl) issues.push("SEC_SOURCE_CIK_MISMATCH");
-  if (!/^\\d{10}-\\d{2}-\\d{6}$/.test(input.accession) ||
-      !input.accession.startsWith(String(input.companyfacts.cik).padStart(10, "0") + "-"))
-    issues.push("SEC_ACCESSION_CIK_MISMATCH");
+  if (!/^\\d{10}-\\d{2}-\\d{6}$/.test(input.accession))
+    issues.push("SEC_INVALID_ACCESSION_FORMAT");
   const issuerId = "CIK-" + String(input.companyfacts.cik).padStart(10, "0");
   const tags = input.companyfacts.facts["us-gaap"] ?? {};
   for (const [metric, candidates] of Object.entries(METRICS)) {
