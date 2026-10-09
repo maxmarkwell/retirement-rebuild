@@ -1,3 +1,4 @@
+import { verifyV2Observation, type V2VerifiedObservation, type V2LineageExpectation } from "./v2-data-lineage";
 import { V2_PATH_SOURCE_POLICY } from "./v2-path-source-policy";
 import type { V2PathAssessment } from "./v2-path-evaluators";
 import type { SurvivalAssessment } from "./v2-financial-survival";
@@ -10,6 +11,8 @@ export type V2EvidenceRequirement = {
   /** Independent comparison value from normalized filings or market-data pipeline. */
   expectedValue: number | null;
   absoluteTolerance: number;
+  observation?: V2VerifiedObservation;
+  lineageExpectation?: V2LineageExpectation;
 };
 
 export type V2EvidenceRecord = {
@@ -37,6 +40,18 @@ export function auditV2Evidence(
     if (requirements.filter(x => x.metric === requirement.metric).length !== 1) errors.push("DUPLICATE_REQUIREMENT:" + requirement.metric);
     if (!Number.isFinite(requirement.absoluteTolerance) || requirement.absoluteTolerance < 0) errors.push("INVALID_TOLERANCE:" + requirement.metric);
     if (requirement.expectedValue == null || !Number.isFinite(requirement.expectedValue)) errors.push("UNVERIFIED_EXPECTED_VALUE:" + requirement.metric);
+    if (requirement.observation || requirement.lineageExpectation) {
+      if (!requirement.observation || !requirement.lineageExpectation)
+        errors.push("LINEAGE_INCOMPLETE:" + requirement.metric);
+      else {
+        for (const issue of verifyV2Observation(requirement.observation, requirement.lineageExpectation))
+          errors.push(issue + ":" + requirement.metric);
+        if (requirement.lineageExpectation.metric !== requirement.metric ||
+            requirement.lineageExpectation.fiscalPeriod !== requirement.expectedPeriod ||
+            requirement.observation.value !== requirement.expectedValue)
+          errors.push("LINEAGE_REQUIREMENT_MISMATCH:" + requirement.metric);
+      }
+    }
     const permitted = policy[requirement.metric];
     if (permitted && (requirement.allowedKinds.length !== permitted.length ||
         requirement.allowedKinds.some(x => !permitted.includes(x))))
