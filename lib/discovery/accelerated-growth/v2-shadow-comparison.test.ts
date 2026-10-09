@@ -16,3 +16,9 @@ assert.equal(summary.rows[0].symbol, "ABC");
 assert.equal(rows[0].symbol, "abc", "Shadow comparison must not mutate input");
 assert.equal(summarizeV2Shadow([...rows, { ...rows[0], symbol: "ABC" }]).rows.length, 0);
 assert.ok(summarizeV2Shadow([{ ...rows[0], symbol: "BAD SYMBOL" }]).issues.includes("SHADOW_INVALID_SYMBOL"));
+
+const invalid = summarizeV2Shadow([...rows, { ...rows[0], symbol: "ABC" }]);
+assert.equal(Object.values(invalid.outcomes).reduce((a, b) => a + b, 0), 0,
+  "Invalid input must not publish misleading outcome counts");
+assert.equal(summary.outcomes.V2_EVIDENCE_GAP, 1);
+assert.equal(summary.outcomes.UNMAPPED, 1);
