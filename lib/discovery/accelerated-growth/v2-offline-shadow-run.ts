@@ -1,3 +1,4 @@
+import { verifyV2ShadowEvidence, type V2ShadowEvidenceBatch } from "./v2-shadow-evidence";
 import { verifyV2SnapshotManifests, type V2SnapshotManifest } from "./v2-snapshot-manifest";
 import { evaluateV2ShadowSnapshots, type V2ShadowInput } from "./v2-shadow-evaluator";
 import type { V2ShadowSummary } from "./v2-shadow-comparison";
@@ -14,6 +15,7 @@ export type V2ShadowRunRequest = {
   rows: readonly V2ShadowInput[];
   v1Manifest: V2SnapshotManifest;
   v2Manifest: V2SnapshotManifest;
+  evidence: readonly V2ShadowEvidenceBatch[];
 };
 export type V2ShadowRunResult =
   | { accepted: false; issues: string[] }
@@ -44,6 +46,9 @@ export function runV2OfflineShadow(request: V2ShadowRunRequest): V2ShadowRunResu
     issues.push("SHADOW_CAPTURE_IDENTITY_MISMATCH");
   issues.push(...verifyV2SnapshotManifests(request.v1Manifest, request.v2Manifest,
     request.rows.map(row => row.symbol)).issues);
+  issues.push(...verifyV2ShadowEvidence(request.evidence,
+    request.rows.map(row => row.symbol), request.v2Manifest.fiscalPeriod,
+    request.v2Manifest.researchAsOf).issues);
   if (issues.length) return { accepted: false, issues };
   const summary = evaluateV2ShadowSnapshots(request.rows);
   if (summary.issues.length) return { accepted: false, issues: summary.issues };
