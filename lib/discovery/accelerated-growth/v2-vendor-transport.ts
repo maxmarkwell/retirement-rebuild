@@ -1,4 +1,4 @@
-import { normalizeV2VendorQuarters, type V2VendorQuarter, type V2QuarterlyNormalizationResult } from "./v2-vendor-normalizer";
+import { type V2VendorQuarter, type V2QuarterlyNormalizationResult } from "./v2-vendor-normalizer";
 
 /** Disabled-by-default, read-only vendor transport. No credentials or persistence. */
 export type V2VendorTransportOptions = {
