@@ -18,3 +18,8 @@ assert.ok(verifyV2SnapshotManifests(v1, { ...v2,
   universeSymbols: ["MSFT", "MSFT"] }, ["MSFT", "ADBE"]).issues.includes("SHADOW_INVALID_UNIVERSE:v2"));
 assert.ok(verifyV2SnapshotManifests(v1, { ...v2,
   capturedAt: "2026-02-30T20:30:00Z" }, ["MSFT", "ADBE"]).issues.includes("SHADOW_MANIFEST_INVALID_TIME"));
+
+assert.ok(verifyV2SnapshotManifests(v1, { ...v2,
+  pipelineVersion: "ag-v1" }, ["MSFT", "ADBE"]).issues.includes("SHADOW_UNSUPPORTED_PIPELINE_VERSION"));
+assert.ok(verifyV2SnapshotManifests(v1, { ...v2,
+  fiscalPeriod: "2026-Q2" }, ["MSFT", "ADBE"]).issues.includes("SHADOW_FISCAL_PERIOD_MISMATCH"));
