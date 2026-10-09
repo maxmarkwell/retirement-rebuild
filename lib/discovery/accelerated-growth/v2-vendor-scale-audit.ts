@@ -40,6 +40,10 @@ export function auditV2VendorScaleArtifacts(
         evidence.sampleResponses.some(x => !x.length || x.length > 2_000_000))
       issues.push("SCALE_AUDIT_INVALID_SAMPLES:" + endpoint);
     else {
+      const digests = evidence.sampleResponses.map(sample =>
+        createHash("sha256").update(sample).digest("hex"));
+      if (new Set(digests).size !== digests.length)
+        issues.push("SCALE_AUDIT_DUPLICATE_SAMPLES:" + endpoint);
       for (const sample of evidence.sampleResponses) {
         try {
           const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(sample));
