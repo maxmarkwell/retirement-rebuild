@@ -43,3 +43,5 @@ The SEC adapter currently receives caller-supplied data and URL metadata; it can
 
 ### Provider contract review (2026-10-09)
 FMP stable income-statement and cash-flow-statement documentation lists a `period` query parameter and displays FY examples by default. Offline quarterly transport now requires `period=quarter` explicitly; annual/default responses are not admissible. Official docs: https://site.financialmodelingprep.com/developer/docs/stable/income-statement and https://site.financialmodelingprep.com/developer/docs/stable/cashflow-statement. Examples show `fiscalYear` as a string and monetary figures as numeric JSON values. These public documentation examples are **not** authenticated live API responses and do not establish scale correctness for each issuer and quarter. Provider API credentials and independent filing reconciliation are still required before live activation.
+
+The read-only FMP transport additionally rejects non-quarter fiscal periods, invalid fiscal-end dates, and absent/non-finite endpoint-specific monetary fields before returning its mandatory SCALE_UNVERIFIED result. This is response-shape validation, not vendor scale authentication.
