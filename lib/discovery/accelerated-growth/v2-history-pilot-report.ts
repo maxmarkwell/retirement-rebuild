@@ -30,8 +30,6 @@ export function buildV2HistoricalPilotReport(
   if (!verified.accepted) return verified;
   const issues: string[] = [];
   const cycles: Extract<V2HistoricalPilotReport, { accepted: true }>["cycles"] = [];
-  const incremental = new Set<string>();
-  const displaced = new Set<string>();
   const everV1 = new Set<string>();
   const everV2 = new Set<string>();
   let totalOverlapSlots = 0;
@@ -50,8 +48,6 @@ export function buildV2HistoricalPilotReport(
       archive.envelope.history.issuerIdentitiesByCycle[0].map(row =>
         [row.symbol.trim().toUpperCase(), row.issuerId]));
     const incrementalIssuerIds = result.newlySelected.map(symbol => bySymbol.get(symbol)!);
-    for (const id of incrementalIssuerIds) incremental.add(id);
-    for (const symbol of result.displacedV1) displaced.add(bySymbol.get(symbol)!);
     for (const symbol of result.v1SelectedSymbols) everV1.add(bySymbol.get(symbol)!);
     for (const candidate of result.v2Selected) everV2.add(bySymbol.get(candidate.symbol)!);
     totalV1Slots += result.v1SelectedSymbols.length;
