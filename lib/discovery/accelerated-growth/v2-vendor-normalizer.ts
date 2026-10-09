@@ -61,7 +61,16 @@ export function normalizeV2VendorQuarters(input: V2QuarterlyNormalizationInput):
   for (const [period, row] of income) {
     const matched = cash.get(period);
     if (!matched) { issues.push("MISSING_MATCHED_CASH_FLOW:" + period); continue; }
-    if (row.date && matched.date && row.date !== matched.date) {
+    // An absent or impossible period end cannot establish matching quarters.
+    const validDate = (date: string | undefined) =>
+      typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+      Number.isFinite(Date.parse(date)) &&
+      new Date(Date.parse(date)).toISOString().slice(0, 10) === date;
+    if (!validDate(row.date) || !validDate(matched.date)) {
+      issues.push("MISSING_OR_INVALID_FISCAL_END:" + period);
+      continue;
+    }
+    if (row.date !== matched.date) {
       issues.push("FISCAL_END_DATE_MISMATCH:" + period);
       continue;
     }
