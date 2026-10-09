@@ -35,3 +35,14 @@ The two versions represent different screening stages and status taxonomies. Exa
 ## Graduation criteria
 
 A future shadow pilot should require reproducible inputs, verified fiscal-quarter alignment, reconciled independent evidence, version-pinned research snapshots, audit-ready logs, no trading side effects and explicit authorization before any production change.
+
+## Mandatory source-evidence preflight
+
+Every offline shadow request must now supply `evidence` batches covering each
+compared ticker. The preflight checks the declared issuer, fiscal period,
+document/extraction identity, source kind, publication and retrieval cutoff,
+and duplicate metric/source pairs. Missing or inconsistent batches reject
+the entire comparison. It remains a caller-supplied metadata and lineage
+check: source authenticity, fiscal-calendar interpretation and independent
+reconciliation of values require separate verification. No network or
+production integration is enabled.
