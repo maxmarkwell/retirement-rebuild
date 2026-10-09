@@ -25,6 +25,19 @@ async function main() {
   assert.deepEqual(await retrieveV2VendorQuarters({
     ...base, incomeUrl: incomeUrl + "&apikey=secret",
   }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] });
+  for (const invalid of [
+    incomeUrl + "&APIKEY=secret",
+    incomeUrl + "&redirect=https://example.org",
+    "https://financialmodelingprep.com/stable/profile?symbol=MSFT",
+    "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT&symbol=AAPL",
+    "https://financialmodelingprep.com/stable/income-statement?symbol=MSFT%26apikey%3Dsecret",
+  ]) {
+    assert.deepEqual(await retrieveV2VendorQuarters({ ...base, incomeUrl: invalid }),
+      { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] });
+  }
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, cashFlowUrl: cashFlowUrl.replace("MSFT", "AAPL"),
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] });
   assert.equal(calls, 0);
   assert.deepEqual(await retrieveV2VendorQuarters(base),
     { ok: false, issues: ["VENDOR_TRANSPORT_SCALE_UNVERIFIED"] });
