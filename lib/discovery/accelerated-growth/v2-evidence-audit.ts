@@ -74,6 +74,8 @@ export function auditV2Evidence(
         errors.push("LINEAGE_CANDIDATE_UNIT_MISMATCH:" + requirement.metric);
       if (!record.evidence.source?.extractionId?.trim())
         errors.push("LINEAGE_CANDIDATE_EXTRACTION_REQUIRED:" + requirement.metric);
+      if (record.evidence.source?.extractionId?.trim() === requirement.observation.extractionId.trim())
+        errors.push("LINEAGE_SHARED_EXTRACTION:" + requirement.metric);
       if (record.evidence.source?.url === requirement.observation.source.url ||
           (candidateDocument && candidateDocument === independentDocument))
         errors.push("LINEAGE_NOT_INDEPENDENT_SOURCE:" + requirement.metric);
