@@ -1,3 +1,4 @@
+import { reconcileV2FilingAndVendor } from "./v2-cross-source-reconciliation";
 import { verifyV2Observation, type V2VerifiedObservation } from "./v2-data-lineage";
 
 /**
@@ -17,6 +18,7 @@ export function verifyV2ShadowEvidence(
   expectedSymbols: readonly string[],
   fiscalPeriod: string,
   researchAsOf: string,
+  tolerances: Readonly<Record<string, number>> = {},
 ): V2ShadowEvidenceCheck {
   const issues: string[] = [];
   const asOf = Date.parse(researchAsOf);
@@ -48,6 +50,16 @@ export function verifyV2ShadowEvidence(
       const retrieved = Date.parse(obs.source.retrievedAt);
       if (Number.isFinite(asOf) && (published > asOf || retrieved > asOf))
         issues.push("SHADOW_EVIDENCE_LOOKAHEAD:" + symbol + ":" + obs.metric);
+    }
+    const filings = batch.observations.filter(x => x.source.kind === "FILING");
+    const vendors = batch.observations.filter(x => x.source.kind === "MARKET_DATA");
+    if (vendors.length) {
+      const filingMetrics = new Set(filings.map(x => x.metric));
+      for (const vendor of vendors)
+        if (!filingMetrics.has(vendor.metric))
+          issues.push("SHADOW_VENDOR_WITHOUT_FILING:" + symbol + ":" + vendor.metric);
+      const result = reconcileV2FilingAndVendor(filings, vendors, tolerances);
+      for (const issue of result.issues) issues.push("SHADOW_RECONCILIATION:" + symbol + ":" + issue);
     }
   }
   if (seen.size !== expected.size || [...expected].some(s => !seen.has(s)))
