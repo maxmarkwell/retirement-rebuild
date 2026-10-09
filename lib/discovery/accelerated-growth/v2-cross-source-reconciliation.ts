@@ -33,7 +33,9 @@ export function reconcileV2FilingAndVendor(
     if (!Number.isFinite(filing.value) || !Number.isFinite(other.value)) {
       issues.push("INVALID_RECONCILIATION_VALUE:" + key); continue;
     }
-    if (filing.documentId === other.documentId ||
+    if (!filing.documentId.trim() || !other.documentId.trim() ||
+        !filing.extractionId.trim() || !other.extractionId.trim() ||
+        filing.documentId === other.documentId ||
         filing.extractionId === other.extractionId)
       issues.push("NOT_INDEPENDENT_EXTRACTION:" + key);
     const tolerance = tolerances[filing.metric];
