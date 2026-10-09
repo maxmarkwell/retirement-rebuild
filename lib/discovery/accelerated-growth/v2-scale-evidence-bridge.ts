@@ -28,6 +28,10 @@ export function diagnoseV2ScaleFromObservations(
       const k = key(row);
       if (target.has(k)) issues.push("SCALE_BRIDGE_DUPLICATE:" + kind + ":" + k);
       target.set(k, row);
+      if (row.source.documentId !== row.documentId ||
+          row.source.extractionId !== row.extractionId ||
+          row.source.issuerId !== row.issuerId)
+        issues.push("SCALE_BRIDGE_SOURCE_IDENTITY_MISMATCH:" + k);
       if (row.unit !== "USD" || row.source.unit !== "USD")
         issues.push("SCALE_BRIDGE_NON_USD:" + k);
       for (const error of verifyV2Observation(row, {
