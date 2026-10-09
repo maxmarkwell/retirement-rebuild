@@ -58,3 +58,12 @@ remains valid for paths that do not require vendor corroboration; this layer
 does not yet enforce path-specific source requirements or authenticate the
 documents. Tolerances are caller supplied and must be approved by the
 research policy before relying on comparison outcomes.
+
+### Tolerance guardrail
+
+For offline filing/vendor comparisons, a configured absolute tolerance must
+be finite, nonnegative, and no greater than 1% of the filing observation's
+absolute value. A zero filing value therefore requires an exact match. This
+is a conservative interim safety ceiling, not a validated metric-specific
+materiality policy. The research team must establish metric-specific
+thresholds before production consideration.
