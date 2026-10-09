@@ -48,6 +48,10 @@ export function compareV2ResearchHistoryWithIssuers(
     const rows = request.issuerIdentitiesByCycle[index];
     if (!rows) continue;
     const prefix = "IDENTITY_CYCLE_" + index + ":";
+    if (rows.length > 2000) {
+      issues.push(prefix + "TOO_MANY_IDENTITIES");
+      continue;
+    }
     const bySymbol = new Map<string, string>();
     const byIssuer = new Map<string, string>();
     const expected = new Set(cycle.candidates.map(c => c.symbol.trim().toUpperCase()));
