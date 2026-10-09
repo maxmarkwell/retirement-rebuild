@@ -10,9 +10,10 @@ export type V2HistoricalPilotReport =
   | { accepted: true; cycleCount: number; uniqueV1Issuers: number;
       uniqueV2Issuers: number; totalV1Slots: number; totalV2Slots: number;
       totalOverlapSlots: number; totalNewlySelectedSlots: number;
-      totalDisplacedV1Slots: number; totalNewIssuerSelections: number;
+      totalDisplacedV1Slots: number; totalV2OnlyIssuerSlots: number;
       uniqueIncrementalIssuers: number; uniqueDisplacedIssuers: number;
-      cyclesWithIncrementalIssuers: number;
+      cyclesWithV2OnlySelections: number;
+      cyclesWithGloballyIncrementalIssuers: number;
       firstSeenV2BeforeV1Issuers: number;
       firstSeenV1BeforeV2Issuers: number;
       sameCycleFirstSeenIssuers: number;
@@ -44,7 +45,7 @@ export function buildV2HistoricalPilotReport(
   let totalNewlySelectedSlots = 0;
   let totalDisplacedV1Slots = 0;
   let totalV1Slots = 0;
-  let totalNewIssuerSelections = 0;
+  let totalV2OnlyIssuerSlots = 0;
   for (const [index, archive] of archives.entries()) {
     const cycle = archive.envelope.history.cycles[0];
     const result = compareV2ResearchSlots(cycle);
@@ -82,7 +83,7 @@ export function buildV2HistoricalPilotReport(
     totalOverlapSlots += result.overlap.length;
     totalNewlySelectedSlots += result.newlySelected.length;
     totalDisplacedV1Slots += result.displacedV1.length;
-    totalNewIssuerSelections += incrementalIssuerIds.length;
+    totalV2OnlyIssuerSlots += incrementalIssuerIds.length;
     cycles.push({
       runId: cycle.runId, researchAsOf: cycle.researchAsOf,
       capacity: cycle.capacity, v1Symbols: result.v1SelectedSymbols,
@@ -106,10 +107,12 @@ export function buildV2HistoricalPilotReport(
     uniqueV2Issuers: verified.uniqueV2Issuers,
     totalV1Slots, totalV2Slots: verified.totalV2Slots,
     totalOverlapSlots, totalNewlySelectedSlots, totalDisplacedV1Slots,
-    totalNewIssuerSelections,
+    totalV2OnlyIssuerSlots,
     uniqueIncrementalIssuers: trulyIncremental.length,
     uniqueDisplacedIssuers: trulyDisplaced.length,
-    cyclesWithIncrementalIssuers: cycles.filter(c => c.incrementalIssuerIds.length > 0).length,
+    cyclesWithV2OnlySelections: cycles.filter(c => c.incrementalIssuerIds.length > 0).length,
+    cyclesWithGloballyIncrementalIssuers: cycles.filter(c =>
+      c.incrementalIssuerIds.some(id => !everV1.has(id))).length,
     firstSeenV2BeforeV1Issuers: [...firstV2].filter(([id, at]) =>
       firstV1.has(id) && at < firstV1.get(id)!).length,
     firstSeenV1BeforeV2Issuers: [...firstV1].filter(([id, at]) =>
