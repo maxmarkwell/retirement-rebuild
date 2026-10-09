@@ -5,6 +5,13 @@ const base = {
   v1SnapshotId: "v1:cycle-1", v2SnapshotId: "v2:cycle-1",
   v1Manifest: { version: "v1" as const, snapshotId: "v1:cycle-1", capturedAt: "2026-10-08T20:00:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z", pipelineVersion: "ag-v1", fiscalPeriod: "2026-Q3" },
   v2Manifest: { version: "v2" as const, snapshotId: "v2:cycle-1", pipelineVersion: "ag-v2", fiscalPeriod: "2026-Q3", capturedAt: "2026-10-08T20:15:00Z", universeId: "universe_1", universeSymbols: ["MSFT"], researchAsOf: "2026-10-08T19:00:00Z" },
+  evidence: [{ symbol: "MSFT", issuerId: "CIK-0000000001", fiscalPeriod: "2026-Q3", observations: [{
+    metric: "revenue", value: 100, unit: "USD" as const, fiscalPeriod: "2026-Q3",
+    issuerId: "CIK-0000000001", documentId: "sec-q3", extractionId: "extract-q3",
+    source: { url: "https://www.sec.gov/filing", publisher: "SEC",
+      publishedAt: "2026-10-01", retrievedAt: "2026-10-02",
+      fiscalPeriod: "2026-Q3", metric: "revenue", kind: "FILING" as const },
+  }] }],
   rows: [{ symbol: "MSFT", v1Status: "ADVANCE",
     v2Path: "ACCELERATING_FUNDAMENTALS", v2Gate: null }],
 };
@@ -29,3 +36,13 @@ assert.equal(runV2OfflineShadow({ ...base,
 const drift = runV2OfflineShadow({ ...base, v2Manifest: { ...base.v2Manifest, universeId: "other" } });
 assert.equal(drift.accepted, false);
 if (!drift.accepted) assert.ok(drift.issues.includes("SHADOW_UNIVERSE_ID_MISMATCH"));
+
+const missingEvidence = runV2OfflineShadow({ ...base, evidence: [] });
+assert.equal(missingEvidence.accepted, false);
+if (!missingEvidence.accepted) assert.ok(missingEvidence.issues.includes("SHADOW_EVIDENCE_COVERAGE_MISMATCH"));
+const lookahead = runV2OfflineShadow({ ...base, evidence: [{
+  ...base.evidence[0], observations: [{ ...base.evidence[0].observations[0],
+    source: { ...base.evidence[0].observations[0].source, retrievedAt: "2026-10-09" } }],
+}] });
+assert.equal(lookahead.accepted, false);
+if (!lookahead.accepted) assert.ok(lookahead.issues.includes("SHADOW_EVIDENCE_LOOKAHEAD:MSFT:revenue"));
