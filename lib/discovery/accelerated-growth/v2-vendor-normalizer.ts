@@ -53,6 +53,20 @@ export function normalizeV2VendorQuarters(input: V2QuarterlyNormalizationInput):
   const issues: string[] = [];
   if (!input.issuerId.trim() || !input.documentId.trim() || !input.extractionId.trim())
     issues.push("MISSING_TRANSPORT_PROVENANCE");
+  // Caller-provided provenance is still untrusted, but malformed metadata
+  // must never be promoted into verified observations.
+  const published = Date.parse(input.publishedAt);
+  const retrieved = Date.parse(input.retrievedAt);
+  if (!Number.isFinite(published) || !Number.isFinite(retrieved) ||
+      published > retrieved)
+    issues.push("INVALID_VENDOR_SOURCE_TIMESTAMPS");
+  try {
+    const url = new URL(input.sourceUrl);
+    if (url.protocol !== "https:" || !url.hostname ||
+        url.username || url.password)
+      issues.push("INVALID_VENDOR_SOURCE_URL");
+  } catch { issues.push("INVALID_VENDOR_SOURCE_URL"); }
+  if (!input.publisher.trim()) issues.push("MISSING_VENDOR_PUBLISHER");
   if (input.currency !== "USD") issues.push("UNSUPPORTED_VENDOR_CURRENCY");
   if (input.monetaryScale !== "ONES") issues.push("UNSUPPORTED_VENDOR_MONETARY_SCALE");
   const income = unique(input.income, "INCOME", issues);
