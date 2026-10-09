@@ -44,6 +44,7 @@ jobs:
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-priority.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-slot-shadow.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-history-shadow.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-issuer-history.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-companyfacts.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-cross-source-reconciliation.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-transport.test.ts
