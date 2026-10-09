@@ -35,7 +35,7 @@ export function verifyV2SnapshotManifests(
     issues.push("SHADOW_UNIVERSE_ID_MISMATCH");
   if (v1.pipelineVersion !== "ag-v1" || v2.pipelineVersion !== "ag-v2")
     issues.push("SHADOW_UNSUPPORTED_PIPELINE_VERSION");
-  if (!/^\\d{4}-Q[1-4]$/.test(v1.fiscalPeriod) ||
+  if (!/^\d{4}-Q[1-4]$/.test(v1.fiscalPeriod) ||
       v1.fiscalPeriod !== v2.fiscalPeriod)
     issues.push("SHADOW_FISCAL_PERIOD_MISMATCH");
   const t1 = parseUtc(v1.capturedAt), t2 = parseUtc(v2.capturedAt);
