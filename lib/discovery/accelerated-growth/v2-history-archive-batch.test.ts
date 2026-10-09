@@ -268,3 +268,13 @@ if (evidenceInventory.accepted) {
 }
 const invalidInventory = inspectV2PilotEvidenceReadiness([second, first]);
 assert.equal(invalidInventory.accepted, false);
+
+rejects([null as unknown as V2HistoricalCycleArchive], "INVALID_ARCHIVE_SHAPE");
+rejects([{ ...first, envelope: {
+  ...first.envelope, history: null as unknown as typeof first.envelope.history,
+} }], "INVALID_ARCHIVE_SHAPE");
+rejects([{ ...first, envelope: {
+  ...first.envelope, history: { ...first.envelope.history,
+    issuerIdentitiesByCycle: [],
+  },
+} }], "INVALID_ARCHIVE_SHAPE");
