@@ -20,7 +20,7 @@ export function evaluateV2ShadowSnapshots(input: readonly V2ShadowInput[]): V2Sh
     v2Path: item.v2Path,
     v2Status: item.v2Gate && (item.v2Gate.status === "ELIGIBLE") !== item.v2Gate.eligible
       ? "INSUFFICIENT_DATA" : item.v2Gate?.status ?? "INSUFFICIENT_DATA",
-    v2Reasons: item.v2Gate?.status === "ELIGIBLE" && !item.v2Gate.eligible
+    v2Reasons: item.v2Gate && (item.v2Gate.status === "ELIGIBLE") !== item.v2Gate.eligible
       ? ["SHADOW_INCONSISTENT_GATE_ELIGIBILITY"] :
       item.v2Gate?.reasons ?? ["SHADOW_MISSING_V2_GATE"],
   }));
