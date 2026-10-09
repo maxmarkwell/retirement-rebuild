@@ -5,7 +5,7 @@ Status: feature-branch prototype. **No live ingestion, daily-cycle wiring, or tr
 ## Source roles
 
 - `v2-sec-companyfacts.ts`: pure parser for SEC Company Facts JSON **already obtained by a trusted transport**. A URL string supplied to the parser does not authenticate the data. A production transport must verify HTTPS response origin, status, content type, request bounds, rate limits, CIK and accession identity, and SEC access policies.
-- `v2-vendor-normalizer.ts`: pure adapter for quarterly vendor income and cash-flow records. Vendor records are `MARKET_DATA`, **not** `FILING`.
+- `v2-vendor-normalizer.ts`: pure adapter for quarterly vendor income and cash-flow records. It requires explicit unscaled USD metadata, USD declarations on both rows, and valid matching fiscal-end dates; any violation returns no observations. Vendor records are `MARKET_DATA`, **not** `FILING`. These metadata claims are not independently authenticated by this adapter.
 - `v2-cross-source-reconciliation.ts`: compares like-for-like observations and rejects unmatched issuer, period, units, values beyond tolerance, and reused extraction/document identities.
 - `v2-lineage-builder.ts`: constructs expected-value requirements from independently normalized observations; it does not authenticate either input.
 - `v2-research-gate.ts`: opt-in `requireLineage` rejects missing or contradictory provenance. Legacy callers retain the prior behavior.
