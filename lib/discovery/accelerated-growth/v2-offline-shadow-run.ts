@@ -16,6 +16,7 @@ export type V2ShadowRunRequest = {
   v1Manifest: V2SnapshotManifest;
   v2Manifest: V2SnapshotManifest;
   evidence: readonly V2ShadowEvidenceBatch[];
+  reconciliationTolerances: Readonly<Record<string, number>>;
 };
 export type V2ShadowRunResult =
   | { accepted: false; issues: string[] }
@@ -48,7 +49,7 @@ export function runV2OfflineShadow(request: V2ShadowRunRequest): V2ShadowRunResu
     request.rows.map(row => row.symbol)).issues);
   issues.push(...verifyV2ShadowEvidence(request.evidence,
     request.rows.map(row => row.symbol), request.v2Manifest.fiscalPeriod,
-    request.v2Manifest.researchAsOf).issues);
+    request.v2Manifest.researchAsOf, request.reconciliationTolerances).issues);
   if (issues.length) return { accepted: false, issues };
   const summary = evaluateV2ShadowSnapshots(request.rows);
   if (summary.issues.length) return { accepted: false, issues: summary.issues };
