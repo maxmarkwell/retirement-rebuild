@@ -28,6 +28,14 @@ export function diagnoseV2ScaleFromObservations(
       const k = key(row);
       if (target.has(k)) issues.push("SCALE_BRIDGE_DUPLICATE:" + kind + ":" + k);
       target.set(k, row);
+      try {
+        const url = new URL(row.source.url);
+        const allowedHost = kind === "FILING" ?
+          url.hostname === "data.sec.gov" :
+          url.hostname === "financialmodelingprep.com";
+        if (url.protocol !== "https:" || !allowedHost || url.username || url.password)
+          issues.push("SCALE_BRIDGE_UNTRUSTED_SOURCE_URL:" + kind + ":" + k);
+      } catch { issues.push("SCALE_BRIDGE_UNTRUSTED_SOURCE_URL:" + kind + ":" + k); }
       if (row.source.documentId !== row.documentId ||
           row.source.extractionId !== row.extractionId ||
           row.source.issuerId !== row.issuerId)
