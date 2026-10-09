@@ -100,6 +100,23 @@ export async function retrieveV2VendorQuarters(options: V2VendorTransportOptions
     if (income.some(row => row.reportedCurrency !== "USD") ||
         cashFlow.some(row => row.reportedCurrency !== "USD"))
       return { ok: false, issues: ["VENDOR_TRANSPORT_CURRENCY_UNVERIFIED"] };
+    // Validate response shape before the separate, still-unverified scale gate.
+    // Never treat a provider's declared currency as proof of monetary scale.
+    const validDate = (date: unknown): boolean => {
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+        return false;
+      const parsed = Date.parse(date);
+      return Number.isFinite(parsed) &&
+        new Date(parsed).toISOString().slice(0, 10) === date;
+    };
+    const validQuarter = (row: V2VendorQuarter): boolean =>
+      /^\d{4}$/.test(String(row.fiscalYear ?? "")) &&
+      /^Q[1-4]$/.test(row.period ?? "") && validDate(row.date);
+    if ([...income, ...cashFlow].some(row => !validQuarter(row)) ||
+        income.some(row => !Number.isFinite(row.revenue) ||
+          !Number.isFinite(row.operatingIncome)) ||
+        cashFlow.some(row => !Number.isFinite(row.freeCashFlow)))
+      return { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_QUARTERLY_FIELDS"] };
     return { ok: false, issues: ["VENDOR_TRANSPORT_SCALE_UNVERIFIED"] };
   } catch (error) {
     const issue = error instanceof Error && error.message.startsWith("VENDOR_")
