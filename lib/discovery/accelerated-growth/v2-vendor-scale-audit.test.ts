@@ -13,8 +13,9 @@ const income: V2VendorScaleAttestation = {
   effectiveFrom: "2026-01-01", effectiveThrough: "2026-12-31",
 };
 const cash: V2VendorScaleAttestation = { ...income, endpoint: "cash-flow-statement" };
+const sample2 = new TextEncoder().encode('[{"symbol":"AAPL","period":"Q1"}]');
 const a = { endpoint: "income-statement" as const, specificationBytes: bytes,
-  sampleResponses: [sample, sample] };
+  sampleResponses: [sample, sample2] };
 const b = { ...a, endpoint: "cash-flow-statement" as const };
 const check = (artifacts: (typeof a | typeof b)[]) =>
   auditV2VendorScaleArtifacts([income, cash], artifacts, "2026-09-01");
@@ -26,3 +27,6 @@ assert.ok(check([{ ...a, sampleResponses: [sample] }, b])
 assert.ok(check([{ ...a, sampleResponses: [new TextEncoder().encode("not json"), sample] }, b])
   .includes("SCALE_AUDIT_INVALID_SAMPLE_JSON:income-statement"));
 assert.ok(check([a]).includes("SCALE_AUDIT_MISSING_OR_DUPLICATE_ARTIFACT:cash-flow-statement"));
+
+assert.ok(check([{ ...a, sampleResponses: [sample, sample] }, b])
+  .includes("SCALE_AUDIT_DUPLICATE_SAMPLES:income-statement"));
