@@ -8,7 +8,7 @@ import type { V2HistoryCaptureEnvelope } from "./v2-history-capture";
  */
 export type V2ArchivedSource = {
   id: string;
-  kind: "SEC_FILING" | "VENDOR_RAW" | "V1_CYCLE" | "UNIVERSE" | "ISSUER_MAPPING";
+  kind: "SEC_FILING" | "VENDOR_RAW" | "V1_CYCLE" | "UNIVERSE" | "ISSUER_MAPPING" | "V2_ASSESSMENTS";
   sha256: string;
   publishedAt: string;
   retrievedAt: string;
@@ -71,7 +71,7 @@ export function verifyV2ArchivedSources(
     byId.set(payload.id, payload.utf8);
   }
   let verifiedSources = 0;
-  const kinds = new Set(["SEC_FILING", "VENDOR_RAW", "V1_CYCLE", "UNIVERSE", "ISSUER_MAPPING"]);
+  const kinds = new Set(["SEC_FILING", "VENDOR_RAW", "V1_CYCLE", "UNIVERSE", "ISSUER_MAPPING", "V2_ASSESSMENTS"]);
   for (const source of manifest.sources) {
     if (!source || typeof source.id !== "string" || !ID.test(source.id) ||
         seen.has(source.id) || !kinds.has(source.kind) ||
