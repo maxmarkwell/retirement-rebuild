@@ -1,4 +1,4 @@
-import { type V2VendorQuarter, type V2QuarterlyNormalizationResult } from "./v2-vendor-normalizer";
+import { type V2VendorQuarter } from "./v2-vendor-normalizer";
 
 /** Disabled-by-default, read-only vendor transport. No credentials or persistence. */
 export type V2VendorTransportOptions = {
@@ -13,18 +13,18 @@ export type V2VendorTransportOptions = {
   publisher: string;
   fetcher?: typeof fetch;
 };
-export type V2VendorTransportResult =
-  | { ok: true; data: V2QuarterlyNormalizationResult }
-  | { ok: false; issues: string[] };
+export type V2VendorTransportResult = { ok: false; issues: string[] };
 const MAX_BYTES = 2_000_000;
 const TIMEOUT_MS = 12_000;
-function allowedUrl(value: string): boolean {
+function allowedUrl(value: string, endpoint: "income-statement" | "cash-flow-statement"): boolean {
   try {
     const url = new URL(value);
     return url.protocol === "https:" && url.hostname === "financialmodelingprep.com" &&
+      url.pathname === "/stable/" + endpoint &&
       !url.username && !url.password && !url.hash &&
-      !url.searchParams.has("apikey") && !url.searchParams.has("api_key") &&
-      !url.searchParams.has("token") && !url.searchParams.has("key");
+      url.searchParams.size === 1 &&
+      url.searchParams.getAll("symbol").length === 1 &&
+      /^[A-Z][A-Z0-9.-]{0,11}$/.test(url.searchParams.get("symbol") ?? "");
   } catch { return false; }
 }
 async function readQuarters(fetcher: typeof fetch, url: string): Promise<V2VendorQuarter[]> {
@@ -66,8 +66,10 @@ async function readQuarters(fetcher: typeof fetch, url: string): Promise<V2Vendo
 }
 export async function retrieveV2VendorQuarters(options: V2VendorTransportOptions): Promise<V2VendorTransportResult> {
   if (!options.enabled) return { ok: false, issues: ["VENDOR_TRANSPORT_DISABLED"] };
-  if (!allowedUrl(options.incomeUrl) || !allowedUrl(options.cashFlowUrl) ||
-      options.incomeUrl === options.cashFlowUrl)
+  if (!allowedUrl(options.incomeUrl, "income-statement") ||
+      !allowedUrl(options.cashFlowUrl, "cash-flow-statement") ||
+      new URL(options.incomeUrl).searchParams.get("symbol") !==
+        new URL(options.cashFlowUrl).searchParams.get("symbol"))
     return { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] };
   const fetcher = options.fetcher ?? fetch;
   try {
