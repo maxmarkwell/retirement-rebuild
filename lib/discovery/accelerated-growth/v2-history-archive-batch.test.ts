@@ -76,4 +76,4 @@ rejects([first, { ...second, envelope: { ...second.envelope,
   history: { ...second.envelope.history, cycles: [{
     ...second.envelope.history.cycles[0], v1SelectedSymbols: ["BBB"],
   }] },
-} }], "LINKAGE_V1_MISMATCH");
+} }], "SLOT_SHADOW_MISSING_V1_CANDIDATE");
