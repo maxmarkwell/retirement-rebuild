@@ -14,6 +14,7 @@ export type V2HistoricalPilotReport =
       uniqueIncrementalIssuers: number; uniqueDisplacedIssuers: number;
       cyclesWithIncrementalIssuers: number;
       v2PathUniqueIssuerCounts: Record<string, number>;
+      v2PathIncrementalIssuerCounts: Record<string, number>;
       cycles: {
         runId: string; researchAsOf: string; capacity: number;
         v1Symbols: string[]; v2Symbols: string[];
@@ -32,6 +33,7 @@ export function buildV2HistoricalPilotReport(
   const cycles: Extract<V2HistoricalPilotReport, { accepted: true }>["cycles"] = [];
   const everV1 = new Set<string>();
   const everV2 = new Set<string>();
+  const issuerByPath = new Map<string, Set<string>>();
   let totalOverlapSlots = 0;
   let totalNewlySelectedSlots = 0;
   let totalDisplacedV1Slots = 0;
@@ -49,7 +51,14 @@ export function buildV2HistoricalPilotReport(
         [row.symbol.trim().toUpperCase(), row.issuerId]));
     const incrementalIssuerIds = result.newlySelected.map(symbol => bySymbol.get(symbol)!);
     for (const symbol of result.v1SelectedSymbols) everV1.add(bySymbol.get(symbol)!);
-    for (const candidate of result.v2Selected) everV2.add(bySymbol.get(candidate.symbol)!);
+    for (const candidate of result.v2Selected) {
+      const issuer = bySymbol.get(candidate.symbol)!;
+      everV2.add(issuer);
+      for (const path of candidate.paths) {
+        if (!issuerByPath.has(path)) issuerByPath.set(path, new Set());
+        issuerByPath.get(path)!.add(issuer);
+      }
+    }
     totalV1Slots += result.v1SelectedSymbols.length;
     totalOverlapSlots += result.overlap.length;
     totalNewlySelectedSlots += result.newlySelected.length;
@@ -83,6 +92,9 @@ export function buildV2HistoricalPilotReport(
     uniqueDisplacedIssuers: trulyDisplaced.length,
     cyclesWithIncrementalIssuers: cycles.filter(c => c.incrementalIssuerIds.length > 0).length,
     v2PathUniqueIssuerCounts: verified.v2PathUniqueIssuerCounts,
+    v2PathIncrementalIssuerCounts: Object.fromEntries(
+      [...issuerByPath.entries()].map(([path, issuers]) => [path,
+        [...issuers].filter(issuer => !everV1.has(issuer)).length])),
     cycles,
   };
 }
