@@ -1,3 +1,4 @@
+import { canonicalV2ArchiveJson } from "./v2-archive-json";
 import { verifyV2ArchivedSources, type V2SourcePayload,
   type V2ArchivedManifest } from "./v2-history-source-archive";
 import type { V2HistoryCaptureEnvelope } from "./v2-history-capture";
@@ -59,9 +60,14 @@ export function verifyV2HistoricalCycleLinkage(
         row.symbol !== expected[i].symbol || row.issuerId !== expected[i].issuerId ||
         row.effectiveAt !== expected[i].effectiveAt))
     issues.push("LINKAGE_ISSUER_MISMATCH");
+  let candidatesMatch = false;
+  try {
+    candidatesMatch = record(assessments) &&
+      canonicalV2ArchiveJson(assessments.candidates) ===
+        canonicalV2ArchiveJson(cycle.candidates);
+  } catch { /* malformed candidate JSON is rejected below */ }
   if (!record(assessments) || assessments.runId !== cycle.runId ||
-      assessments.researchAsOf !== cycle.researchAsOf ||
-      JSON.stringify(assessments.candidates) !== JSON.stringify(cycle.candidates))
+      assessments.researchAsOf !== cycle.researchAsOf || !candidatesMatch)
     issues.push("LINKAGE_V2_ASSESSMENTS_MISMATCH");
   return { accepted: issues.length === 0, issues };
 }
