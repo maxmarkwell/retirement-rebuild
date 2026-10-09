@@ -24,9 +24,12 @@ export type AgDiscoveryResult = {
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
+  executionEvidenceInputs: Record<string,{volume:number|null;dollarVolume:number|null;sector:string|null}>;
 };
 
 type Preselected = { stock: DynamicUniverseStock; selectorScore: number };
+
+const DISCOVERY_SOFT_BUDGET_MS = 150_000;
 
 const BUCKET_LIMITS: Record<UniverseMarketCapBucket, number> = { small: 8, mid: 8, large: 4, mega: 2 };
 
@@ -64,6 +67,7 @@ function isRateLimitError(error: unknown) {
 }
 
 export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?: string[] }): Promise<AgDiscoveryResult> {
+  const discoveryStartedMs = Date.now();
   const universe = await getDynamicDiscoveryUniverse();
   const byBucket = new Map<UniverseMarketCapBucket, DynamicUniverseStock[]>();
   for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) byBucket.set(bucket, []);
@@ -91,10 +95,21 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     selectedSymbols.add(symbol);
   }
 
+  const executionEvidenceInputs = Object.fromEntries(selected.map(({stock}) => [stock.ticker.toUpperCase(), {volume:stock.volume,dollarVolume:stock.dollarVolume,sector:stock.sector}]));
   const candidates: AgDiscoveryCandidate[] = [];
   const errors: Array<{ symbol: string; error: string }> = [];
   let rateLimited = false;
+  let budgetExhausted = false;
   for (const item of selected.sort((a, b) => b.selectorScore - a.selectorScore)) {
+    if (Date.now() - discoveryStartedMs >= DISCOVERY_SOFT_BUDGET_MS) {
+      budgetExhausted = true;
+      console.warn("[AG discovery] soft time budget exhausted; remaining candidates skipped", {
+        elapsedMs: Date.now() - discoveryStartedMs,
+        evaluatedCount: candidates.length,
+        selectedCount: selected.length,
+      });
+      break;
+    }
     try {
       const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker);
       candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, sector: item.stock.sector, industry: item.stock.industry });
@@ -113,7 +128,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     reviewCount: candidates.filter((c) => c.score.status === "REVIEW").length,
     rejectCount: candidates.filter((c) => c.score.status === "REJECT").length,
     insufficientDataCount: candidates.filter((c) => c.score.status === "INSUFFICIENT_DATA").length,
-    rateLimited, stoppedEarly: rateLimited || candidates.length + errors.length < selected.length,
-    bucketSelectionCounts, candidates, errors,
+    rateLimited, stoppedEarly: budgetExhausted || rateLimited || candidates.length + errors.length < selected.length,
+    bucketSelectionCounts, candidates, errors, executionEvidenceInputs,
   };
 }

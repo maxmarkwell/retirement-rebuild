@@ -25,7 +25,10 @@ export function isRetryableAgResearchError(error: unknown): boolean {
   if (error instanceof AgResearchOutputError) return true;
 
   const status = statusCode(error);
-  if (status === 404 || status === 408 || status === 409 || status === 429 || (status !== null && status >= 500)) {
+  // A provider quota/rate-limit response needs a later scheduled run, not
+  // an immediate repeat that consumes more of the request time budget.
+  if (status === 429 || /\b429\b|rate.?limit|limit reach|api credits/i.test(errorText(error))) return false;
+  if (status === 404 || status === 408 || status === 409 || (status !== null && status >= 500)) {
     return true;
   }
 
@@ -43,9 +46,11 @@ export async function withAgResearchRetry<T>(
   operation: (attempt: number) => Promise<T>
 ): Promise<T> {
   let lastError: unknown;
+  let attemptsMade = 0;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
+      attemptsMade = attempt;
       return await operation(attempt);
     } catch (error) {
       lastError = error;
@@ -55,5 +60,5 @@ export async function withAgResearchRetry<T>(
   }
 
   const message = errorText(lastError);
-  throw new Error(`${stage} failed for ${symbol} after ${MAX_ATTEMPTS} bounded attempts: ${message}`);
+  throw new Error(`${stage} failed for ${symbol} after ${attemptsMade} bounded attempt(s): ${message}`);
 }

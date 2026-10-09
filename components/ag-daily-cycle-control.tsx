@@ -8,6 +8,8 @@ type CycleStatus = {
   hasCycleToday: boolean;
   status: string;
   retryAvailable: boolean;
+  requiresManualRecoveryReview: boolean;
+  staleCycles: Array<{ id: string; cycleDate: string; startedAt: string | null }>;
   executionEnabled: boolean;
   transactionsWrittenByCycle: boolean;
   cycle: {
@@ -38,6 +40,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   }
 
   async function runCycle() {
+    if (status.requiresManualRecoveryReview) return;
     setRunning(true);
     setMessage(null);
     try {
@@ -56,9 +59,10 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
     }
   }
 
+  const recoveryBlocked = status.requiresManualRecoveryReview;
   const completed = status.status === "completed";
   const failed = status.status === "failed";
-  const label = running ? "Running Research…" : failed ? "Retry Today's Cycle" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
+  const label = recoveryBlocked ? "Manual Review Required" : running ? "Running Research…" : failed ? "Retry Today's Cycle" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
@@ -70,13 +74,14 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         <button
           type="button"
           onClick={runCycle}
-          disabled={running || completed}
+          disabled={running || completed || recoveryBlocked}
           className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {label}
         </button>
       </div>
 
+      {recoveryBlocked && <p role="alert" className="mt-2 text-xs font-semibold text-red-700">A potentially abandoned AG cycle was detected. New runs and retries are blocked in this control pending manual recovery review. Review the cycle records and persistence before proceeding.</p>}
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
 
       {status.cycle && (

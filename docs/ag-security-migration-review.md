@@ -1,0 +1,89 @@
+# Accelerated Growth recovery security and migration review
+
+**Status: branch review only; no production migration or activation authorized.**
+
+## Recovery privilege surface
+
+The draft recovery tables `ag_cycle_stage_checkpoints`, `ag_cycle_decision_writes`, and `ag_cycle_watch_writes` enable RLS, revoke direct `anon` / `authenticated` table access, and grant table access to `service_role`. Application access is through owner-scoped RPCs rather than direct table reads.
+
+All reviewed recovery SECURITY DEFINER functions use an empty `search_path`, schema-qualify recovery relations/functions, revoke default PUBLIC execution, and grant only the intended authenticated RPC surface. The reviewed set covers stage claim/completion, owner-scoped reads, atomic decision/watch persistence, watch postcondition verification, Committee/holding payload verification, and aggregate persistence completion.
+
+The disposable restricted-role and cross-owner tests remain mandatory because SECURITY DEFINER correctness depends on explicit ownership predicates in each function.
+
+## Migration order
+
+The executable CI dependency order is: audited pre-provenance schema; add `investment_decisions.notes`; watchlist schema/compatibility; checkpoint table; stage RPCs; decision/watch ledgers; recovery reads; atomic watch RPC/verifiers; atomic decision RPC; Committee/holding verifiers; aggregate persistence completion; then audited-schema behavioral tests.
+
+CI now executes behavior after the complete dependency chain. This caught and corrected a test-order mistake where behavior was invoked before payload verifiers existed.
+
+## Locking and recovery
+
+Persistence completion locks the persistence checkpoint and verifies decision and watch evidence before completion. Decision/watch writers require the same live persistence claim and reject expired or mismatched claims. Per-ticker advisory locks and newer-cycle fences protect against stale-cycle overwrite.
+
+Ambiguous persistence responses are not automatically retried by application adapters. Exact committed evidence is reconciled through read/verifier RPCs. Stale stage leases are not automatically reclaimed and require manual review.
+
+## Production blockers
+
+This review does **not** authorize production DDL. Before production application: package the proposals into a reviewed migration preserving dependency order; verify function ownership and grants after migration; run Supabase security/database advisors in a controlled environment; confirm rollback/forward-fix procedure for partial migration failure; keep AG default-OFF and the legacy fail-closed guard throughout migration; and separately approve deployment and later paper-only activation.
+
+Pre-existing live SECURITY DEFINER warnings outside this recovery package remain a separate audit item. They should not be blindly revoked because some may support intended signup/user workflows.
+
+## Conclusion
+
+The branch recovery privilege model and migration dependency order are internally consistent under disposable PostgreSQL and the audited production-shaped fixture. This supports preparing a migration package for independent review, but not applying it to production or wiring the active AG route.
+
+## Packaged migration candidate evidence
+
+A non-numbered review artifact now exists at `supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql`. CI creates a fresh database from the audited pre-provenance fixture, loads the existing research-watchlist migration, applies this candidate as one transaction, asserts recovery-table RLS/direct-grant boundaries and SECURITY DEFINER search-path/PUBLIC-execute posture, then executes the audited decision/watch/persistence behavior suites.
+
+The candidate passed PostgreSQL CI at `f9b6043`, along with the isolated recovery suites. Contract CI at the same head passed AG tests, Next type generation, and TypeScript compilation. This is review evidence only: the candidate is intentionally outside `supabase/migrations` and has not been applied to Supabase.
+
+## Failure/rollback review
+
+CI now deliberately creates a conflicting recovery-table object after loading the audited pre-provenance fixture, then attempts the packaged candidate. The candidate fails after its early provenance/watchlist DDL has begun; because the package is enclosed in one PostgreSQL transaction, the test verifies that the new `investment_decisions.notes` column, watchlist constraint mutation, and recovery functions are all rolled back while the preexisting conflict object remains unchanged. A clean database then applies the same candidate successfully and reruns behavior tests.
+
+Current Supabase documentation continues to require a fixed `search_path` for SECURITY DEFINER functions and notes that functions are executable by PUBLIC by default unless revoked. The recovery RPCs intentionally remain authenticated SECURITY DEFINER endpoints because they provide narrowly owner-scoped access to otherwise private recovery tables; this means Supabase advisor warnings for authenticated SECURITY DEFINER execution should be expected and must be reviewed as intentional rather than blindly suppressed or revoked.
+
+## Live read-only preflight
+
+A read-only production catalog preflight on 2026-10-05 confirmed PostgreSQL 17.6, the expected `anon`, `authenticated`, and `service_role` roles, `pgcrypto` in the `extensions` schema, absence of `investment_decisions.notes`, and absence of the proposed recovery tables/functions. It also confirmed migration-history entries `20260922100000` and `20260924190000` and that the live watchlist resolution constraint already includes all three quantitative resolution values.
+
+That last finding removed redundant watchlist constraint DDL from the packaged recovery candidate. Candidate CI now begins from the reconciled watchlist state by applying both historical watchlist migrations before the recovery candidate. At `f237325`, PostgreSQL CI passed audited-schema behavior, forced transactional rollback, clean candidate application, privilege assertions, and transactional smoke tests; contract CI passed AG tests, Next type generation, and TypeScript compilation.
+
+## Privileged API surface lock
+
+The review found one additional hardening issue: `ag_protect_completed_checkpoint()` is a trigger-only helper and should never be a client RPC, but PostgreSQL's default function privileges could otherwise leave it executable through PUBLIC. The proposal and packaged candidate now explicitly revoke PUBLIC/anon/authenticated execution and grant it only to `service_role`.
+
+The migration-candidate privilege test now also asserts the exact authenticated SECURITY DEFINER function-name set. Any future recovery edit that accidentally exposes an additional privileged `ag_*` function to `authenticated` will fail CI. At `d2b027a`, PostgreSQL migration/rollback/behavior/smoke coverage and the AG contract/type suites are green with this hardening.
+
+## Authenticated privileged-RPC ownership review
+
+Each authenticated recovery SECURITY DEFINER endpoint was reviewed for caller and ownership fencing. Stage claim/completion and atomic decision/watch writers require `auth.uid()`; writers additionally bind the cycle to the caller, paper AG portfolio/active era, and live claim/lease. Owner-scoped recovery readers join the requested cycle and require both checkpoint/ledger and cycle ownership to match `auth.uid()`. Committee/holding/watch verifiers similarly fail closed outside the owning cycle. Persistence completion combines caller ownership, active paper-era checks, the live persistence claim/lease, and exact decision/watch evidence.
+
+Restricted-role CI now exercises cross-owner denial not only for decision writes/ledger reads, but also checkpoint-status reads, watch-ledger reads, completed-stage output, and the aggregate Committee/holding/watch verifiers. The first edit exposed a test-block delimiter error rather than a security defect; after correcting the fixture, PostgreSQL CI and contract/type CI passed at `ad8dda3`.
+
+## Operator dry-run package
+
+The reviewed candidate is now pinned by Git content digest `105d32e85078df1e5eb9b953c983ca6732e679d4`; CI fails if the candidate bytes no longer hash to that Git blob identity. `ag-production-migration-runbook.md` defines STOP conditions, ambiguous-response handling, postflight evidence, and the separation between DDL, runner deployment, paper activation, and transaction authorization. `ag-production-migration-verification.sql` contains read-only catalog/evidence queries only.
+
+A fresh read-only production preflight after creating the runbook still reports PostgreSQL 17.6, pgcrypto in `extensions`, all three API roles, both required historical watchlist migrations, no `investment_decisions.notes`, zero recovery tables, and zero core recovery RPCs. Baseline counts captured for later comparison are 10 AG daily cycles, 4 research-watchlist rows, 70 investment decisions, and 15 transactions. These counts are evidence snapshots, not invariants; they must be freshly recaptured immediately before any separately authorized migration.
+
+At `632800e`, both PostgreSQL candidate/rollback/security CI and AG contract/type CI passed with the digest gate enabled.
+
+## Mechanically checked review boundary
+
+The production review package now includes `ag-production-migration-review-record.md`, which records the exact pinned artifact, independent review checklist, decision field, and later execution-evidence fields without itself authorizing a change. PostgreSQL CI verifies that the pinned digest appears in both the runbook and review record and that the read-only verification SQL retains migration-history, notes-column, trigger-helper, and table-grant checks.
+
+A fresh read-only live prerequisite query reconfirmed `pgcrypto` in `extensions`, all three API roles, migrations `20260922100000` and `20260924190000`, the full quantitative watchlist resolution constraint, and absence of `investment_decisions.notes`. At `830f17e`, the complete PostgreSQL candidate/rollback/security/smoke suite and AG contract/type suite passed with the review-artifact checks enabled.
+
+## Production DDL application — 2026-10-05
+
+The explicitly approved pinned recovery candidate (Git content digest `105d32e85078df1e5eb9b953c983ca6732e679d4`) was applied successfully to Supabase as migration `20261005174550_ag_recovery_atomic_persistence`. Immediate postflight confirmed `investment_decisions.notes`, all three RLS-enabled recovery tables, zero recovery rows, and unchanged baseline business-data counts (10 daily cycles, 4 research-watchlist rows, 70 investment decisions, 15 transactions). Direct recovery-table privileges remain service-role only.
+
+Postflight advisor/catalog review found a live-Supabase privilege difference not modeled by disposable CI: the 13 intended authenticated recovery SECURITY DEFINER RPCs also received explicit `anon` EXECUTE ACL entries. This is a STOP condition for activation even though the functions themselves check `auth.uid()`. AG remains OFF. A narrowly scoped follow-up candidate, `20261005_ag_recovery_revoke_anon_review_candidate.sql`, revokes anon EXECUTE only from that reviewed recovery RPC set. CI now asserts anon cannot execute any of them; PostgreSQL and contract/type suites pass at `c2f8885`. This follow-up has **not** been applied to production and requires separate authorization.
+
+## Production anon-RPC privilege hotfix — 2026-10-05
+
+The separately approved narrow follow-up was applied successfully as migration `20261005175157_ag_recovery_revoke_anon_rpc_execute`. Postflight confirms all 13 reviewed recovery SECURITY DEFINER RPCs now have PUBLIC=false and anon=false while retaining authenticated=true and service_role=true. The trigger-only `ag_protect_completed_checkpoint()` remains unavailable to PUBLIC/anon/authenticated and executable by service_role. Recovery tables remain service-role-only, all three recovery ledgers remain empty, and baseline business-data counts remain 10 daily cycles / 4 research-watchlist rows / 70 investment decisions / 15 transactions.
+
+The security advisor's anonymous SECURITY DEFINER warning count fell from 17 to 4; none of the remaining four are recovery RPCs. They are pre-existing functions (`create_accelerated_growth_era_for_portfolio`, `create_default_portfolios_for_user`, `supersede_prior_active_ai_decisions`, `supersede_reassessed_decision`) and remain a separate audit item. The 13 authenticated recovery warnings are expected for the reviewed owner-scoped API design. AG remains OFF pending runner/deployment acceptance and separate activation authorization.

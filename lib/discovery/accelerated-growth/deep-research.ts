@@ -13,6 +13,7 @@ export type AgDeepResearch = {
   evidenceFor: string[]; evidenceAgainst: string[]; unresolvedQuestions: string[]; thesisClock: string; invalidation: string[];
   confidence: number; model: string; promptVersion: string;
   priorWatchReassessed: boolean;
+  priorWatchRowId: string | null;
 };
 
 const schema = {
@@ -24,6 +25,7 @@ const schema = {
 } as const;
 
 export type AgPriorResearchWatch = {
+  rowId: string;
   confidence: number;
   thesis: string;
   unresolvedQuestions: string[];
@@ -61,7 +63,7 @@ Catalyst research:
 ${JSON.stringify(catalyst, null, 2)}
 
 ${priorWatch ? `Prior unresolved Deep Research WATCH:
-${JSON.stringify(priorWatch, null, 2)}
+${JSON.stringify({ confidence: priorWatch.confidence, thesis: priorWatch.thesis, unresolvedQuestions: priorWatch.unresolvedQuestions, thesisClock: priorWatch.thesisClock, firstSeenAt: priorWatch.firstSeenAt, lastSeenAt: priorWatch.lastSeenAt }, null, 2)}
 
 This prior WATCH is context, not evidence. Re-test its thesis and unresolved questions against current evidence. Do not preserve WATCH merely for consistency. PROCEED, WATCH, or STOP based on today's evidence.` : "No prior unresolved Deep Research WATCH exists for this candidate."}`;
 }
@@ -78,10 +80,10 @@ export async function researchAgDeepCandidate(candidate: AgDiscoveryCandidate, c
       throw new AgResearchOutputError(`AG deep research did not complete for ${candidate.symbol}. Status: ${response.status}`);
     }
 
-    let parsed: Omit<AgDeepResearch, "symbol" | "companyName" | "model" | "promptVersion" | "priorWatchReassessed">;
+    let parsed: Omit<AgDeepResearch, "symbol" | "companyName" | "model" | "promptVersion" | "priorWatchReassessed" | "priorWatchRowId">;
     try { parsed = JSON.parse(response.output_text) as typeof parsed; }
     catch { throw new AgResearchOutputError(`AG deep research returned invalid JSON for ${candidate.symbol}.`); }
 
-    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, confidence: normalizeAgConfidence(parsed.confidence), model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION, priorWatchReassessed: Boolean(priorWatch) };
+    return { symbol: candidate.symbol, companyName: candidate.companyName, ...parsed, confidence: normalizeAgConfidence(parsed.confidence), model: AG_DEEP_RESEARCH_MODEL, promptVersion: AG_DEEP_RESEARCH_PROMPT_VERSION, priorWatchReassessed: Boolean(priorWatch), priorWatchRowId: priorWatch?.rowId ?? null };
   });
 }

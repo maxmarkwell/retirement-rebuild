@@ -1,0 +1,186 @@
+name: AG isolated PostgreSQL draft tests
+on:
+  push:
+    branches: [fix/ag-stale-cycle-diagnostics]
+    paths:
+      - 'docs/ag-*.sql'
+      - 'docs/ag-resumable-cycle-checkpoint-design.md'
+      - 'tests/ag-postgres-*'
+      - 'supabase/migration-candidates/*'
+      - '.github/workflows/ag-postgres-draft.yml'
+  workflow_dispatch:
+jobs:
+  postgres-draft:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_only
+          POSTGRES_DB: ag_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: test_only
+      PGDATABASE: ag_isolated
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load isolated schema and AG draft SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;'
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-schema-compatibility-proposal.sql
+          python3 -c "from pathlib import Path; t=Path('docs/ag-resumable-cycle-checkpoint-design.md').read_text(); Path('/tmp/ag-checkpoints.sql').write_text(t.split(chr(96)*3+'sql',1)[1].split(chr(96)*3,1)[0])"
+          test -s /tmp/ag-checkpoints.sql
+          psql -v ON_ERROR_STOP=1 -f /tmp/ag-checkpoints.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-stage-claim-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-cycle-decision-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-recovery-read-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-watchlist-rpc-draft.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
+      - name: Validate recovery SQL against audited actual-schema fixture
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_actual_schema;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_actual_schema;'
+          export PGDATABASE=ag_actual_schema
+          # Roles are cluster-wide and were created by the isolated-schema step.
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          # Executable deployment-order contract: audited live schema must start
+          # without notes; the isolated provenance proposal must add it.
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='investment_decisions' AND column_name='notes') THEN RAISE EXCEPTION 'Audited pre-provenance fixture unexpectedly contains notes'; END IF; END \$\$;"
+          psql -v ON_ERROR_STOP=1 -f docs/ag-decision-provenance-schema-proposal.sql
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='investment_decisions' AND column_name='notes') THEN RAISE EXCEPTION 'Provenance proposal failed to add notes'; END IF; END \$\$;"
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-schema-compatibility-proposal.sql
+          python3 -c "from pathlib import Path; t=Path('docs/ag-resumable-cycle-checkpoint-design.md').read_text(); Path('/tmp/ag-checkpoints-actual.sql').write_text(t.split(chr(96)*3+'sql',1)[1].split(chr(96)*3,1)[0])"
+          psql -v ON_ERROR_STOP=1 -f /tmp/ag-checkpoints-actual.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-stage-claim-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-cycle-decision-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-watchlist-ledger-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-recovery-read-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-watchlist-rpc-draft.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-atomic-decision-rpc-draft.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-committee-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-holding-payload-verification-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f docs/ag-persistence-completion-rpc-proposal.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
+
+      - name: Verify reviewed migration candidate digest
+        run: |
+          set -euo pipefail
+          expected="$(tr -d '\\n' < supabase/migration-candidates/20261005_ag_recovery_review_candidate.gitblob)"
+          actual="$(git hash-object supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql)"
+          test "$actual" = "$expected" || { echo "AG migration candidate content digest mismatch" >&2; exit 1; }
+
+      - name: Verify symbol checkpoint candidate digest and review record
+        run: |
+          set -euo pipefail
+          expected="e39963134620ee88d91641255dd6cc007281914e"
+          actual="$(git hash-object supabase/migration-candidates/20261005_ag_symbol_checkpoints_review_candidate.sql)"
+          test "$actual" = "$expected" || { echo "AG symbol checkpoint candidate content digest mismatch" >&2; exit 1; }
+          grep -F "$expected" docs/ag-symbol-checkpoint-migration-review-record.md
+          grep -F "20261005175157_ag_recovery_revoke_anon_rpc_execute" docs/ag-symbol-checkpoint-migration-review-record.md
+          grep -F "AG OFF" docs/ag-symbol-checkpoint-migration-review-record.md
+
+      - name: Verify AG cycle finalization candidate digest and review record
+        run: |
+          set -euo pipefail
+          expected="1423204e0570164f855d945732b0ee59b028b4cc"
+          actual="$(git hash-object supabase/migration-candidates/20261005_ag_cycle_finalization_review_candidate.sql)"
+          test "$actual" = "$expected" || { echo "AG finalization candidate content digest mismatch" >&2; exit 1; }
+          grep -F "$expected" docs/ag-cycle-finalization-migration-review-record.md
+          grep -F "20261005190736_ag_symbol_checkpoints" docs/ag-cycle-finalization-migration-review-record.md
+          grep -F "AG OFF" docs/ag-cycle-finalization-migration-review-record.md
+
+      - name: Verify AG migration review artifacts
+        run: |
+          set -euo pipefail
+          digest="$(tr -d '\\n' < supabase/migration-candidates/20261005_ag_recovery_review_candidate.gitblob)"
+          grep -F "$digest" docs/ag-production-migration-runbook.md
+          grep -F "$digest" docs/ag-production-migration-review-record.md
+          grep -F "investment_decisions_notes_exists" docs/ag-production-migration-verification.sql
+          grep -F "ag_protect_completed_checkpoint" docs/ag-production-migration-verification.sql
+          grep -F "role_table_grants" docs/ag-production-migration-verification.sql
+          grep -F "supabase_migrations.schema_migrations" docs/ag-production-migration-verification.sql
+
+      - name: Verify migration candidate rolls back atomically on failure
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_migration_rollback;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_migration_rollback;'
+          export PGDATABASE=ag_migration_rollback
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260924190000_ag_quantitative_watch_resolutions.sql
+          psql -v ON_ERROR_STOP=1 -c 'CREATE TABLE public.ag_cycle_stage_checkpoints(id uuid);'
+          if psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql; then
+            echo 'candidate unexpectedly succeeded despite deliberate object conflict' >&2
+            exit 1
+          fi
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-migration-rollback.sql
+
+      - name: Verify symbol checkpoint candidate rolls back atomically on failure
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_symbol_rollback;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_symbol_rollback;'
+          export PGDATABASE=ag_symbol_rollback
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260924190000_ag_quantitative_watch_resolutions.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -c "CREATE FUNCTION public.ag_claim_cycle_symbol(uuid,text,text) RETURNS TABLE(checkpoint_id uuid,claim_token uuid) LANGUAGE sql AS 'SELECT NULL::uuid,NULL::uuid';"
+          if psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_symbol_checkpoints_review_candidate.sql; then
+            echo 'symbol candidate unexpectedly succeeded despite deliberate function conflict' >&2
+            exit 1
+          fi
+          psql -v ON_ERROR_STOP=1 -c 'DROP FUNCTION public.ag_claim_cycle_symbol(uuid,text,text);'
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-symbol-migration-rollback.sql
+
+      - name: Validate packaged recovery migration candidate
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS ag_migration_candidate;'
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ag_migration_candidate;'
+          export PGDATABASE=ag_migration_candidate
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-fixture.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260922100000_ag_research_watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260924190000_ag_quantitative_watch_resolutions.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_recovery_revoke_anon_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-recovery-privileges.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_symbol_checkpoints_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-symbol-checkpoints.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-behavior.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-actual-schema-watchlist.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migration-candidates/20261005_ag_cycle_finalization_review_candidate.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-cycle-finalization.sql
+
+      - name: Run isolated transactional smoke tests
+        run: |
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-smoke.sql
+          bash tests/ag-postgres-concurrency.sh
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-restricted-role.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-stage-fencing.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-persistence-completion.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-committee-payload.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-holding-payload.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-mixed-completion.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-watchlist-ledger.sql
+          psql -v ON_ERROR_STOP=1 -f tests/ag-postgres-watchlist-atomic.sql

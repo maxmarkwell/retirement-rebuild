@@ -5,10 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AgQuantitativeWatchResolution = {
   symbol: string;
+  sourceWatchId: string;
   resolution: "REVIEW" | "REJECT" | "INSUFFICIENT_DATA";
 };
 
-export type AgCommitteeWatchResolution = AgQuantitativeWatchResolution;
+export type AgCommitteeWatchResolution = {
+  symbol: string;
+  sourceDecisionId: string;
+  resolution: AgQuantitativeWatchResolution["resolution"];
+};
 
 export type AgDeepResearchPipelineResult = {
   discovery: { universeCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
@@ -23,7 +28,7 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const priorWatchByTicker = new Map<string, AgPriorResearchWatch>();
-  const committeeWatchTickers = new Set<string>();
+  const committeeWatchByTicker = new Map<string, string>();
 
   // Load both unresolved Deep Research WATCHes and active Committee WATCHes.
   // They remain distinct states, but both must re-enter quantitative Discovery
@@ -38,11 +43,11 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
       if (era) {
         const [{ data: watches, error: watchError }, { data: committeeWatches, error: committeeWatchError }] = await Promise.all([
           supabase.from("ag_research_watchlist")
-            .select("ticker, confidence, thesis, unresolved_questions, thesis_clock, first_seen_at, last_seen_at")
+            .select("id, ticker, confidence, thesis, unresolved_questions, thesis_clock, first_seen_at, last_seen_at")
             .eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).is("resolved_at", null)
             .order("last_seen_at", { ascending: true }).limit(5),
           supabase.from("investment_decisions")
-            .select("ticker")
+            .select("id, ticker")
             .eq("portfolio_id", portfolio.id).eq("user_id", user.id).eq("source", "ai_committee")
             .eq("decision_type", "watch").eq("status", "active").gte("created_at", era.inception_at),
         ]);
@@ -50,18 +55,22 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
         if (committeeWatchError) throw new Error(`Unable to load active AG Committee watches: ${committeeWatchError.message}`);
         for (const watch of watches ?? []) {
           priorWatchByTicker.set(watch.ticker.toUpperCase(), {
-            confidence: Number(watch.confidence), thesis: watch.thesis,
+            rowId: watch.id, confidence: Number(watch.confidence), thesis: watch.thesis,
             unresolvedQuestions: watch.unresolved_questions ?? [], thesisClock: watch.thesis_clock,
             firstSeenAt: watch.first_seen_at, lastSeenAt: watch.last_seen_at,
           });
         }
-        for (const watch of committeeWatches ?? []) committeeWatchTickers.add(watch.ticker.toUpperCase());
+        for (const watch of committeeWatches ?? []) committeeWatchByTicker.set(watch.ticker.toUpperCase(), watch.id);
       }
     }
   }
 
-  const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
+  const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchByTicker.keys()]);
+  console.info("[AG research] discovery started", { reassessCount: reassessTickers.size });
+  const discoveryStartedMs = Date.now();
   const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
+  console.info("[AG research] discovery timing", { elapsedMs: Date.now() - discoveryStartedMs });
+  console.info("[AG research] discovery finished", { universe: discovery.universeCount, evaluated: discovery.evaluatedCount, advanced: discovery.advanceCount, rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly });
   const discoverySummary = {
     universeCount: discovery.universeCount, preselectedCount: discovery.preselectedCount,
     evaluatedCount: discovery.evaluatedCount, advanceCount: discovery.advanceCount,
@@ -75,6 +84,7 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     .filter((candidate) => priorWatchByTicker.has(candidate.symbol.toUpperCase()) && candidate.score.status !== "ADVANCE")
     .map((candidate) => ({
       symbol: candidate.symbol,
+      sourceWatchId: priorWatchByTicker.get(candidate.symbol.toUpperCase())!.rowId,
       resolution: candidate.score.status as AgQuantitativeWatchResolution["resolution"],
     }));
 
@@ -82,9 +92,10 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   // ticker is explicitly reassessed and no longer passes ADVANCE, report it
   // separately so persistence can supersede that stale ownership decision.
   const committeeWatchResolutions: AgCommitteeWatchResolution[] = discovery.candidates
-    .filter((candidate) => committeeWatchTickers.has(candidate.symbol.toUpperCase()) && candidate.score.status !== "ADVANCE")
+    .filter((candidate) => committeeWatchByTicker.has(candidate.symbol.toUpperCase()) && candidate.score.status !== "ADVANCE")
     .map((candidate) => ({
       symbol: candidate.symbol,
+      sourceDecisionId: committeeWatchByTicker.get(candidate.symbol.toUpperCase())!,
       resolution: candidate.score.status as AgCommitteeWatchResolution["resolution"],
     }));
 
@@ -112,16 +123,29 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const errors: AgDeepResearchPipelineResult["errors"] = [];
   let catalystSupportedCount = 0;
   for (const candidate of selected) {
+    console.info("[AG research] candidate started", { ticker: candidate.symbol });
     try {
+      const catalystStartedMs = Date.now();
       const catalyst = await researchAgCatalyst(candidate);
-      if (catalyst.catalystStatus === "NOT_FOUND") continue;
+      console.info("[AG research] catalyst timing", { ticker: candidate.symbol, elapsedMs: Date.now() - catalystStartedMs });
+      if (catalyst.catalystStatus === "NOT_FOUND") {
+        console.info("[AG research] catalyst not found", { ticker: candidate.symbol });
+        continue;
+      }
+      console.info("[AG research] catalyst supported", { ticker: candidate.symbol });
       catalystSupportedCount += 1;
       try {
-        results.push(await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null));
+        const deepResearchStartedMs = Date.now();
+        const research = await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null);
+        console.info("[AG research] deep research timing", { ticker: candidate.symbol, elapsedMs: Date.now() - deepResearchStartedMs });
+        results.push(research);
+        console.info("[AG research] deep research finished", { ticker: candidate.symbol, status: research.researchStatus });
       } catch (error) {
+        console.error("[AG research] deep research failed", { ticker: candidate.symbol, error });
         errors.push({ symbol: candidate.symbol, stage: "DEEP_RESEARCH", error: error instanceof Error ? error.message : "Unknown AG deep research error." });
       }
     } catch (error) {
+      console.error("[AG research] catalyst failed", { ticker: candidate.symbol, error });
       errors.push({ symbol: candidate.symbol, stage: "CATALYST", error: error instanceof Error ? error.message : "Unknown AG catalyst research error." });
     }
   }

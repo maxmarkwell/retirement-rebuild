@@ -30,10 +30,12 @@ export type AgCommitteePipelineResult = {
       model: string;
       promptVersion: string;
       priorWatchReassessed: boolean;
+      priorWatchRowId: string | null;
     }>;
     quantitativeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["quantitativeWatchResolutions"];
     committeeWatchResolutions: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["committeeWatchResolutions"];
   };
+  eligibleSymbols: string[];
   requestedCount: number;
   completedCount: number;
   failedCount: number;
@@ -63,6 +65,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
       model: result.model,
       promptVersion: result.promptVersion,
       priorWatchReassessed: result.priorWatchReassessed,
+      priorWatchRowId: result.priorWatchRowId,
     })),
     quantitativeWatchResolutions: upstream.quantitativeWatchResolutions,
     committeeWatchResolutions: upstream.committeeWatchResolutions,
@@ -71,6 +74,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
   if (upstream.errors.length > 0 || upstream.discovery.rateLimited || upstream.discovery.stoppedEarly) {
     return {
       upstream: upstreamSummary,
+      eligibleSymbols: proceed.map((result) => result.symbol),
       requestedCount: 0,
       completedCount: 0,
       failedCount: 0,
@@ -92,6 +96,7 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
 
   return {
     upstream: upstreamSummary,
+    eligibleSymbols: proceed.map((result) => result.symbol),
     requestedCount: proceed.length,
     completedCount: decisions.length,
     failedCount: errors.length,
