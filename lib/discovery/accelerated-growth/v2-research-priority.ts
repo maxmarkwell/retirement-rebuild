@@ -18,6 +18,9 @@ export type V2ResearchPriority = {
 };
 export type V2ResearchSelection = { selected: V2ResearchPriority[]; issues: string[] };
 const SYMBOL = /^[A-Z][A-Z0-9.-]{0,11}$/;
+const PATHS = new Set(["TURNAROUND", "VALUATION_DISLOCATION",
+  "ACCELERATING_FUNDAMENTALS", "EMERGING_OPPORTUNITY", "CATALYST"]);
+const STATUSES = new Set(["QUALIFIED", "WATCH", "NOT_QUALIFIED", "INSUFFICIENT_DATA"]);
 export function selectV2ResearchCandidates(
   candidates: readonly V2ResearchCandidate[],
   maxResearch: number,
@@ -37,7 +40,9 @@ export function selectV2ResearchCandidates(
     }
     seen.add(symbol);
     if (!candidate.assessments.length ||
+        new Set(candidate.assessments.map(a => a.path)).size !== candidate.assessments.length ||
         candidate.assessments.some(a => a.version !== "ag-opportunity-v2" ||
+          !PATHS.has(a.path) || !STATUSES.has(a.status) ||
           !Number.isFinite(a.evidenceCoverage) || a.evidenceCoverage < 0 ||
           a.evidenceCoverage > 100)) {
       issues.push("RESEARCH_INVALID_ASSESSMENT:" + symbol);
