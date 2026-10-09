@@ -33,3 +33,4 @@ jobs:
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-survival.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-gate.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-additional-paths.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-data-lineage.test.ts
