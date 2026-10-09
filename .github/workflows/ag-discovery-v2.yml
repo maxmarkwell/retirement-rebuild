@@ -44,3 +44,4 @@ jobs:
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-outcomes.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-offline-shadow-run.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-snapshot-manifest.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-evidence.test.ts
