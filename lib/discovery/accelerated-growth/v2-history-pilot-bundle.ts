@@ -57,10 +57,14 @@ export function evaluateV2HistoricalPilotBundle(
           typeof p.id !== "string" || typeof p.utf8 !== "string"))
       return { accepted: false, issues: ["PILOT_BUNDLE_INVALID_ARCHIVE:" + i] };
   }
-  const report = buildV2HistoricalPilotReport(
-    raw.archives as V2HistoricalCycleArchive[]);
-  if (!report.accepted) return report;
-  return { accepted: true,
-    bundleSha256: createHash("sha256").update(rawUtf8, "utf8").digest("hex"),
-    report };
+  try {
+    const report = buildV2HistoricalPilotReport(
+      raw.archives as V2HistoricalCycleArchive[]);
+    if (!report.accepted) return report;
+    return { accepted: true,
+      bundleSha256: createHash("sha256").update(rawUtf8, "utf8").digest("hex"),
+      report };
+  } catch {
+    return { accepted: false, issues: ["PILOT_BUNDLE_INVALID_NESTED_DATA"] };
+  }
 }
