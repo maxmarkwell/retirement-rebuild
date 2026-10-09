@@ -26,7 +26,8 @@ assert.equal(built.requirements.length, observations.length);
 const records = observations.map(x => ({
   name: x.metric, expectedPeriod: x.fiscalPeriod, allowed: policy[x.metric],
   evidence: { value: x.value, calculationMethod: "Independently computed",
-    source: { ...x.source, url: "https://research.example.org/" + x.metric } },
+    source: { ...x.source, url: "https://research.example.org/" + x.metric,
+      documentId: "research-document-" + x.metric } },
 }));
 const opportunity: V2PathAssessment = {
   version: "ag-opportunity-v2", path, status: "QUALIFIED",
@@ -59,3 +60,16 @@ assert.equal(assessV2ResearchGate(opportunity, survival, [
   ...records.slice(1),
 ], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
   "Strict audit must reject comparison records sourced from the candidate's same URL");
+
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence,
+    source: { ...records[0].evidence.source!, documentId: observations[0].documentId } } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Two different URLs for the same document are not independent");
+assert.equal(assessV2ResearchGate(opportunity, survival, [
+  { ...records[0], evidence: { ...records[0].evidence,
+    source: { ...records[0].evidence.source!, documentId: undefined } } },
+  ...records.slice(1),
+], built.requirements, { requireLineage: true }).status, "INSUFFICIENT_DATA",
+  "Strict mode requires candidate document identity");
