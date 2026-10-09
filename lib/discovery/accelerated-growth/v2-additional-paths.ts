@@ -87,9 +87,15 @@ export type CatalystEvidence = {
   invalidationTriggerDocumented: boolean;
 };
 export function assessV2Catalyst(x: CatalystEvidence): V2PathAssessment {
-  const assessment = Date.parse(x.assessmentDate);
-  const event = Date.parse(x.eventDate ?? "");
-  const validDates = Number.isFinite(assessment) && Number.isFinite(event) && event > assessment;
+  const strictDate = (value: string | null): number | null => {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) && new Date(parsed).toISOString().slice(0, 10) === value
+      ? parsed : null;
+  };
+  const assessment = strictDate(x.assessmentDate);
+  const event = strictDate(x.eventDate);
+  const validDates = assessment != null && event != null && event > assessment;
   const checks = [validDates, x.verifiedEvent, x.documentedEconomicImpact,
     x.independentlyCorroborated, x.companyCanFundExecution, x.invalidationTriggerDocumented];
   const missing = checks.map((ok, i) => ok ? "" : ["Future dated catalyst", "Verified event",
