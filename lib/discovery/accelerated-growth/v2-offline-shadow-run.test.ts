@@ -65,3 +65,13 @@ const disagreement = runV2OfflineShadow({ ...base, evidence: [{
 }] });
 assert.equal(disagreement.accepted, false);
 if (!disagreement.accepted) assert.ok(disagreement.issues.some(x => x.includes("VALUE_DISAGREEMENT")));
+
+const excessiveTolerance = runV2OfflineShadow({ ...base,
+  reconciliationTolerances: { revenue: 1000 },
+  evidence: [{ ...base.evidence[0], observations: [
+    ...base.evidence[0].observations, { ...vendor, value: 120 },
+  ] }],
+});
+assert.equal(excessiveTolerance.accepted, false);
+if (!excessiveTolerance.accepted)
+  assert.ok(excessiveTolerance.issues.includes("SHADOW_EXCESSIVE_TOLERANCE:MSFT:revenue"));
