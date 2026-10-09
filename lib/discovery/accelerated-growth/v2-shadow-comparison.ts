@@ -43,6 +43,7 @@ export function summarizeV2Shadow(rows: readonly V2ShadowRow[]): V2ShadowSummary
   return {
     total: copy.length, agreement, disagreements: copy.length - agreement,
     v2Insufficient, comparableStatusTaxonomy: false,
-    outcomes: countV2ShadowOutcomes(copy), rows: issues.length ? [] : copy, issues,
+    outcomes: countV2ShadowOutcomes(issues.length ? [] : copy),
+    rows: issues.length ? [] : copy, issues,
   };
 }
