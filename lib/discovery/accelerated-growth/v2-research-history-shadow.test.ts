@@ -44,6 +44,11 @@ if (result.accepted) {
   assert.deepEqual(result.v2PathSlotCounts, { CATALYST: 4 });
   assert.equal(result.cyclesWithNewDiscovery, 2);
   assert.equal(result.cyclesWithWatchReassessment, 0);
+  assert.equal(result.cyclesWithNoV2NewDiscovery, 0);
+  assert.equal(result.v1RepeatSlots, 1);
+  assert.equal(result.v2RepeatSlots, 2);
+  assert.deepEqual(result.v1FirstSeenByCycle, [2, 1]);
+  assert.deepEqual(result.v2FirstSeenByCycle, [2, 0]);
 }
 function rejected(cycles: typeof base.cycles, issue: string) {
   const result = compareV2ResearchHistory({ ...base, cycles });
@@ -65,3 +70,15 @@ const milliseconds = compareV2ResearchHistory({
     researchAsOf: "2026-08-02T12:00:00.12Z" }],
 });
 assert.equal(milliseconds.accepted, true);
+
+const watchOnly = compareV2ResearchHistory({
+  ...base, cycles: [{ ...first, capacity: 1, v1SelectedSymbols: ["OLD"],
+    candidates: [candidate("OLD", "WATCH_REASSESSMENT", "QUALIFIED", 100),
+      candidate("NEW", "NEW_DISCOVERY", "WATCH", 100)] }],
+});
+assert.equal(watchOnly.accepted, true);
+if (watchOnly.accepted) {
+  assert.equal(watchOnly.cyclesWithNoV2NewDiscovery, 1);
+  assert.equal(watchOnly.cyclesWithWatchReassessment, 1);
+  assert.deepEqual(watchOnly.v2FirstSeenByCycle, [1]);
+}
