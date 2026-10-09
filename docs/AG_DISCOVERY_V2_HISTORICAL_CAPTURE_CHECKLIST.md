@@ -48,3 +48,13 @@ Stop and mark **NOT EVALUABLE** if original run timestamps, full historical cand
 ## Pilot report and interpretation
 
 `buildV2HistoricalPilotReport` accepts only a fully validated multi-cycle archive batch. It produces per-cycle v1/v2 selections, overlap, v2-only research-slot selections, displaced v1 selections, WATCH/new-discovery slots, and mapped CIKs. The aggregate `uniqueIncrementalIssuers` counts CIKs selected by v2 that were **never selected by v1 anywhere in the supplied period**, whereas `totalNewlySelectedSlots` counts per-cycle v2-only slots and can include repeat appearances. `uniqueDisplacedIssuers` is the inverse. These are research-coverage comparisons, **not** return, alpha, causal uplift, BUY, or investment-performance estimates. The output cannot establish historical authenticity or independently reconstruct candidate assessments; real pilot inputs still require separate source capture and review.
+
+## Portable offline pilot input
+
+The portable bundle has the exact top-level shape `{"schemaVersion":"ag-history-pilot-bundle-v1","archives":[...]}`, where each archive contains `envelope`, `manifestUtf8` (the **exact** source-manifest JSON byte string), and `payloads` (source IDs and exact UTF-8 content). The bundle is limited to 32 MiB and 100 cycles. For a locally supplied, reviewed bundle, run:
+
+```bash
+npx tsx lib/discovery/accelerated-growth/v2-history-pilot-cli.ts /absolute/path/to/reviewed-bundle.json
+```
+
+The command prints an accepted/rejected JSON report to standard output and exits nonzero on failure. It performs **no automatic historical acquisition**, database reads, network requests, or writes. The bundle SHA-256 identifies the exact supplied file bytes and does not authenticate their origin. The pilot still requires independently reviewed real source snapshots and authentic as-of provenance; synthetic fixtures do not establish discovery lift.
