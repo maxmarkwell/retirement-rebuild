@@ -18,7 +18,7 @@ const companyfacts = {
 const input = { companyfacts, accession, fiscalPeriod: "2026-Q2",
   fiscalEnd: "2026-06-30", retrievedAt: "2026-08-02",
   sourceUrl: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000000001.json",
-  extractionId: "sec-companyfacts-v2" };
+  extractionId: "sec-companyfacts-v2", calendarFrameAligned: true };
 const result = normalizeV2SecCompanyFacts(input);
 assert.deepEqual(result.issues, []);
 assert.equal(result.observations.length, 4);
