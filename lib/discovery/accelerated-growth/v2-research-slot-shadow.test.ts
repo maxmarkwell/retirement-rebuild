@@ -44,3 +44,22 @@ rejected({ ...base, v1SelectedSymbols: ["OLD1", "OLD1"] }, "SLOT_SHADOW_INVALID_
 rejected({ ...base, v1SelectedSymbols: ["UNKNOWN"] }, "SLOT_SHADOW_MISSING_V1_CANDIDATE");
 rejected({ ...base, candidates: [...candidates, candidates[0]] },
   "RESEARCH_INVALID_CANDIDATE:OLD1");
+
+const watchWins = compareV2ResearchSlots({
+  ...base, capacity: 1, v1SelectedSymbols: ["OLD1"],
+  candidates: [candidate("OLD1", "WATCH_REASSESSMENT", "QUALIFIED", 100),
+    candidate("NEW1", "NEW_DISCOVERY", "WATCH", 100)],
+});
+assert.equal(watchWins.accepted, true);
+if (watchWins.accepted) {
+  assert.deepEqual(watchWins.v2Selected.map(x => x.symbol), ["OLD1"]);
+  assert.equal(watchWins.v2NewDiscoveryCount, 0);
+}
+const equalPriority = compareV2ResearchSlots({
+  ...base, capacity: 1, v1SelectedSymbols: ["OLD1"],
+  candidates: [candidate("OLD1", "WATCH_REASSESSMENT", "WATCH", 100),
+    candidate("NEW1", "NEW_DISCOVERY", "WATCH", 100)],
+});
+assert.equal(equalPriority.accepted, true);
+if (equalPriority.accepted)
+  assert.deepEqual(equalPriority.v2Selected.map(x => x.symbol), ["NEW1"]);
