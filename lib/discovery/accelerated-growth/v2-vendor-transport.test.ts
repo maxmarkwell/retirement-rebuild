@@ -38,6 +38,18 @@ async function main() {
   assert.deepEqual(await retrieveV2VendorQuarters({
     ...base, cashFlowUrl: cashFlowUrl.replace("MSFT", "AAPL"),
   }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_URL"] });
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, issuerId: " ",
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_MISSING_PROVENANCE"] });
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, documentId: "",
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_MISSING_PROVENANCE"] });
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, publishedAt: "2026-09-01",
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_TIMESTAMPS"] });
+  assert.deepEqual(await retrieveV2VendorQuarters({
+    ...base, retrievedAt: "invalid",
+  }), { ok: false, issues: ["VENDOR_TRANSPORT_INVALID_TIMESTAMPS"] });
   assert.equal(calls, 0);
   assert.deepEqual(await retrieveV2VendorQuarters(base),
     { ok: false, issues: ["VENDOR_TRANSPORT_SCALE_UNVERIFIED"] });
