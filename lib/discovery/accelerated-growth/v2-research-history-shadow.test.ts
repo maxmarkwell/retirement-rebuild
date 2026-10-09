@@ -41,6 +41,9 @@ if (result.accepted) {
   assert.equal(result.totalV2NewDiscoverySlots, 4);
   assert.equal(result.uniqueV1Symbols, 3);
   assert.equal(result.uniqueV2Symbols, 2);
+  assert.deepEqual(result.v2PathSlotCounts, { CATALYST: 4 });
+  assert.equal(result.cyclesWithNewDiscovery, 2);
+  assert.equal(result.cyclesWithWatchReassessment, 0);
 }
 function rejected(cycles: typeof base.cycles, issue: string) {
   const result = compareV2ResearchHistory({ ...base, cycles });
