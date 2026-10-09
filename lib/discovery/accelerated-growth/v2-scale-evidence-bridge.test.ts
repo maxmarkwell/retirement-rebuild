@@ -50,3 +50,10 @@ assert.ok(check(filings, vendors, "invalid")
   .issues.includes("SCALE_BRIDGE_INVALID_ASOF"));
 assert.ok(check(filings, [{ ...vendors[0], value: 0 }, vendors[1]])
   .issues.some(x => x.startsWith("SCALE_UNCOMPARABLE_VALUES:")));
+
+assert.ok(check(filings, [{ ...vendors[0], source: { ...vendors[0].source,
+  documentId: "other" } }, vendors[1]])
+  .issues.some(x => x.startsWith("SCALE_BRIDGE_SOURCE_IDENTITY_MISMATCH:")));
+assert.ok(check(filings, [{ ...vendors[0], source: { ...vendors[0].source,
+  issuerId: "CIK-OTHER" } }, vendors[1]])
+  .issues.some(x => x.startsWith("SCALE_BRIDGE_SOURCE_IDENTITY_MISMATCH:")));
