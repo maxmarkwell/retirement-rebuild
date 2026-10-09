@@ -17,6 +17,8 @@ export type V2HistoricalPilotReport =
       firstSeenV2BeforeV1Issuers: number;
       firstSeenV1BeforeV2Issuers: number;
       sameCycleFirstSeenIssuers: number;
+      v2FirstLeadDays: number[];
+      v1FirstLeadDays: number[];
       v2PathUniqueIssuerCounts: Record<string, number>;
       v2PathIncrementalIssuerCounts: Record<string, number>;
       cycles: {
@@ -101,6 +103,18 @@ export function buildV2HistoricalPilotReport(
   // across ANY supplied cycle. This avoids calling repeat research new.
   const trulyIncremental = [...everV2].filter(id => !everV1.has(id));
   const trulyDisplaced = [...everV1].filter(id => !everV2.has(id));
+  const v2FirstLeadDays: number[] = [];
+  const v1FirstLeadDays: number[] = [];
+  for (const [issuer, v2Index] of firstV2) {
+    const v1Index = firstV1.get(issuer);
+    if (v1Index === undefined || v1Index === v2Index) continue;
+    const gap = Math.abs(Date.parse(cycles[v1Index].researchAsOf) -
+      Date.parse(cycles[v2Index].researchAsOf)) / 86_400_000;
+    if (v2Index < v1Index) v2FirstLeadDays.push(gap);
+    else v1FirstLeadDays.push(gap);
+  }
+  v2FirstLeadDays.sort((a, b) => a - b);
+  v1FirstLeadDays.sort((a, b) => a - b);
   return {
     accepted: true, cycleCount: verified.cycleCount,
     uniqueV1Issuers: verified.uniqueV1Issuers,
@@ -119,6 +133,7 @@ export function buildV2HistoricalPilotReport(
       firstV2.has(id) && at < firstV2.get(id)!).length,
     sameCycleFirstSeenIssuers: [...firstV1].filter(([id, at]) =>
       firstV2.get(id) === at).length,
+    v2FirstLeadDays, v1FirstLeadDays,
     v2PathUniqueIssuerCounts: verified.v2PathUniqueIssuerCounts,
     v2PathIncrementalIssuerCounts: Object.fromEntries(
       [...issuerByPath.entries()].map(([path, issuers]) => [path,
