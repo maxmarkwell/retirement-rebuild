@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { buildV2HistoricalPilotReport } from "./v2-history-pilot-report";
 import { evaluateV2HistoricalPilotBundle } from "./v2-history-pilot-bundle";
+import { inspectV2PilotEvidenceReadiness } from "./v2-pilot-evidence-readiness";
 import { createHash } from "node:crypto";
 import { verifyV2HistoricalArchiveBatch, type V2HistoricalCycleArchive } from "./v2-history-archive-batch";
 import type { V2ArchivedSource } from "./v2-history-source-archive";
@@ -244,3 +245,14 @@ if (multiPath.accepted) {
     CATALYST: 1, VALUATION_DISLOCATION: 1,
   });
 }
+
+const evidenceInventory = inspectV2PilotEvidenceReadiness([first, second]);
+assert.equal(evidenceInventory.accepted, true);
+if (evidenceInventory.accepted) {
+  assert.equal(evidenceInventory.cycleCount, 2);
+  assert.equal(evidenceInventory.cyclesWithoutExternalEvidence, 2);
+  assert.equal(evidenceInventory.cyclesWithBothExternalKinds, 0);
+  assert.equal(evidenceInventory.bothExternalKindsPresentEveryCycle, false);
+}
+const invalidInventory = inspectV2PilotEvidenceReadiness([second, first]);
+assert.equal(invalidInventory.accepted, false);
