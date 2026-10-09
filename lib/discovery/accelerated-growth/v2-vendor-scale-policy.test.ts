@@ -4,6 +4,7 @@ const income: V2VendorScaleAttestation = {
   provider: "FMP", endpoint: "income-statement", unit: "USD", scale: "ONES",
   specificationUrl: "https://financialmodelingprep.com/developer/docs",
   reviewedAt: "2026-08-01", reviewer: "independent-reviewer",
+  specificationSha256: "a".repeat(64), reviewedSampleCount: 2,
   effectiveFrom: "2026-01-01", effectiveThrough: "2026-12-31",
 };
 const cash: V2VendorScaleAttestation = { ...income, endpoint: "cash-flow-statement" };
@@ -20,3 +21,8 @@ assert.ok(check([{ ...income, effectiveThrough: "2026-08-31" }, cash])
   .includes("SCALE_INVALID_ATTESTATION_DATES:income-statement"));
 assert.ok(check([{ ...income, reviewer: " " }, cash])
   .includes("SCALE_INVALID_ATTESTATION_DATES:income-statement"));
+
+assert.ok(check([{ ...income, specificationSha256: "" }, cash])
+  .includes("SCALE_MISSING_AUDIT_ARTIFACTS:income-statement"));
+assert.ok(check([{ ...income, reviewedSampleCount: 0 }, cash])
+  .includes("SCALE_MISSING_AUDIT_ARTIFACTS:income-statement"));
