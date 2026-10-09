@@ -59,14 +59,19 @@ export function assessV2EmergingOpportunity(x: EmergingEvidence): V2PathAssessme
     "Repeatable unit economics evidence", "Consecutive fiscal-period verification"][i]).filter(Boolean);
   const growth = checks[0] && checks[1] && x.priorCommercialRevenue! > 0
     ? x.commercialRevenue! / x.priorCommercialRevenue! - 1 : null;
-  const customersGrowing = checks[2] && checks[3] && x.priorCustomerCount! > 0 && x.customerCount! > x.priorCustomerCount!;
+  const customersGrowing = checks[2] && checks[3] && x.customerCount! > x.priorCustomerCount!;
+  const zeroBaseline = checks[1] && checks[3] &&
+    (x.priorCommercialRevenue === 0 || x.priorCustomerCount === 0);
   const positive = [growth != null && growth >= .25 ? "Commercial revenue grew at least 25%" : "",
-    customersGrowing ? "Customer adoption expanded" : "", x.repeatableUnitEconomicsVerified ? "Repeatable unit economics documented" : ""].filter(Boolean);
+    customersGrowing ? "Customer adoption expanded" : "",
+    zeroBaseline && checks[0] && x.commercialRevenue! > 0 ? "Early commercialization from a zero baseline requires follow-up validation" : "",
+    x.repeatableUnitEconomicsVerified ? "Repeatable unit economics documented" : ""].filter(Boolean);
   const negative = [growth != null && growth < 0 ? "Commercial revenue declined" : "",
     checks[2] && checks[3] && x.customerCount! < x.priorCustomerCount! ? "Customer count declined" : ""].filter(Boolean);
-  const status: V2PathStatus = checks.some(ok => !ok) || growth == null || x.priorCustomerCount === 0
-    ? "INSUFFICIENT_DATA" : growth >= .25 && customersGrowing ? "QUALIFIED" :
-    growth > 0 && customersGrowing ? "WATCH" : "NOT_QUALIFIED";
+  const status: V2PathStatus = checks.some(ok => !ok) ? "INSUFFICIENT_DATA" :
+    zeroBaseline ? (x.commercialRevenue! > 0 && customersGrowing ? "WATCH" : "NOT_QUALIFIED") :
+    growth != null && growth >= .25 && customersGrowing ? "QUALIFIED" :
+    growth != null && growth > 0 && customersGrowing ? "WATCH" : "NOT_QUALIFIED";
   return result("EMERGING_OPPORTUNITY", status, checks, positive, negative, missing,
     "Commercial adoption must scale with evidence of repeatable unit economics.",
     ["Customer adoption reverses", "Unit economics fail to scale", "Commercial revenue contracts"]);
