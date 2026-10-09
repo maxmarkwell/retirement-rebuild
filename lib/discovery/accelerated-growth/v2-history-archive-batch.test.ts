@@ -73,5 +73,7 @@ rejects([first, { ...second, envelope: {
   ...second.envelope, sourceManifestSha256: first.envelope.sourceManifestSha256,
 } }], "REUSED_SOURCE_MANIFEST");
 rejects([first, { ...second, envelope: { ...second.envelope,
-  history: { ...second.envelope.history, cycles: first.envelope.history.cycles },
+  history: { ...second.envelope.history, cycles: [{
+    ...second.envelope.history.cycles[0], v1SelectedSymbols: ["BBB"],
+  }] },
 } }], "LINKAGE_V1_MISMATCH");
