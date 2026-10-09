@@ -87,3 +87,5 @@ Historical aggregates also include per-path selected-slot counts and counts of c
 ## Research attention and repeat-work metrics
 
 The historical report also exposes `v1RepeatSlots` and `v2RepeatSlots` (a symbol selected again after its first appearance in the ordered history), `v1FirstSeenByCycle` and `v2FirstSeenByCycle` (newly encountered symbols within the supplied observation window), and `cyclesWithNoV2NewDiscovery`. These are workload/coverage diagnostics, not judgments that repeated research is wasteful: repeated WATCH work can be appropriate when the thesis or evidence changes. The first-seen counts depend on the chosen start date and do not prove the company was previously unknown to the system. No quota or forced selection is introduced.
+
+`v2PathUniqueIssuerCounts` additionally counts distinct selected symbols per opportunity path across the full history, so repeated attention to one issuer does not masquerade as discovery breadth. A multi-path symbol can count once in each applicable path. This is descriptive only and must not be used as a path allocation quota.
