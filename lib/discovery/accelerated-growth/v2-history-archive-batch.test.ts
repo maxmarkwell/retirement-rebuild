@@ -286,6 +286,12 @@ assert.equal(evidenceInventory.accepted, true);
 if (evidenceInventory.accepted) {
   assert.equal(evidenceInventory.cycleCount, 2);
   assert.equal(evidenceInventory.cyclesWithoutExternalEvidence, 2);
+  assert.deepEqual(evidenceInventory.cycleEvidenceGaps, [first, second].map(a => ({
+    runId: a.envelope.history.cycles[0].runId,
+    researchAsOf: a.envelope.history.cycles[0].researchAsOf,
+    secFilingSources: 0, vendorRawSources: 0,
+    missingKinds: ["SEC_FILING", "VENDOR_RAW"],
+  })));
   assert.equal(evidenceInventory.cyclesWithBothExternalKinds, 0);
   assert.equal(evidenceInventory.bothExternalKindsPresentEveryCycle, false);
   assert.equal(evidenceInventory.historicalEvidenceVerified, false);
