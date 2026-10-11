@@ -79,18 +79,22 @@ export async function runAgResearchDailyCycle(options?: {
         pipeline.upstream.deepResearchOutcomes,
         pipeline.upstream.quantitativeWatchResolutions
       );
+      await markStage("research_watchlist_completed");
       persistenceStage = "committee_watch_supersession";
       await markStage(persistenceStage);
       const supersededCommitteeWatchCount = await supersedeAgCommitteeWatches(
         context.portfolioId,
         pipeline.upstream.committeeWatchResolutions
       );
+      await markStage("committee_watch_supersession_completed");
       persistenceStage = "holding_decisions";
       await markStage(persistenceStage);
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
+      await markStage("holding_decisions_completed");
       persistenceStage = "committee_decisions";
       await markStage(persistenceStage);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
+      await markStage("committee_decisions_completed");
       persistenceStage = "paper_execution";
       await markStage(persistenceStage);
       const execution = await executeAgDailyCycleTransactions({
@@ -99,6 +103,7 @@ export async function runAgResearchDailyCycle(options?: {
         holdingDecisions: persistedHoldingReviews,
       });
 
+      await markStage("paper_execution_completed");
       persistenceStage = "completed";
       return {
         result: {
