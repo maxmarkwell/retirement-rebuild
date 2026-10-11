@@ -44,7 +44,7 @@ function zeroCallSelectorScore(stock: DynamicUniverseStock) {
   const priceQuality = linear(stock.price, 5, 30);
   return clamp(liquidity * 0.8 + priceQuality * 0.2);
 }
-function passesZeroCallGate(stock: DynamicUniverseStock) {
+export function passesAgTradabilityGate(stock: DynamicUniverseStock) {
   if (!Number.isFinite(stock.price) || stock.price < 5) return false;
   if (!Number.isFinite(stock.marketCap) || stock.marketCap < 300_000_000) return false;
   if (stock.dollarVolume == null || !Number.isFinite(stock.dollarVolume)) return false;
@@ -52,7 +52,7 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
   return true;
 }
 function selectBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
-  const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }));
+  const eligible = stocks.filter(passesAgTradabilityGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }));
   if (eligible.length <= limit) return eligible.sort((a, b) => b.selectorScore - a.selectorScore);
   const selected: Preselected[] = [];
   const sliceSize = eligible.length / limit;
@@ -74,7 +74,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) byBucket.set(bucket, []);
   for (const stock of universe) byBucket.get(stock.marketCapBucket)?.push(stock);
 
-  const eligibleUniverseCount = universe.filter(passesZeroCallGate).length;
+  const eligibleUniverseCount = universe.filter(passesAgTradabilityGate).length;
   const selected: Preselected[] = [];
   let reassessmentSelectedCount = 0;
   const bucketSelectionCounts = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
@@ -95,7 +95,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) || selectedSymbols.has(symbol)) continue;
     const stock = universeBySymbol.get(symbol);
     // A WATCH is a research priority, not an exemption from investability rules.
-    if (!stock || !passesZeroCallGate(stock)) continue;
+    if (!stock || !passesAgTradabilityGate(stock)) continue;
     selected.push({ stock, selectorScore: zeroCallSelectorScore(stock) });
     selectedSymbols.add(symbol);
     reassessmentSelectedCount += 1;
