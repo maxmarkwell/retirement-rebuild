@@ -20,6 +20,7 @@ if (process.argv.length !== 3 || !path || path.startsWith("-")) {
       const result = evaluateV2HistoricalPilotBundle(bytes.toString("utf8"));
       process.stdout.write(JSON.stringify(result, null, 2) + "\n");
       if (!result.accepted) process.exitCode = 1;
+      else if (result.researchConclusion === "NOT_EVALUABLE") process.exitCode = 3;
     }
   } catch {
     process.stderr.write("Could not read supplied local pilot bundle\n");
