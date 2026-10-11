@@ -57,7 +57,8 @@ export async function runAgHoldingReviewPipeline(): Promise<AgHoldingReviewPipel
 
 export async function persistAgHoldingReviewDecisions(
   portfolioId: string,
-  decisions: AgHoldingReviewDecision[]
+  decisions: AgHoldingReviewDecision[],
+  cycleId?: string
 ): Promise<PersistedAgHoldingReviewDecision[]> {
   if (decisions.length === 0) return [];
   const supabase = await createClient();
@@ -111,7 +112,7 @@ export async function persistAgHoldingReviewDecisions(
       primary_risks: decision.strongestCounterEvidence.join("\n"),
       recommended_quantity: null,
       recommended_allocation: null,
-      notes: JSON.stringify({ agHoldingReview: true, rationale: decision.rationale, model: decision.model, promptVersion: decision.promptVersion }),
+      notes: JSON.stringify({ agHoldingReview: true, agCycleId: cycleId ?? null, agDecisionOrigin: "holding_review", rationale: decision.rationale, model: decision.model, promptVersion: decision.promptVersion }),
     }).select("id").single();
     if (error || !data) throw new Error(`Unable to persist AG holding review for ${decision.symbol}: ${error?.message ?? "unknown error"}`);
     persisted.push({ decisionId: data.id, symbol: decision.symbol, decision: decision.decision, reused: false });
