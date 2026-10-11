@@ -291,17 +291,6 @@ export async function persistAgCommitteeDecisions(
       continue;
     }
 
-    if (existing) {
-      const { error: supersedeError } = await supabase
-        .from("investment_decisions")
-        .update({ status: "superseded" })
-        .eq("id", existing.id)
-        .eq("status", "active");
-      if (supersedeError) {
-        throw new Error(`Unable to supersede prior AG decision for ${decision.symbol}: ${supersedeError.message}`);
-      }
-    }
-
     const { data: row, error } = await supabase
       .from("investment_decisions")
       .insert({
