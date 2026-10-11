@@ -86,3 +86,7 @@ For issuers eventually researched by **both** pipelines, `v2FirstLeadDays` and `
 ## Machine-readable authenticity boundary
 
 The offline pilot `evidenceInventory` now explicitly reports `historicalEvidenceVerified: false`, `evaluationStatus: NOT_EVALUABLE`, and blocking conditions for external source authenticity, complete historical universe, point-in-time assessment provenance, and independent review. These fields remain blocked even when both SEC and vendor source kinds are present in every cycle. Hashes, timestamp assertions, and synthetic fixtures do not discharge these conditions. No automated path currently certifies a historical pilot; an independently reviewed, authorized capture and provenance workflow is required before making empirical discovery-lift claims.
+
+## Pilot source acquisition triage
+
+The offline `evidenceInventory.cycleEvidenceGaps` array now reports each archived cycle's `runId`, `researchAsOf`, SEC filing and vendor raw source counts, and missing source kinds. Use it to prioritize **separately authorized** historical capture and independent review, not to claim candidate-level coverage. Presence of one SEC filing or vendor response per cycle is not sufficient evidence for every candidate, financial period, or path. The `NOT_EVALUABLE` authenticity status remains unchanged even when the missing-kind list is empty.
