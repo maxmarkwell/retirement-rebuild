@@ -126,6 +126,8 @@ export async function runAgResearchDailyCycle(options?: {
           committeeDecisionCount: pipeline.decisions.length,
           persistedCount: persisted.length,
           persistedDecisions: persisted,
+          reusedCommitteeDecisionCount: persisted.filter((decision) => decision.reused).length,
+          reusedHoldingDecisionCount: persistedHoldingReviews.filter((decision) => decision.reused).length,
           decisions: pipeline.decisions,
           upstream: pipeline.upstream,
         },
