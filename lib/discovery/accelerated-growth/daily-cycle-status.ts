@@ -28,6 +28,7 @@ export async function getAgDailyCycleStatus() {
   const persistenceStage = stageMarker ?? failedStage;
   const persistenceStarted = Boolean(persistenceStage);
   const completedStage = persistenceStage?.endsWith("_completed") ? persistenceStage.slice(0, -"_completed".length) : null;
+  const hasUnknownWriteHistory = Boolean(cycle && cycle.status === "failed" && !persistenceStarted);
   const stageMayBePartial = persistenceStarted && !completedStage;
   const { count: activeDecisionCount, error: decisionError } = cycle
     ? await supabase.from("investment_decisions").select("id", { count: "exact", head: true })
@@ -46,6 +47,7 @@ export async function getAgDailyCycleStatus() {
       persistenceStarted,
       lastConfirmedCompletedStage: completedStage,
       stageMayBePartial,
+      hasUnknownWriteHistory,
       activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
       decisionCountIsCycleAttribution: false,
       recoveryState: cycle?.status === "failed"
