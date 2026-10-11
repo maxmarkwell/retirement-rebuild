@@ -1,6 +1,6 @@
 # AG Discovery v2 — Historical shadow input capture checklist
 
-**Status: design-only.** This checklist does not authorize production reads, historical exports, backfills, ingestion, migrations, trades, or deployment.
+**Status: design-only.** This checklist does not authorize production reads, historical exports, backfills, ingestion, migrations, trades, or deployment. For a bounded first-pilot scope and explicit acquisition authorization gates, see [the first authentic pilot packet](./AG_DISCOVERY_V2_FIRST_AUTHENTIC_PILOT_PACKET.md).
 
 ## Per-cycle evidence to retain
 
