@@ -1,18 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { validateAgCycleCounts, type AgCycleCounts } from "./daily-cycle-counts";
 
-export type AgDailyCycleCounts = {
-  universeCount?: number;
-  preselectedCount?: number;
-  evaluatedCount?: number;
-  discoveryAdvanceCount?: number;
-  catalystSupportedCount?: number;
-  deepResearchCompletedCount?: number;
-  deepResearchFailedCount?: number;
-  proceedCount?: number;
-  committeeDecisionCount?: number;
-  persistedDecisionCount?: number;
-};
+export type AgDailyCycleCounts = AgCycleCounts;
 
 export type AgDailyCycleContext = {
   cycleId: string;
@@ -107,6 +97,7 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
 
   try {
     const work = await input.work(context);
+    validateAgCycleCounts(work.counts);
     const completedAt = new Date().toISOString();
     const completed = await supabase.from("ag_daily_cycles").update({
       status: "completed", completed_at: completedAt, failure_message: null,
