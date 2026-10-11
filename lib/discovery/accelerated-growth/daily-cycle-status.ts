@@ -27,7 +27,10 @@ export async function getAgDailyCycleStatus() {
     cycleDate,
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
-    retryAvailable: cycle?.status === "failed",
+    retryAvailable: false,
+    retryBlockedReason: cycle?.status === "failed"
+      ? "AG cycle retries require reconciliation because prior persistence may be partial."
+      : null,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
     cycle: cycle ?? null,
