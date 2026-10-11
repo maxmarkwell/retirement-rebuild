@@ -7,7 +7,7 @@ import { fromAgPersistedDecisionType, getAgDecisionLifecycleAction, toAgPersiste
 
 export type PersistedAgCommitteeDecision = {
   decisionId: string;
-  reused: boolean;
+  reused?: boolean;
   symbol: string;
   decision: AgCommitteeDecision["decision"];
 };
