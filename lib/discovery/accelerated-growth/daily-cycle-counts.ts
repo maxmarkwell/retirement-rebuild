@@ -27,6 +27,9 @@ export function validateAgCycleCounts(counts: AgCycleCounts | undefined): assert
   if (counts.preselectedCount! > counts.universeCount! ||
       counts.evaluatedCount! > counts.preselectedCount! ||
       counts.discoveryAdvanceCount! > counts.evaluatedCount! ||
+      counts.catalystSupportedCount! > counts.discoveryAdvanceCount! ||
+      counts.deepResearchCompletedCount! > counts.catalystSupportedCount! ||
+      counts.proceedCount! > counts.deepResearchCompletedCount! ||
       counts.persistedDecisionCount! > counts.committeeDecisionCount!)
     throw new Error("AG_CYCLE_INCONSISTENT_COUNTS");
 }
