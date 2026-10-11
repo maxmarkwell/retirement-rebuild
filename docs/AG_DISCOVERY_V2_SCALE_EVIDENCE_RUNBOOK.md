@@ -35,3 +35,7 @@ After independent SEC and FMP extraction, pass source-linked `V2VerifiedObservat
 ## Interpretation of pilot CLI output
 
 The local pilot bundle evaluator may return `accepted: true` when archive structure, digests, linkage, and comparison calculations are valid. This **does not** constitute an accepted investment research result. The top-level `researchConclusion: NOT_EVALUABLE` explicitly marks the current authenticity and independent-review gap. The accompanying `evidenceInventory.blockers` and `cycleEvidenceGaps` explain what remains unresolved. Do not use `accepted: true`, incremental issuer counts, or lead-time metrics alone to justify scaling, deploying AG, or placing trades.
+
+## Pilot CLI exit status (fail-closed)
+
+The local-only historical pilot CLI emits the JSON result on stdout and returns exit code **1** for rejected archives, **2** for usage/read/size failures, and **3** for structurally accepted archives whose `researchConclusion` is `NOT_EVALUABLE`. Exit code **0** is reserved for an evaluable conclusion if a separately reviewed evaluation capability is ever introduced. Do not interpret successful parsing or `accepted: true` as authorization for investment action. Scripts should inspect the JSON and must not treat code 3 as success.
