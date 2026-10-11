@@ -227,7 +227,8 @@ export async function supersedeAgCommitteeWatches(
 
 export async function persistAgCommitteeDecisions(
   portfolioId: string,
-  decisions: AgCommitteeDecision[]
+  decisions: AgCommitteeDecision[],
+  cycleId?: string
 ): Promise<PersistedAgCommitteeDecision[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -318,6 +319,7 @@ export async function persistAgCommitteeDecisions(
         ag_theme_key: executionEvidence?.themeKey ?? null,
         source: "ai_committee",
         status: "active",
+        notes: cycleId ? JSON.stringify({ agCycleId: cycleId, agDecisionOrigin: "committee" }) : null,
       })
       .select("id")
       .single();
