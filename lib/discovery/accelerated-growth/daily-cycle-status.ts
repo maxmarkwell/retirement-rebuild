@@ -27,9 +27,12 @@ export async function getAgDailyCycleStatus() {
   const failedStage = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:([a-z_]+):/)?.[1] ?? null;
   const persistenceStage = stageMarker ?? failedStage;
   const persistenceStarted = Boolean(persistenceStage);
-  const completedStage = persistenceStage?.endsWith("_completed") ? persistenceStage.slice(0, -"_completed".length) : null;
+  const failedCompletedMarker = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:[a-z_]+:LAST_COMPLETED:([a-z_]+):/)?.[1] ?? null;
+  const completedStage = failedCompletedMarker && failedCompletedMarker !== "none"
+    ? failedCompletedMarker.replace(/_completed$/, "")
+    : persistenceStage?.endsWith("_completed") ? persistenceStage.slice(0, -"_completed".length) : null;
   const hasUnknownWriteHistory = Boolean(cycle && cycle.status === "failed" && !persistenceStarted);
-  const stageMayBePartial = persistenceStarted && !completedStage;
+  const stageMayBePartial = persistenceStarted && !persistenceStage?.endsWith("_completed");
   const { count: activeDecisionCount, error: decisionError } = cycle
     ? await supabase.from("investment_decisions").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("source", "ai_committee")
