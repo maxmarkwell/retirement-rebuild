@@ -89,11 +89,11 @@ export async function runAgResearchDailyCycle(options?: {
       await markStage("committee_watch_supersession_completed");
       persistenceStage = "holding_decisions";
       await markStage(persistenceStage);
-      const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
+      const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions, context.cycleId);
       await markStage("holding_decisions_completed");
       persistenceStage = "committee_decisions";
       await markStage(persistenceStage);
-      const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
+      const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions, context.cycleId);
       if (persistedHoldingReviews.length !== holdingReviews.decisions.length || persisted.length !== pipeline.decisions.length) {
         throw new Error("AG_PERSISTED_DECISION_COUNT_MISMATCH");
       }
