@@ -18,3 +18,4 @@ assert.throws(() => validateAgCycleCounts({ ...good, persistedDecisionCount: 2 }
 assert.throws(() => validateAgCycleCounts({ ...good, catalystSupportedCount: 6 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
 assert.throws(() => validateAgCycleCounts({ ...good, deepResearchCompletedCount: 4 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
 assert.throws(() => validateAgCycleCounts({ ...good, proceedCount: 3 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
+assert.throws(() => validateAgCycleCounts({ ...good, deepResearchFailedCount: 2 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
