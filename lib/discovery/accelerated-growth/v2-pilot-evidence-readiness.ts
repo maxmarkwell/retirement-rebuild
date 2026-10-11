@@ -11,7 +11,9 @@ export type V2PilotEvidenceReadiness =
   | { accepted: true; cycleCount: number; cyclesWithSecFilings: number;
       cyclesWithVendorRaw: number; cyclesWithBothExternalKinds: number;
       cyclesWithoutExternalEvidence: number; totalSecFilingSources: number;
-      totalVendorRawSources: number; bothExternalKindsPresentEveryCycle: boolean };
+      totalVendorRawSources: number; bothExternalKindsPresentEveryCycle: boolean;
+      historicalEvidenceVerified: false; evaluationStatus: "NOT_EVALUABLE";
+      blockers: string[] };
 
 export function inspectV2PilotEvidenceReadiness(
   archives: readonly V2HistoricalCycleArchive[],
@@ -41,5 +43,13 @@ export function inspectV2PilotEvidenceReadiness(
     cyclesWithBothExternalKinds, cyclesWithoutExternalEvidence,
     totalSecFilingSources, totalVendorRawSources,
     bothExternalKindsPresentEveryCycle: cyclesWithBothExternalKinds === result.cycleCount,
+    historicalEvidenceVerified: false,
+    evaluationStatus: "NOT_EVALUABLE",
+    blockers: [
+      "EXTERNAL_SOURCE_AUTHENTICITY_NOT_VERIFIED",
+      "HISTORICAL_UNIVERSE_COMPLETENESS_NOT_VERIFIED",
+      "POINT_IN_TIME_ASSESSMENT_PROVENANCE_NOT_VERIFIED",
+      "INDEPENDENT_REVIEW_NOT_VERIFIED",
+    ],
   };
 }
