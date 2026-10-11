@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { buildV2HistoricalPilotReport } from "./v2-history-pilot-report";
-import { evaluateV2HistoricalPilotBundle } from "./v2-history-pilot-bundle";
+import { evaluateV2HistoricalPilotBundle, v2PilotExitCode } from "./v2-history-pilot-bundle";
 import { inspectV2PilotEvidenceReadiness } from "./v2-pilot-evidence-readiness";
 import { createHash } from "node:crypto";
 import { verifyV2HistoricalArchiveBatch, type V2HistoricalCycleArchive } from "./v2-history-archive-batch";
@@ -194,12 +194,14 @@ const bundle = evaluateV2HistoricalPilotBundle(bundleBytes);
 assert.equal(bundle.accepted, true);
 if (bundle.accepted) {
   assert.equal(bundle.bundleSha256, hash(bundleBytes));
+  assert.equal(v2PilotExitCode(bundle), 3);
   assert.equal(bundle.researchConclusion, "NOT_EVALUABLE");
   assert.equal(bundle.evidenceInventory.historicalEvidenceVerified, false);
   assert.equal(bundle.report.uniqueIncrementalIssuers, 1);
   assert.deepEqual(bundle.report.v2PathIncrementalIssuerCounts, { CATALYST: 1 });
   assert.equal(bundle.report.cycleCount, 2);
 }
+assert.equal(v2PilotExitCode(evaluateV2HistoricalPilotBundle("not json")), 1);
 assert.deepEqual(evaluateV2HistoricalPilotBundle("not json"), {
   accepted: false, issues: ["PILOT_BUNDLE_INVALID_JSON"],
 });
