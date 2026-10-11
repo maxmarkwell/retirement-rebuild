@@ -15,6 +15,10 @@ export type PersistedAgCommitteeDecision = {
 export type AgCommitteePipelineResult = {
   upstream: {
     discovery: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["discovery"];
+    eligibleUniverseCount: number;
+    rejectedByTradabilityCount: number;
+    reassessmentRequestedCount: number;
+    reassessmentSelectedCount: number;
     catalystSupportedCount: number;
     deepResearchCompletedCount: number;
     deepResearchFailedCount: number;
@@ -48,6 +52,10 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
 
   const upstreamSummary = {
     discovery: upstream.discovery,
+    eligibleUniverseCount: upstream.discovery.eligibleUniverseCount,
+    rejectedByTradabilityCount: upstream.discovery.rejectedByTradabilityCount,
+    reassessmentRequestedCount: upstream.discovery.reassessmentRequestedCount,
+    reassessmentSelectedCount: upstream.discovery.reassessmentSelectedCount,
     catalystSupportedCount: upstream.catalystSupportedCount,
     deepResearchCompletedCount: upstream.completedCount,
     deepResearchFailedCount: upstream.failedCount,
