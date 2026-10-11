@@ -54,6 +54,12 @@ export async function getAgDailyCycleStatus() {
   });
 
   const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
+  const attributionCountIsComplete = !attributionIncomplete && Boolean(cycle);
+  const attributionCountMatchesPersisted = attributionCountIsComplete && cycle?.status === "completed"
+    ? linkedDecisions.length === cycle.persisted_decision_count
+    : null;
+  // Reused decisions are intentionally not rewritten with the new cycle ID, so
+  // a count mismatch alone is never evidence of missing persistence.
   const decisionOrigins = linkedDecisions.reduce((counts, decision) => {
     try {
       const origin = JSON.parse(decision.notes ?? "{}").agDecisionOrigin;
@@ -90,6 +96,8 @@ export async function getAgDailyCycleStatus() {
       activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
       decisionCountIsCycleAttribution: false,
       attributedDecisionCount: linkedDecisions.length,
+      attributionCountMatchesPersisted,
+      attributionCountMismatchMayBeReuse: attributionCountMatchesPersisted === false,
       attributedDecisionOrigins: decisionOrigins,
       attributedDecisionsWithTransactions: attributedTransactionCount,
       attributedSupersededDecisions: attributedSupersededCount,
