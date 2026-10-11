@@ -9,6 +9,7 @@ import { runAgDailyCycle } from "./daily-cycle";
 import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./holding-review-pipeline";
 import { executeAgDailyCycleTransactions } from "./daily-cycle-execution";
 import { assertAgDecisionBatchIsUnambiguous } from "./daily-cycle-decision-preflight";
+import { validateAgCycleCounts } from "./daily-cycle-counts";
 
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
@@ -36,6 +37,20 @@ export async function runAgResearchDailyCycle(options?: {
       assertAgDecisionBatchIsUnambiguous({
         holdingSymbols: holdingReviews.decisions.map((decision) => decision.symbol),
         committeeSymbols: pipeline.decisions.map((decision) => decision.symbol),
+      });
+
+      // Validate the research results before the first irreversible write.
+      validateAgCycleCounts({
+        universeCount: pipeline.upstream.discovery.universeCount,
+        preselectedCount: pipeline.upstream.discovery.preselectedCount,
+        evaluatedCount: pipeline.upstream.discovery.evaluatedCount,
+        discoveryAdvanceCount: pipeline.upstream.discovery.advanceCount,
+        catalystSupportedCount: pipeline.upstream.catalystSupportedCount,
+        deepResearchCompletedCount: pipeline.upstream.deepResearchCompletedCount,
+        deepResearchFailedCount: pipeline.upstream.deepResearchFailedCount,
+        proceedCount: pipeline.upstream.proceedCount,
+        committeeDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
+        persistedDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
       });
 
       let persistenceStage = "research_watchlist";
