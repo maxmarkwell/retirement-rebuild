@@ -267,6 +267,9 @@ if (evidenceInventory.accepted) {
   assert.equal(evidenceInventory.cyclesWithoutExternalEvidence, 2);
   assert.equal(evidenceInventory.cyclesWithBothExternalKinds, 0);
   assert.equal(evidenceInventory.bothExternalKindsPresentEveryCycle, false);
+  assert.equal(evidenceInventory.historicalEvidenceVerified, false);
+  assert.equal(evidenceInventory.evaluationStatus, "NOT_EVALUABLE");
+  assert.ok(evidenceInventory.blockers.includes("POINT_IN_TIME_ASSESSMENT_PROVENANCE_NOT_VERIFIED"));
 }
 const invalidInventory = inspectV2PilotEvidenceReadiness([second, first]);
 assert.equal(invalidInventory.accepted, false);
