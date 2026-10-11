@@ -24,6 +24,9 @@ export function validateAgCycleCounts(counts: AgCycleCounts | undefined): assert
     if (!Number.isSafeInteger(counts[key]) || (counts[key] as number) < 0)
       throw new Error("AG_CYCLE_INVALID_COUNT:" + key);
   }
+  if (counts.universeCount === 0) throw new Error("AG_CYCLE_EMPTY_UNIVERSE");
+  if (counts.preselectedCount! > 0 && counts.evaluatedCount === 0)
+    throw new Error("AG_CYCLE_NO_EVALUATIONS");
   if (counts.preselectedCount! > counts.universeCount! ||
       counts.evaluatedCount! > counts.preselectedCount! ||
       counts.discoveryAdvanceCount! > counts.evaluatedCount! ||
