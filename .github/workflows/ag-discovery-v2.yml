@@ -28,6 +28,7 @@ jobs:
         run: npx tsc --noEmit --incremental false
       - name: Isolated Discovery v2 fixtures
         run: |
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/daily-cycle-counts.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-evidence.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-path-evaluators.test.ts
           npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-survival.test.ts
