@@ -94,6 +94,9 @@ export async function runAgResearchDailyCycle(options?: {
       persistenceStage = "committee_decisions";
       await markStage(persistenceStage);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
+      if (persistedHoldingReviews.length !== holdingReviews.decisions.length || persisted.length !== pipeline.decisions.length) {
+        throw new Error("AG_PERSISTED_DECISION_COUNT_MISMATCH");
+      }
       await markStage("committee_decisions_completed");
       persistenceStage = "paper_execution";
       await markStage(persistenceStage);
