@@ -82,10 +82,10 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
       {status.cycle && (
         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
-          <span>Universe: {status.cycle.universe_count ?? 0}</span>
-          <span>Advanced: {status.cycle.discovery_advance_count ?? 0}</span>
-          <span>Deep Research: {status.cycle.deep_research_completed_count ?? 0}</span>
-          <span>Committee: {status.cycle.committee_decision_count ?? 0}</span>
+          <span>Universe: {status.cycle.universe_count ?? "Not recorded"}</span>
+          <span>Advanced: {status.cycle.discovery_advance_count ?? "Not recorded"}</span>
+          <span>Deep Research: {status.cycle.deep_research_completed_count ?? "Not recorded"}</span>
+          <span>Committee: {status.cycle.committee_decision_count ?? "Not recorded"}</span>
         </div>
       )}
 
