@@ -14,6 +14,10 @@ export async function GET() {
     return NextResponse.json({
       version: "ag-discovery-v1",
       universeCount: result.universeCount,
+      eligibleUniverseCount: result.eligibleUniverseCount,
+      rejectedByTradabilityCount: result.rejectedByTradabilityCount,
+      reassessmentRequestedCount: result.reassessmentRequestedCount,
+      reassessmentSelectedCount: result.reassessmentSelectedCount,
       preselectedCount: result.preselectedCount,
       evaluatedCount: result.evaluatedCount,
       advanceCount: result.advanceCount,
