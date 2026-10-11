@@ -59,12 +59,12 @@ export async function runAgResearchDailyCycle(options?: {
 
       const supabase = await createClient();
       const markStage = async (stage: string) => {
-        const { error } = await supabase.from("ag_daily_cycles").update({
+        const { data, error } = await supabase.from("ag_daily_cycles").update({
           failure_message: `AG_PERSISTENCE_IN_PROGRESS:${stage}`,
           updated_at: new Date().toISOString(),
         }).eq("id", context.cycleId).eq("portfolio_id", context.portfolioId)
-          .eq("strategy_era_id", context.strategyEraId).eq("status", "running");
-        if (error) throw new Error(`AG_STAGE_CHECKPOINT_FAILED:${stage}: ${error.message}`);
+          .eq("strategy_era_id", context.strategyEraId).eq("status", "running").select("id");
+        if (error || data?.length !== 1) throw new Error(`AG_STAGE_CHECKPOINT_FAILED:${stage}: ${error?.message ?? "cycle no longer running"}`);
       };
 
       let persistenceStage = "research_watchlist";
