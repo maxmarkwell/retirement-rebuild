@@ -37,6 +37,19 @@ export async function getAgDailyCycleStatus() {
     : { count: null, error: null };
   if (decisionError) throw new Error(`Unable to inspect AG cycle decision records: ${decisionError.message}`);
 
+  const { data: attributedDecisions, error: attributedError } = cycle
+    ? await supabase.from("investment_decisions")
+        .select("id, ticker, decision_type, status, transaction_id, created_at, notes")
+        .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("source", "ai_committee")
+        .like("notes", `%\\"agCycleId\\":\\"${cycle.id}\\"%`)
+        .order("created_at", { ascending: true }).limit(200)
+    : { data: null, error: null };
+  if (attributedError) throw new Error(`Unable to reconcile attributed AG decisions: ${attributedError.message}`);
+  const linkedDecisions = (attributedDecisions ?? []).filter((decision) => {
+    try { return JSON.parse(decision.notes ?? "{}").agCycleId === cycle?.id; }
+    catch { return false; }
+  });
+
   return {
     cycleDate,
     hasCycleToday: Boolean(cycle),
@@ -50,6 +63,12 @@ export async function getAgDailyCycleStatus() {
       hasUnknownWriteHistory,
       activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
       decisionCountIsCycleAttribution: false,
+      attributedDecisionCount: linkedDecisions.length,
+      attributedDecisionScanLimit: 200,
+      attributedDecisionScanMayBeTruncated: (attributedDecisions?.length ?? 0) === 200,
+      attributedDecisions: linkedDecisions.map(({ id, ticker, decision_type, status, transaction_id, created_at }) => ({
+        id, ticker, decisionType: decision_type, status, hasTransaction: Boolean(transaction_id), createdAt: created_at,
+      })),
       recoveryState: cycle?.status === "failed"
         ? "manual_review_required"
         : cycle?.status === "running" && persistenceStarted
