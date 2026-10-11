@@ -27,7 +27,11 @@ export async function GET() {
   try {
     const result = await runAcceleratedGrowthDiscovery();
     return NextResponse.json({
-      version: "ag-discovery-v1",
+      version: "ag-discovery-v2",
+      mode: "read_only",
+      generatedAt: new Date().toISOString(),
+      portfolioId: portfolio.id,
+      strategyEraId: era.id,
       universeCount: result.universeCount,
       eligibleUniverseCount: result.eligibleUniverseCount,
       rejectedByTradabilityCount: result.rejectedByTradabilityCount,
@@ -65,6 +69,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
+    console.error("AG discovery diagnostic failed", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Accelerated Growth discovery failed." },
       { status: 500 }
