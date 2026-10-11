@@ -85,7 +85,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   const universeBySymbol = new Map(universe.map((stock) => [stock.ticker.toUpperCase(), stock]));
   for (const rawSymbol of options?.reassessSymbols ?? []) {
     const symbol = rawSymbol.trim().toUpperCase();
-    if (!symbol || selectedSymbols.has(symbol)) continue;
+    if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) || selectedSymbols.has(symbol)) continue;
     const stock = universeBySymbol.get(symbol);
     // A WATCH is a research priority, not an exemption from investability rules.
     if (!stock || !passesZeroCallGate(stock)) continue;
