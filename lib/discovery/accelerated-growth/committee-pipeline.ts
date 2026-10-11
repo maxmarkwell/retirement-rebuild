@@ -266,7 +266,8 @@ export async function persistAgCommitteeDecisions(
       .from("investment_decisions")
       .select("id, decision_type, transaction_id")
       .eq("portfolio_id", portfolioId)
-      .eq("ticker", decision.symbol)
+      .eq("user_id", user.id)
+      .eq("ticker", decision.symbol.toUpperCase())
       .eq("source", "ai_committee")
       .eq("status", "active")
       .gte("created_at", era.inception_at)
@@ -303,7 +304,7 @@ export async function persistAgCommitteeDecisions(
         portfolio_id: portfolioId,
         transaction_id: null,
         decision_type: decisionType,
-        ticker: decision.symbol,
+        ticker: decision.symbol.toUpperCase(),
         decision_date: new Date().toISOString(),
         decision_price: null,
         recommended_quantity: null,
