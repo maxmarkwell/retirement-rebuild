@@ -57,6 +57,14 @@ rejects({ ...manifest, sources: [sources[0], sources[0], ...sources.slice(1)] },
 rejects({ ...manifest, sources: sources.map((s, i) => i === 0 ?
   { ...s, publishedAt: "2026-08-04T00:00:00Z" } : s) },
   payloads, "ARCHIVE_LOOKAHEAD_OR_INVALID_TIME");
+// A retrospective download cannot be relabeled as contemporaneous availability.
+rejects({ ...manifest, sources: sources.map((s, i) => i === 0 ?
+  { ...s, retrievedAt: "2026-10-11T00:00:00Z" } : s) },
+  payloads, "ARCHIVE_LOOKAHEAD_OR_INVALID_TIME:cycle");
+// A publication date after the original retrieval is inconsistent even before cutoff.
+rejects({ ...manifest, sources: sources.map((s, i) => i === 0 ?
+  { ...s, publishedAt: "2026-08-02T06:00:00Z" } : s) },
+  payloads, "ARCHIVE_LOOKAHEAD_OR_INVALID_TIME:cycle");
 rejects({ ...manifest, sources: sources.map((s, i) => i === 0 ?
   { ...s, sourceUrl: "https://user:password@example.org/" } : s) },
   payloads, "ARCHIVE_INVALID_SOURCE" );
