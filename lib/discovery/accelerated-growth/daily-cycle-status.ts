@@ -53,21 +53,6 @@ export async function getAgDailyCycleStatus() {
     catch { return false; }
   });
 
-  const { data: symbolCheckpoints, error: checkpointError } = cycle
-    ? await supabase.from("ag_cycle_symbol_checkpoints")
-        .select("parent_stage, symbol, status, output")
-        .eq("cycle_id", cycle.id).order("symbol", { ascending: true }).limit(200)
-    : { data: null, error: null };
-  if (checkpointError) throw new Error(`Unable to inspect AG symbol checkpoints: ${checkpointError.message}`);
-  const decisionReuseCheckpoints = (symbolCheckpoints ?? []).filter((row) =>
-    row.parent_stage === "decision_persistence" && row.status === "completed" &&
-    row.output && typeof row.output === "object" && !Array.isArray(row.output) &&
-    row.output.reused === true && typeof row.output.decisionId === "string"
-  );
-  const checkpointDecisionIds = new Set(decisionReuseCheckpoints.map((row) => String(row.output.decisionId)));
-  const checkpointReuseEvidenceComplete = (symbolCheckpoints?.length ?? 0) < 200;
-  const reuseCheckpointDecisionIds = Array.from(checkpointDecisionIds);
-  const reuseCheckpointDuplicates = decisionReuseCheckpoints.length - checkpointDecisionIds.size;
   const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
   const attributionCountIsComplete = !attributionIncomplete && Boolean(cycle);
   const attributionCountMatchesPersisted = attributionCountIsComplete && cycle?.status === "completed" &&
@@ -121,12 +106,9 @@ export async function getAgDailyCycleStatus() {
       attributedDecisionOrigins: decisionOrigins,
       attributedDecisionsWithTransactions: attributedTransactionCount,
       attributedSupersededDecisions: attributedSupersededCount,
-      reusedDecisionAttributionAvailable: decisionReuseCheckpoints.length > 0,
-      reusedDecisionCheckpointCount: decisionReuseCheckpoints.length,
-      reusedDecisionIds: reuseCheckpointDecisionIds,
-      reusedDecisionCheckpointDuplicateCount: reuseCheckpointDuplicates,
-      reusedDecisionCheckpointEvidenceComplete: checkpointReuseEvidenceComplete,
-      reusedDecisionCheckpointScanMayBeTruncated: (symbolCheckpoints?.length ?? 0) === 200,
+      reusedDecisionAttributionAvailable: false,
+      reusedDecisionCheckpointSupport: "schema_change_required",
+      reusedDecisionCheckpointReason: "Existing symbol checkpoints permit only catalyst_deep_research and committee parent stages; decision_persistence is not allowed.",
       reconciliationAssessment,
       attributedDecisionScanLimit: 200,
       attributedDecisionScanMayBeTruncated: (attributedDecisions?.length ?? 0) === 200,
