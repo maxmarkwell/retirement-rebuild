@@ -93,12 +93,6 @@ export async function persistAgHoldingReviewDecisions(
       continue;
     }
 
-    if (existing) {
-      const { error: supersedeError } = await supabase.from("investment_decisions")
-        .update({ status: "superseded" }).eq("id", existing.id).eq("status", "active");
-      if (supersedeError) throw new Error(`Unable to supersede prior holding decision for ${decision.symbol}: ${supersedeError.message}`);
-    }
-
     const { data, error } = await supabase.from("investment_decisions").insert({
       user_id: user.id,
       portfolio_id: portfolioId,
