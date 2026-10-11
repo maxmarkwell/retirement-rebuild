@@ -49,7 +49,9 @@ export function verifyV2ArchivedSources(
   let manifest: V2ArchivedManifest;
   try { manifest = JSON.parse(manifestUtf8) as V2ArchivedManifest; }
   catch { return { accepted: false, issues: [...issues, "ARCHIVE_INVALID_JSON"], verifiedSources: 0 }; }
-  if (!manifest || manifest.schemaVersion !== "ag-history-source-manifest-v1" ||
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) ||
+      Object.keys(manifest).sort().join(",") !== "researchAsOf,schemaVersion,sources" ||
+      manifest.schemaVersion !== "ag-history-source-manifest-v1" ||
       !Array.isArray(manifest.sources) || !manifest.sources.length ||
       manifest.sources.length > 2000 || !Array.isArray(payloads) ||
       payloads.length > 2000)
@@ -73,7 +75,9 @@ export function verifyV2ArchivedSources(
   let verifiedSources = 0;
   const kinds = new Set(["SEC_FILING", "VENDOR_RAW", "V1_CYCLE", "UNIVERSE", "ISSUER_MAPPING", "V2_ASSESSMENTS"]);
   for (const source of manifest.sources) {
-    if (!source || typeof source.id !== "string" || !ID.test(source.id) ||
+    if (!source || typeof source !== "object" || Array.isArray(source) ||
+        Object.keys(source).sort().join(",") !== "id,kind,publishedAt,retrievedAt,sha256,sourceUrl" ||
+        typeof source.id !== "string" || !ID.test(source.id) ||
         seen.has(source.id) || !kinds.has(source.kind) ||
         typeof source.sha256 !== "string" || !SHA.test(source.sha256) ||
         typeof source.sourceUrl !== "string" || !trustedUrl(source.sourceUrl)) {
