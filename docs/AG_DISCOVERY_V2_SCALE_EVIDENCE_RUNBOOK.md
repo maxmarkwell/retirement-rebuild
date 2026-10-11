@@ -31,3 +31,7 @@ The scale diagnostic accepts caller-supplied numbers and **cannot prove** the re
 ## Observation-level preflight
 
 After independent SEC and FMP extraction, pass source-linked `V2VerifiedObservation` records through `diagnoseV2ScaleFromObservations` before reviewing any implied scale. This offline bridge requires USD records, one matched filing and vendor observation per issuer/quarter/metric, distinct source-document and extraction identities, valid lineage, no as-of lookahead, and the diagnostic's cross-issuer and cross-quarter coverage. It reports problems without changing records or enabling ingestion. The bridge cannot establish the authenticity of caller-provided IDs, URLs, or financial figures, and matching revenue does not validate other accounting metrics.
+
+## Interpretation of pilot CLI output
+
+The local pilot bundle evaluator may return `accepted: true` when archive structure, digests, linkage, and comparison calculations are valid. This **does not** constitute an accepted investment research result. The top-level `researchConclusion: NOT_EVALUABLE` explicitly marks the current authenticity and independent-review gap. The accompanying `evidenceInventory.blockers` and `cycleEvidenceGaps` explain what remains unresolved. Do not use `accepted: true`, incremental issuer counts, or lead-time metrics alone to justify scaling, deploying AG, or placing trades.
