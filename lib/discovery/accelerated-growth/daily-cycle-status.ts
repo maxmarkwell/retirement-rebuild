@@ -51,6 +51,15 @@ export async function getAgDailyCycleStatus() {
   });
 
   const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
+  const decisionOrigins = linkedDecisions.reduce((counts, decision) => {
+    try {
+      const origin = JSON.parse(decision.notes ?? "{}").agDecisionOrigin;
+      if (origin === "committee") counts.committee += 1;
+      else if (origin === "holding_review") counts.holdingReview += 1;
+      else counts.unknown += 1;
+    } catch { counts.unknown += 1; }
+    return counts;
+  }, { committee: 0, holdingReview: 0, unknown: 0 });
   const decisionStageReached = persistenceStage === "holding_decisions" || persistenceStage === "committee_decisions" ||
     persistenceStage === "paper_execution" || persistenceStage === "paper_execution_completed" ||
     persistenceStage === "holding_decisions_completed" || persistenceStage === "committee_decisions_completed";
@@ -76,6 +85,8 @@ export async function getAgDailyCycleStatus() {
       activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
       decisionCountIsCycleAttribution: false,
       attributedDecisionCount: linkedDecisions.length,
+      attributedDecisionOrigins: decisionOrigins,
+      reusedDecisionAttributionAvailable: false,
       reconciliationAssessment,
       attributedDecisionScanLimit: 200,
       attributedDecisionScanMayBeTruncated: (attributedDecisions?.length ?? 0) === 200,
