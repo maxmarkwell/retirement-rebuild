@@ -8,6 +8,7 @@ import {
 import { runAgDailyCycle } from "./daily-cycle";
 import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./holding-review-pipeline";
 import { executeAgDailyCycleTransactions } from "./daily-cycle-execution";
+import { assertAgDecisionBatchIsUnambiguous } from "./daily-cycle-decision-preflight";
 
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
@@ -30,6 +31,11 @@ export async function runAgResearchDailyCycle(options?: {
       if (pipeline.errors.length > 0 || pipeline.failedCount > 0) {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
+
+      assertAgDecisionBatchIsUnambiguous({
+        holdingSymbols: holdingReviews.decisions.map((decision) => decision.symbol),
+        committeeSymbols: pipeline.decisions.map((decision) => decision.symbol),
+      });
 
       await persistAgResearchWatchlist(
         context.portfolioId,
