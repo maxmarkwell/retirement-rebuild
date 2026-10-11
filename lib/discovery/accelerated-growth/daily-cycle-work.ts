@@ -18,7 +18,11 @@ export async function runAgResearchDailyCycle(options?: {
   executeTransactions?: boolean;
 }) {
   const maxCandidates = options?.maxCandidates ?? 5;
-  const executeTransactions = options?.executeTransactions === true;
+  // AG remains research-only until reconciliation and execution controls are validated.
+  if (options?.executeTransactions === true) {
+    throw new Error("AG_PAPER_EXECUTION_DISABLED");
+  }
+  const executeTransactions = false;
 
   return runAgDailyCycle({
     maxCandidates,
