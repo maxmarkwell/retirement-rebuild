@@ -82,11 +82,13 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   // the current investable universe. Deduplication prevents paying twice when a
   // watched ticker also qualifies naturally today.
   const selectedSymbols = new Set(selected.map((item) => item.stock.ticker.toUpperCase()));
+  const universeBySymbol = new Map(universe.map((stock) => [stock.ticker.toUpperCase(), stock]));
   for (const rawSymbol of options?.reassessSymbols ?? []) {
     const symbol = rawSymbol.trim().toUpperCase();
     if (!symbol || selectedSymbols.has(symbol)) continue;
-    const stock = universe.find((item) => item.ticker.toUpperCase() === symbol);
-    if (!stock) continue;
+    const stock = universeBySymbol.get(symbol);
+    // A WATCH is a research priority, not an exemption from investability rules.
+    if (!stock || !passesZeroCallGate(stock)) continue;
     selected.push({ stock, selectorScore: zeroCallSelectorScore(stock) });
     selectedSymbols.add(symbol);
   }
