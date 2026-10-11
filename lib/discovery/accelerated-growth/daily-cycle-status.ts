@@ -27,6 +27,12 @@ export async function getAgDailyCycleStatus() {
   const failedStage = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:([a-z_]+):/)?.[1] ?? null;
   const persistenceStage = stageMarker ?? failedStage;
   const persistenceStarted = Boolean(persistenceStage);
+  const { count: activeDecisionCount, error: decisionError } = cycle
+    ? await supabase.from("investment_decisions").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("source", "ai_committee")
+        .eq("status", "active").gte("created_at", cycle.started_at)
+    : { count: null, error: null };
+  if (decisionError) throw new Error(`Unable to inspect AG cycle decision records: ${decisionError.message}`);
 
   return {
     cycleDate,
@@ -36,6 +42,8 @@ export async function getAgDailyCycleStatus() {
     reconciliation: {
       persistenceStage,
       persistenceStarted,
+      activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
+      decisionCountIsCycleAttribution: false,
       recoveryState: cycle?.status === "failed"
         ? "manual_review_required"
         : cycle?.status === "running" && persistenceStarted
