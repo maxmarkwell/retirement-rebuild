@@ -54,9 +54,7 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
 function selectBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
   const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }));
   if (eligible.length <= limit) return eligible.sort((a, b) => b.selectorScore - a.selectorScore);
-  const eligibleUniverseCount = universe.filter(passesZeroCallGate).length;
   const selected: Preselected[] = [];
-  let reassessmentSelectedCount = 0;
   const sliceSize = eligible.length / limit;
   for (let i = 0; i < limit; i += 1) {
     const start = Math.floor(i * sliceSize), end = Math.max(start + 1, Math.floor((i + 1) * sliceSize));
@@ -76,7 +74,9 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) byBucket.set(bucket, []);
   for (const stock of universe) byBucket.get(stock.marketCapBucket)?.push(stock);
 
+  const eligibleUniverseCount = universe.filter(passesZeroCallGate).length;
   const selected: Preselected[] = [];
+  let reassessmentSelectedCount = 0;
   const bucketSelectionCounts = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
   for (const bucket of Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[]) {
     const bucketSelected = selectBucket(byBucket.get(bucket) ?? [], BUCKET_LIMITS[bucket]);
