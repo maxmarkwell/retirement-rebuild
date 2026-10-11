@@ -55,7 +55,8 @@ export async function getAgDailyCycleStatus() {
 
   const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
   const attributionCountIsComplete = !attributionIncomplete && Boolean(cycle);
-  const attributionCountMatchesPersisted = attributionCountIsComplete && cycle?.status === "completed"
+  const attributionCountMatchesPersisted = attributionCountIsComplete && cycle?.status === "completed" &&
+    typeof cycle.persisted_decision_count === "number"
     ? linkedDecisions.length === cycle.persisted_decision_count
     : null;
   // Reused decisions are intentionally not rewritten with the new cycle ID, so
@@ -69,6 +70,9 @@ export async function getAgDailyCycleStatus() {
     } catch { counts.unknown += 1; }
     return counts;
   }, { committee: 0, holdingReview: 0, unknown: 0 });
+  const attributionCountGap = attributionCountIsComplete && cycle?.status === "completed" &&
+    typeof cycle.persisted_decision_count === "number"
+    ? cycle.persisted_decision_count - linkedDecisions.length : null;
   const attributedTransactionCount = linkedDecisions.filter((decision) => Boolean(decision.transaction_id)).length;
   const attributedSupersededCount = linkedDecisions.filter((decision) => decision.status === "superseded").length;
   const decisionStageReached = persistenceStage === "holding_decisions" || persistenceStage === "committee_decisions" ||
@@ -97,6 +101,7 @@ export async function getAgDailyCycleStatus() {
       decisionCountIsCycleAttribution: false,
       attributedDecisionCount: linkedDecisions.length,
       attributionCountMatchesPersisted,
+      attributionCountGap,
       attributionCountMismatchMayBeReuse: attributionCountMatchesPersisted === false,
       attributedDecisionOrigins: decisionOrigins,
       attributedDecisionsWithTransactions: attributedTransactionCount,
