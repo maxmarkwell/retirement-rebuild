@@ -60,6 +60,8 @@ export async function getAgDailyCycleStatus() {
     } catch { counts.unknown += 1; }
     return counts;
   }, { committee: 0, holdingReview: 0, unknown: 0 });
+  const attributedTransactionCount = linkedDecisions.filter((decision) => Boolean(decision.transaction_id)).length;
+  const attributedSupersededCount = linkedDecisions.filter((decision) => decision.status === "superseded").length;
   const decisionStageReached = persistenceStage === "holding_decisions" || persistenceStage === "committee_decisions" ||
     persistenceStage === "paper_execution" || persistenceStage === "paper_execution_completed" ||
     persistenceStage === "holding_decisions_completed" || persistenceStage === "committee_decisions_completed";
@@ -86,6 +88,8 @@ export async function getAgDailyCycleStatus() {
       decisionCountIsCycleAttribution: false,
       attributedDecisionCount: linkedDecisions.length,
       attributedDecisionOrigins: decisionOrigins,
+      attributedDecisionsWithTransactions: attributedTransactionCount,
+      attributedSupersededDecisions: attributedSupersededCount,
       reusedDecisionAttributionAvailable: false,
       reconciliationAssessment,
       attributedDecisionScanLimit: 200,
