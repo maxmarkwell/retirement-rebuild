@@ -22,6 +22,10 @@ export type AgDiscoveryResult = {
   rateLimited: boolean;
   stoppedEarly: boolean;
   bucketSelectionCounts: Record<UniverseMarketCapBucket, number>;
+  eligibleUniverseCount: number;
+  rejectedByTradabilityCount: number;
+  reassessmentRequestedCount: number;
+  reassessmentSelectedCount: number;
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
 };
@@ -50,7 +54,9 @@ function passesZeroCallGate(stock: DynamicUniverseStock) {
 function selectBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
   const eligible = stocks.filter(passesZeroCallGate).map((stock) => ({ stock, selectorScore: zeroCallSelectorScore(stock) }));
   if (eligible.length <= limit) return eligible.sort((a, b) => b.selectorScore - a.selectorScore);
+  const eligibleUniverseCount = universe.filter(passesZeroCallGate).length;
   const selected: Preselected[] = [];
+  let reassessmentSelectedCount = 0;
   const sliceSize = eligible.length / limit;
   for (let i = 0; i < limit; i += 1) {
     const start = Math.floor(i * sliceSize), end = Math.max(start + 1, Math.floor((i + 1) * sliceSize));
@@ -92,6 +98,7 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     if (!stock || !passesZeroCallGate(stock)) continue;
     selected.push({ stock, selectorScore: zeroCallSelectorScore(stock) });
     selectedSymbols.add(symbol);
+    reassessmentSelectedCount += 1;
   }
 
   const candidates: AgDiscoveryCandidate[] = [];
@@ -117,6 +124,9 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     rejectCount: candidates.filter((c) => c.score.status === "REJECT").length,
     insufficientDataCount: candidates.filter((c) => c.score.status === "INSUFFICIENT_DATA").length,
     rateLimited, stoppedEarly: rateLimited || candidates.length + errors.length < selected.length,
-    bucketSelectionCounts, candidates, errors,
+    bucketSelectionCounts, eligibleUniverseCount,
+    rejectedByTradabilityCount: universe.length - eligibleUniverseCount,
+    reassessmentRequestedCount: options?.reassessSymbols?.length ?? 0,
+    reassessmentSelectedCount, candidates, errors,
   };
 }
