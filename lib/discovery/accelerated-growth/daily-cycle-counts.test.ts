@@ -15,3 +15,6 @@ assert.throws(() => validateAgCycleCounts({ ...good, evaluatedCount: 1.5 }), /AG
 assert.throws(() => validateAgCycleCounts({ ...good, preselectedCount: 2000 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
 assert.throws(() => validateAgCycleCounts({ ...good, discoveryAdvanceCount: 23 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
 assert.throws(() => validateAgCycleCounts({ ...good, persistedDecisionCount: 2 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
+assert.throws(() => validateAgCycleCounts({ ...good, catalystSupportedCount: 6 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
+assert.throws(() => validateAgCycleCounts({ ...good, deepResearchCompletedCount: 4 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
+assert.throws(() => validateAgCycleCounts({ ...good, proceedCount: 3 }), /AG_CYCLE_INCONSISTENT_COUNTS/);
