@@ -44,7 +44,7 @@ export async function getAgDailyCycleStatus() {
     ? await supabase.from("investment_decisions")
         .select("id, ticker, decision_type, status, transaction_id, created_at, notes")
         .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("source", "ai_committee")
-        .like("notes", `%${`"agCycleId":"${cycle.id}"`}%`)
+        .like("notes", `%"agCycleId":"${cycle.id}"%`)
         .order("created_at", { ascending: true }).limit(200)
     : { data: null, error: null };
   if (attributedError) throw new Error(`Unable to reconcile attributed AG decisions: ${attributedError.message}`);
