@@ -7,6 +7,7 @@ import { fromAgPersistedDecisionType, getAgDecisionLifecycleAction, toAgPersiste
 
 export type PersistedAgCommitteeDecision = {
   decisionId: string;
+  reused: boolean;
   symbol: string;
   decision: AgCommitteeDecision["decision"];
 };
@@ -286,6 +287,7 @@ export async function persistAgCommitteeDecisions(
     }) === "REUSE") {
       persisted.push({
         decisionId: existing.id,
+        reused: true,
         symbol: decision.symbol,
         decision: fromAgPersistedDecisionType(existing.decision_type),
       });
@@ -324,7 +326,7 @@ export async function persistAgCommitteeDecisions(
       .select("id")
       .single();
     if (error || !row) throw new Error(`Unable to persist AG decision for ${decision.symbol}: ${error?.message ?? "Unknown error"}`);
-    persisted.push({ decisionId: row.id, symbol: decision.symbol, decision: decision.decision });
+    persisted.push({ decisionId: row.id, reused: false, symbol: decision.symbol, decision: decision.decision });
   }
   return persisted;
 }
