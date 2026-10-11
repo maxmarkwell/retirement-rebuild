@@ -50,6 +50,18 @@ export async function getAgDailyCycleStatus() {
     catch { return false; }
   });
 
+  const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
+  const decisionStageReached = persistenceStage === "holding_decisions" || persistenceStage === "committee_decisions" ||
+    persistenceStage === "paper_execution" || persistenceStage === "paper_execution_completed" ||
+    persistenceStage === "holding_decisions_completed" || persistenceStage === "committee_decisions_completed";
+  const reconciliationAssessment = !cycle ? "no_cycle"
+    : attributionIncomplete ? "inventory_truncated"
+    : cycle.status === "completed" ? "cycle_completed"
+    : cycle.status === "failed" && linkedDecisions.length > 0 ? "attributed_writes_found_review_required"
+    : cycle.status === "failed" && decisionStageReached ? "decision_stage_reached_no_attributed_writes"
+    : cycle.status === "failed" ? "write_history_unverified"
+    : "cycle_not_failed";
+
   return {
     cycleDate,
     hasCycleToday: Boolean(cycle),
@@ -64,6 +76,7 @@ export async function getAgDailyCycleStatus() {
       activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
       decisionCountIsCycleAttribution: false,
       attributedDecisionCount: linkedDecisions.length,
+      reconciliationAssessment,
       attributedDecisionScanLimit: 200,
       attributedDecisionScanMayBeTruncated: (attributedDecisions?.length ?? 0) === 200,
       attributedDecisions: linkedDecisions.map(({ id, ticker, decision_type, status, transaction_id, created_at }) => ({
