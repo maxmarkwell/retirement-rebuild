@@ -67,8 +67,8 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     evaluatedCount: discovery.evaluatedCount, advanceCount: discovery.advanceCount,
     rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly,
   };
-  if (discovery.rateLimited || discovery.stoppedEarly) {
-    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], committeeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: "Deep research skipped because AG Discovery did not complete cleanly." }] };
+  if (discovery.errors.length > 0 || discovery.rateLimited || discovery.stoppedEarly) {
+    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], committeeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: `Deep research skipped: AG Discovery had ${discovery.errors.length} candidate evaluation failure(s); rateLimited=${discovery.rateLimited}; stoppedEarly=${discovery.stoppedEarly}.` }] };
   }
 
   const quantitativeWatchResolutions: AgQuantitativeWatchResolution[] = discovery.candidates
