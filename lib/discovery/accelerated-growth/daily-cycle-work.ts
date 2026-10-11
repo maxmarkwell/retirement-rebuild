@@ -38,23 +38,30 @@ export async function runAgResearchDailyCycle(options?: {
         committeeSymbols: pipeline.decisions.map((decision) => decision.symbol),
       });
 
+      let persistenceStage = "research_watchlist";
+      try {
       await persistAgResearchWatchlist(
         context.portfolioId,
         pipeline.upstream.deepResearchOutcomes,
         pipeline.upstream.quantitativeWatchResolutions
       );
+      persistenceStage = "committee_watch_supersession";
       const supersededCommitteeWatchCount = await supersedeAgCommitteeWatches(
         context.portfolioId,
         pipeline.upstream.committeeWatchResolutions
       );
+      persistenceStage = "holding_decisions";
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
+      persistenceStage = "committee_decisions";
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
+      persistenceStage = "paper_execution";
       const execution = await executeAgDailyCycleTransactions({
         enabled: executeTransactions,
         buyDecisions: persisted,
         holdingDecisions: persistedHoldingReviews,
       });
 
+      persistenceStage = "completed";
       return {
         result: {
           persisted: true,
@@ -89,6 +96,10 @@ export async function runAgResearchDailyCycle(options?: {
           persistedDecisionCount: persisted.length + persistedHoldingReviews.length,
         },
       };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown persistence error";
+        throw new Error(`AG_PERSISTENCE_STAGE_FAILED:${persistenceStage}: ${message}`);
+      }
     },
   });
 }
