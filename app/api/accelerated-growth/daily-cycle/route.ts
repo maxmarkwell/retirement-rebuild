@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       error: retryableCycleFailure ? undefined : message,
       reason: retryableCycleFailure ? message : undefined,
-      retryAvailable: retryableCycleFailure,
+      retryAvailable: false,
+      retryBlockedReason: "Failed AG cycles require persistence reconciliation before retry.",
       executionEnabled: false,
       transactionsWritten: false,
     }, { status: retryableCycleFailure ? 409 : 500 });
