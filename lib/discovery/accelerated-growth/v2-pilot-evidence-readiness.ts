@@ -13,7 +13,10 @@ export type V2PilotEvidenceReadiness =
       cyclesWithoutExternalEvidence: number; totalSecFilingSources: number;
       totalVendorRawSources: number; bothExternalKindsPresentEveryCycle: boolean;
       historicalEvidenceVerified: false; evaluationStatus: "NOT_EVALUABLE";
-      blockers: string[] };
+      blockers: string[];
+      cycleEvidenceGaps: { runId: string; researchAsOf: string;
+        secFilingSources: number; vendorRawSources: number;
+        missingKinds: ("SEC_FILING" | "VENDOR_RAW")[] }[] };
 
 export function inspectV2PilotEvidenceReadiness(
   archives: readonly V2HistoricalCycleArchive[],
@@ -26,6 +29,7 @@ export function inspectV2PilotEvidenceReadiness(
   let cyclesWithoutExternalEvidence = 0;
   let totalSecFilingSources = 0;
   let totalVendorRawSources = 0;
+  const cycleEvidenceGaps: Extract<V2PilotEvidenceReadiness, { accepted: true }>["cycleEvidenceGaps"] = [];
   for (const archive of archives) {
     const manifest = JSON.parse(archive.manifestUtf8) as V2ArchivedManifest;
     const sec = manifest.sources.filter(s => s.kind === "SEC_FILING").length;
@@ -36,6 +40,12 @@ export function inspectV2PilotEvidenceReadiness(
     if (vendor) cyclesWithVendorRaw++;
     if (sec && vendor) cyclesWithBothExternalKinds++;
     if (!sec && !vendor) cyclesWithoutExternalEvidence++;
+    const cycle = archive.envelope.history.cycles[0];
+    const missingKinds: ("SEC_FILING" | "VENDOR_RAW")[] = [];
+    if (!sec) missingKinds.push("SEC_FILING");
+    if (!vendor) missingKinds.push("VENDOR_RAW");
+    cycleEvidenceGaps.push({ runId: cycle.runId, researchAsOf: cycle.researchAsOf,
+      secFilingSources: sec, vendorRawSources: vendor, missingKinds });
   }
   return {
     accepted: true, cycleCount: result.cycleCount,
@@ -43,6 +53,7 @@ export function inspectV2PilotEvidenceReadiness(
     cyclesWithBothExternalKinds, cyclesWithoutExternalEvidence,
     totalSecFilingSources, totalVendorRawSources,
     bothExternalKindsPresentEveryCycle: cyclesWithBothExternalKinds === result.cycleCount,
+    cycleEvidenceGaps,
     historicalEvidenceVerified: false,
     evaluationStatus: "NOT_EVALUABLE",
     blockers: [
