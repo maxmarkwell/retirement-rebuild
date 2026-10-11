@@ -64,6 +64,10 @@ export async function getAgDailyCycleStatus() {
     row.output && typeof row.output === "object" && !Array.isArray(row.output) &&
     row.output.reused === true && typeof row.output.decisionId === "string"
   );
+  const checkpointDecisionIds = new Set(decisionReuseCheckpoints.map((row) => String(row.output.decisionId)));
+  const checkpointReuseEvidenceComplete = (symbolCheckpoints?.length ?? 0) < 200;
+  const reuseCheckpointDecisionIds = Array.from(checkpointDecisionIds);
+  const reuseCheckpointDuplicates = decisionReuseCheckpoints.length - checkpointDecisionIds.size;
   const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
   const attributionCountIsComplete = !attributionIncomplete && Boolean(cycle);
   const attributionCountMatchesPersisted = attributionCountIsComplete && cycle?.status === "completed" &&
@@ -119,6 +123,9 @@ export async function getAgDailyCycleStatus() {
       attributedSupersededDecisions: attributedSupersededCount,
       reusedDecisionAttributionAvailable: decisionReuseCheckpoints.length > 0,
       reusedDecisionCheckpointCount: decisionReuseCheckpoints.length,
+      reusedDecisionIds: reuseCheckpointDecisionIds,
+      reusedDecisionCheckpointDuplicateCount: reuseCheckpointDuplicates,
+      reusedDecisionCheckpointEvidenceComplete: checkpointReuseEvidenceComplete,
       reusedDecisionCheckpointScanMayBeTruncated: (symbolCheckpoints?.length ?? 0) === 200,
       reconciliationAssessment,
       attributedDecisionScanLimit: 200,
