@@ -112,8 +112,11 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   } catch (error) {
     const failedAt = new Date().toISOString();
     const message = error instanceof Error ? error.message : "AG daily cycle work failed.";
-    await supabase.from("ag_daily_cycles").update({ status: "failed", completed_at: failedAt, failure_message: message, updated_at: failedAt })
-      .eq("id", cycleId).eq("status", "running");
+    const failure = await supabase.from("ag_daily_cycles").update({ status: "failed", completed_at: failedAt, failure_message: message, updated_at: failedAt })
+      .eq("id", cycleId).eq("status", "running").select("id");
+    if (failure.error || failure.data?.length !== 1) {
+      throw new Error(`AG_CYCLE_FAILURE_RECORDING_FAILED: ${failure.error?.message ?? "cycle status changed"}; original error: ${message}`);
+    }
     throw error;
   }
 }
