@@ -274,6 +274,11 @@ export async function persistAgCommitteeDecisions(
       .maybeSingle();
     if (existingError) throw new Error(`Unable to check existing AG decision for ${decision.symbol}: ${existingError.message}`);
 
+    // An executed BUY cannot be recycled as a fresh executable decision.
+    if (existing && existing.transaction_id && decision.decision === "BUY") {
+      throw new Error(`AG_BUY_ALREADY_EXECUTED:${decision.symbol.toUpperCase()}`);
+    }
+
     if (existing && getAgDecisionLifecycleAction({
       existingActiveDecisionType: existing.decision_type,
       nextDecision: decision.decision,
