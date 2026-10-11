@@ -10,6 +10,7 @@ import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./h
 import { executeAgDailyCycleTransactions } from "./daily-cycle-execution";
 import { assertAgDecisionBatchIsUnambiguous } from "./daily-cycle-decision-preflight";
 import { validateAgCycleCounts } from "./daily-cycle-counts";
+import { createClient } from "@/lib/supabase/server";
 
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
@@ -56,23 +57,38 @@ export async function runAgResearchDailyCycle(options?: {
         persistedDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
       });
 
+      const supabase = await createClient();
+      const markStage = async (stage: string) => {
+        const { error } = await supabase.from("ag_daily_cycles").update({
+          failure_message: `AG_PERSISTENCE_IN_PROGRESS:${stage}`,
+          updated_at: new Date().toISOString(),
+        }).eq("id", context.cycleId).eq("portfolio_id", context.portfolioId)
+          .eq("strategy_era_id", context.strategyEraId).eq("status", "running");
+        if (error) throw new Error(`AG_STAGE_CHECKPOINT_FAILED:${stage}: ${error.message}`);
+      };
+
       let persistenceStage = "research_watchlist";
       try {
+      await markStage(persistenceStage);
       await persistAgResearchWatchlist(
         context.portfolioId,
         pipeline.upstream.deepResearchOutcomes,
         pipeline.upstream.quantitativeWatchResolutions
       );
       persistenceStage = "committee_watch_supersession";
+      await markStage(persistenceStage);
       const supersededCommitteeWatchCount = await supersedeAgCommitteeWatches(
         context.portfolioId,
         pipeline.upstream.committeeWatchResolutions
       );
       persistenceStage = "holding_decisions";
+      await markStage(persistenceStage);
       const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
       persistenceStage = "committee_decisions";
+      await markStage(persistenceStage);
       const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
       persistenceStage = "paper_execution";
+      await markStage(persistenceStage);
       const execution = await executeAgDailyCycleTransactions({
         enabled: executeTransactions,
         buyDecisions: persisted,
