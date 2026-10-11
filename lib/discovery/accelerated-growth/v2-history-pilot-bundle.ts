@@ -13,7 +13,7 @@ export type V2HistoricalPilotBundle = {
 };
 export type V2HistoricalPilotBundleResult =
   | { accepted: false; issues: string[] }
-  | { accepted: true; bundleSha256: string; report: Extract<V2HistoricalPilotReport, { accepted: true }>;
+  | { accepted: true; researchConclusion: "NOT_EVALUABLE"; bundleSha256: string; report: Extract<V2HistoricalPilotReport, { accepted: true }>;
       evidenceInventory: Extract<V2PilotEvidenceReadiness, { accepted: true }> };
 
 const MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
@@ -66,7 +66,7 @@ export function evaluateV2HistoricalPilotBundle(
     const evidenceInventory = inspectV2PilotEvidenceReadiness(
       raw.archives as V2HistoricalCycleArchive[]);
     if (!evidenceInventory.accepted) return evidenceInventory;
-    return { accepted: true,
+    return { accepted: true, researchConclusion: evidenceInventory.evaluationStatus,
       bundleSha256: createHash("sha256").update(rawUtf8, "utf8").digest("hex"),
       report, evidenceInventory };
   } catch {
