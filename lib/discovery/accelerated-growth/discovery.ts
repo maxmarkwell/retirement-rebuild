@@ -43,7 +43,8 @@ function zeroCallSelectorScore(stock: DynamicUniverseStock) {
 function passesZeroCallGate(stock: DynamicUniverseStock) {
   if (!Number.isFinite(stock.price) || stock.price < 5) return false;
   if (!Number.isFinite(stock.marketCap) || stock.marketCap < 300_000_000) return false;
-  if ((stock.marketCapBucket === "small" || stock.marketCapBucket === "mid") && stock.dollarVolume != null && stock.dollarVolume < 2_000_000) return false;
+  if (stock.dollarVolume == null || !Number.isFinite(stock.dollarVolume)) return false;
+  if ((stock.marketCapBucket === "small" || stock.marketCapBucket === "mid") && stock.dollarVolume < 2_000_000) return false;
   return true;
 }
 function selectBucket(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
