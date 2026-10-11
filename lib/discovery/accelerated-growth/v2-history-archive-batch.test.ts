@@ -194,6 +194,8 @@ const bundle = evaluateV2HistoricalPilotBundle(bundleBytes);
 assert.equal(bundle.accepted, true);
 if (bundle.accepted) {
   assert.equal(bundle.bundleSha256, hash(bundleBytes));
+  assert.equal(bundle.researchConclusion, "NOT_EVALUABLE");
+  assert.equal(bundle.evidenceInventory.historicalEvidenceVerified, false);
   assert.equal(bundle.report.uniqueIncrementalIssuers, 1);
   assert.deepEqual(bundle.report.v2PathIncrementalIssuerCounts, { CATALYST: 1 });
   assert.equal(bundle.report.cycleCount, 2);
