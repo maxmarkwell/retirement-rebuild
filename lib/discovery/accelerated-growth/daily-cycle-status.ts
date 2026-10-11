@@ -23,11 +23,26 @@ export async function getAgDailyCycleStatus() {
     .maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
+  const stageMarker = cycle?.failure_message?.match(/^AG_PERSISTENCE_IN_PROGRESS:([a-z_]+)$/)?.[1] ?? null;
+  const failedStage = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:([a-z_]+):/)?.[1] ?? null;
+  const persistenceStage = stageMarker ?? failedStage;
+  const persistenceStarted = Boolean(persistenceStage);
+
   return {
     cycleDate,
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
     retryAvailable: false,
+    reconciliation: {
+      persistenceStage,
+      persistenceStarted,
+      recoveryState: cycle?.status === "failed"
+        ? "manual_review_required"
+        : cycle?.status === "running" && persistenceStarted
+          ? "persistence_in_progress_or_interrupted"
+          : "not_applicable",
+      automaticRetryPermitted: false,
+    },
     retryBlockedReason: cycle?.status === "failed"
       ? "AG cycle retries require reconciliation because prior persistence may be partial."
       : null,
