@@ -260,6 +260,27 @@ if (multiPath.accepted) {
   });
 }
 
+// Valid hashes must not permit uncontracted metadata that can mislead reviewers.
+function withManifestChange(
+  original: V2HistoricalCycleArchive,
+  change: (manifest: { schemaVersion: string; researchAsOf: string;
+    sources: V2ArchivedSource[] }) => void,
+): V2HistoricalCycleArchive {
+  const manifest = JSON.parse(original.manifestUtf8) as {
+    schemaVersion: string; researchAsOf: string; sources: V2ArchivedSource[];
+  };
+  change(manifest);
+  const manifestUtf8 = JSON.stringify(manifest);
+  return { ...original, manifestUtf8, envelope: { ...original.envelope,
+    sourceManifestSha256: hash(manifestUtf8) } };
+}
+rejects([withManifestChange(first, manifest => {
+  Object.assign(manifest, { independentlyVerified: true });
+})], "ARCHIVE_INVALID_MANIFEST");
+rejects([withManifestChange(first, manifest => {
+  Object.assign(manifest.sources[0], { historicalAuthenticity: "certified" });
+})], "ARCHIVE_INVALID_SOURCE");
+
 const evidenceInventory = inspectV2PilotEvidenceReadiness([first, second]);
 assert.equal(evidenceInventory.accepted, true);
 if (evidenceInventory.accepted) {
