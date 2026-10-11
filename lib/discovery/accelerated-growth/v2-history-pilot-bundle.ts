@@ -73,3 +73,9 @@ export function evaluateV2HistoricalPilotBundle(
     return { accepted: false, issues: ["PILOT_BUNDLE_INVALID_NESTED_DATA"] };
   }
 }
+
+/** Nonzero for any outcome that does not establish an evaluable pilot. */
+export function v2PilotExitCode(result: V2HistoricalPilotBundleResult): 0 | 1 | 3 {
+  if (!result.accepted) return 1;
+  return result.researchConclusion === "NOT_EVALUABLE" ? 3 : 0;
+}
