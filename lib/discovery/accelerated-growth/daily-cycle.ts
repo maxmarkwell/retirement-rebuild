@@ -16,6 +16,8 @@ export type RunAgDailyCycleInput<T> = {
   maxCandidates?: number;
   cycleDate?: string;
   retryFailed?: boolean;
+  /** Refuse retries after non-atomic persistence may have started. */
+  retrySafety?: "read_only" | "may_write";
   work: (context: AgDailyCycleContext) => Promise<{ result: T; counts?: AgDailyCycleCounts }>;
 };
 
@@ -79,7 +81,7 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     if (created.error || !created.data) throw new Error(`Unable to create AG daily cycle: ${created.error?.message ?? "unknown error"}`);
     cycleId = created.data.id;
     attempt = "created";
-  } else if (existing.data.status === "failed" && input.retryFailed) {
+  } else if (existing.data.status === "failed" && input.retryFailed && input.retrySafety !== "may_write") {
     const retried = await supabase.from("ag_daily_cycles").update({
       status: "running", max_candidates: maxCandidates, started_at: now, completed_at: null, failure_message: null,
       universe_count: null, preselected_count: null, evaluated_count: null, discovery_advance_count: null,
@@ -90,7 +92,9 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     cycleId = retried.data.id;
     attempt = "retried";
   } else {
-    return { executed: false as const, cycleId: existing.data.id, cycleDate, status: existing.data.status, reason: "authoritative_cycle_already_exists" as const };
+    return { executed: false as const, cycleId: existing.data.id, cycleDate, status: existing.data.status, reason: existing.data.status === "failed" && input.retryFailed && input.retrySafety === "may_write"
+      ? "retry_requires_persistence_reconciliation" as const
+      : "authoritative_cycle_already_exists" as const };
   }
 
   const context: AgDailyCycleContext = { cycleId, cycleDate, portfolioId: portfolio.id, strategyEraId: era.id, attempt };
