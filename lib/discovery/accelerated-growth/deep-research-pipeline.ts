@@ -11,7 +11,7 @@ export type AgQuantitativeWatchResolution = {
 export type AgCommitteeWatchResolution = AgQuantitativeWatchResolution;
 
 export type AgDeepResearchPipelineResult = {
-  discovery: { universeCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
+  discovery: { universeCount: number; eligibleUniverseCount: number; rejectedByTradabilityCount: number; reassessmentRequestedCount: number; reassessmentSelectedCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
   catalystSupportedCount: number; requestedCount: number; completedCount: number; failedCount: number;
   results: AgDeepResearch[];
   quantitativeWatchResolutions: AgQuantitativeWatchResolution[];
@@ -63,7 +63,11 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
   const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
   const discoverySummary = {
-    universeCount: discovery.universeCount, preselectedCount: discovery.preselectedCount,
+    universeCount: discovery.universeCount, eligibleUniverseCount: discovery.eligibleUniverseCount,
+    rejectedByTradabilityCount: discovery.rejectedByTradabilityCount,
+    reassessmentRequestedCount: discovery.reassessmentRequestedCount,
+    reassessmentSelectedCount: discovery.reassessmentSelectedCount,
+    preselectedCount: discovery.preselectedCount,
     evaluatedCount: discovery.evaluatedCount, advanceCount: discovery.advanceCount,
     rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly,
   };
