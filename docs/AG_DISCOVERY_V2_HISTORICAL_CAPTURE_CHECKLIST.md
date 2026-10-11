@@ -82,3 +82,7 @@ The pilot report additionally tracks first-selected CIKs in each cycle (`firstSe
 ## Lead-time interpretation
 
 For issuers eventually researched by **both** pipelines, `v2FirstLeadDays` and `v1FirstLeadDays` are sorted elapsed calendar-day gaps between their first respective `researchAsOf` selections. These arrays exclude same-cycle first selections and issuers never selected by the other pipeline. They measure research timing, not predictive returns or investable lead time. Interpret with actual cadence, source cutoff integrity, and changing issuer identifiers in mind.
+
+## Machine-readable authenticity boundary
+
+The offline pilot `evidenceInventory` now explicitly reports `historicalEvidenceVerified: false`, `evaluationStatus: NOT_EVALUABLE`, and blocking conditions for external source authenticity, complete historical universe, point-in-time assessment provenance, and independent review. These fields remain blocked even when both SEC and vendor source kinds are present in every cycle. Hashes, timestamp assertions, and synthetic fixtures do not discharge these conditions. No automated path currently certifies a historical pilot; an independently reviewed, authorized capture and provenance workflow is required before making empirical discovery-lift claims.
