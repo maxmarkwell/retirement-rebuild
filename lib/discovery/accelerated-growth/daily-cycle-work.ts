@@ -34,6 +34,9 @@ export async function runAgResearchDailyCycle(options?: {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
+      if (holdingReviews.portfolioId !== context.portfolioId || holdingReviews.eraId !== context.strategyEraId) {
+        throw new Error("AG_CYCLE_HOLDING_CONTEXT_MISMATCH");
+      }
       assertAgDecisionBatchIsUnambiguous({
         holdingSymbols: holdingReviews.decisions.map((decision) => decision.symbol),
         committeeSymbols: pipeline.decisions.map((decision) => decision.symbol),
