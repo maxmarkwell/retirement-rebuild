@@ -69,9 +69,11 @@ export async function runAgResearchDailyCycle(options?: {
         }).eq("id", context.cycleId).eq("portfolio_id", context.portfolioId)
           .eq("strategy_era_id", context.strategyEraId).eq("status", "running").select("id");
         if (error || data?.length !== 1) throw new Error(`AG_STAGE_CHECKPOINT_FAILED:${stage}: ${error?.message ?? "cycle no longer running"}`);
+        if (stage.endsWith("_completed")) lastCompletedStage = stage;
       };
 
       let persistenceStage = "research_watchlist";
+      let lastCompletedStage: string | null = null;
       try {
       await markStage(persistenceStage);
       await persistAgResearchWatchlist(
@@ -146,7 +148,7 @@ export async function runAgResearchDailyCycle(options?: {
       };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown persistence error";
-        throw new Error(`AG_PERSISTENCE_STAGE_FAILED:${persistenceStage}: ${message}`);
+        throw new Error(`AG_PERSISTENCE_STAGE_FAILED:${persistenceStage}:LAST_COMPLETED:${lastCompletedStage ?? "none"}: ${message}`);
       }
     },
   });
