@@ -21,6 +21,7 @@ export async function runAgResearchDailyCycle(options?: {
   return runAgDailyCycle({
     maxCandidates,
     retryFailed: options?.retryFailed ?? false,
+    retrySafety: "may_write",
     work: async (context) => {
       const holdingReviews = await runAgHoldingReviewPipeline();
       if (holdingReviews.errors.length > 0 || holdingReviews.failedCount > 0) {
