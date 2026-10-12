@@ -100,7 +100,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   const impliedSharesFromVendorMarketCap = marketCap != null && quotePrice != null && quotePrice > 0
     ? marketCap / quotePrice : null;
   const shareCountDifferencePct = percentDifference(reportedSharesOutstanding, impliedSharesFromVendorMarketCap);
-  const shareCountStatus = shareCountDifferencePct == null ? "UNVERIFIED"
+  const shareCountStatus: "CONSISTENT" | "MISMATCH" | "UNVERIFIED" = shareCountDifferencePct == null ? "UNVERIFIED"
     : shareCountDifferencePct > 5 ? "MISMATCH" : "CONSISTENT";
   const computedMarketCap = reportedSharesOutstanding != null && quotePrice != null
     ? reportedSharesOutstanding * quotePrice : null;
@@ -142,7 +142,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v3", reconciliation, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v4", reconciliation, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
