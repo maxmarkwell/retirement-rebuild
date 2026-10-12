@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAgValuationSnapshot } from "@/lib/discovery/accelerated-growth/valuation-snapshot";
 import { runAgCommittee } from "@/lib/discovery/accelerated-growth/committee";
 import type { AgDeepResearch } from "@/lib/discovery/accelerated-growth/deep-research";
 export const dynamic = "force-dynamic";
@@ -30,8 +31,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as { research?: AgDeepResearch };
     const research = body?.research;
     if (!research || !/^[A-Z][A-Z0-9.-]{0,9}$/.test(research.symbol ?? "") || research.researchStatus !== "PROCEED" || !["ag-deep-research-v1", "ag-deep-research-v2"].includes(research.promptVersion ?? "") || !research.thesis?.trim() || !Array.isArray(research.evidenceAgainst) || !Array.isArray(research.invalidation)) return NextResponse.json({ error: "A valid PROCEED deep research result is required." }, { status: 400 });
-    const decision = await runAgCommittee(research);
-    return NextResponse.json({ version: "ag-committee-preview-v1", mode: "read_only", executionEnabled: false, decisionsPersisted: false, transactionsWritten: false, decision }, { headers: { "Cache-Control": "private, no-store" } });
+    const valuation = await getAgValuationSnapshot(research.symbol).catch((error) => {
+      console.warn("AG valuation snapshot unavailable", error instanceof Error ? error.message : String(error));
+      return null;
+    });
+    const decision = await runAgCommittee(research, valuation);
+    return NextResponse.json({ version: "ag-committee-preview-v1", mode: "read_only", executionEnabled: false, decisionsPersisted: false, transactionsWritten: false, valuationSnapshot: valuation, decision }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("AG committee preview failed", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Committee preview failed." }, { status: 500 });
