@@ -1,8 +1,8 @@
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
 
 export type AgValuationSnapshot = {
-  version: "ag-valuation-v3";
-  reconciliation: { quotePrice: number | null; quoteTimestamp: string | null; reportedSharesOutstanding: number | null; computedMarketCap: number | null; marketCapDifferencePct: number | null; marketCapStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; balanceSheetDate: string | null; balanceSheetCash: number | null; balanceSheetDebt: number | null; computedEnterpriseValue: number | null; enterpriseValueDifferencePct: number | null; enterpriseValueStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; };
+  version: "ag-valuation-v4";
+  reconciliation: { quotePrice: number | null; quoteTimestamp: string | null; reportedSharesOutstanding: number | null; shareCountDate: string | null; shareCountSource: string | null; impliedSharesFromVendorMarketCap: number | null; shareCountDifferencePct: number | null; shareCountStatus: "CONSISTENT" | "MISMATCH" | "UNVERIFIED"; computedMarketCap: number | null; marketCapDifferencePct: number | null; marketCapStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; balanceSheetDate: string | null; balanceSheetCash: number | null; balanceSheetDebt: number | null; computedEnterpriseValue: number | null; enterpriseValueDifferencePct: number | null; enterpriseValueStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; };
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmQuarterEnds: string[];
@@ -56,7 +56,7 @@ async function getQuarterly(symbol: string): Promise<Quarter[]> {
 }
 
 type Quote = { price?: number; timestamp?: number; marketCap?: number };
-type Balance = { date?: string; cashAndCashEquivalents?: number; totalDebt?: number };
+type Balance = { date?: string; cashAndCashEquivalents?: number; totalDebt?: number; commonStockSharesOutstanding?: number };
 async function fmpRows<T>(endpoint: string, symbol: string): Promise<T[]> {
   const key = process.env.FMP_API_KEY;
   if (!key) throw new Error("FMP_API_KEY missing");
@@ -93,10 +93,17 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   const quotePrice = valid(quoteResult.row?.price ?? null);
   const quoteTimestamp = typeof quoteResult.row?.timestamp === "number" && Number.isFinite(quoteResult.row.timestamp)
     ? new Date(quoteResult.row.timestamp * 1000).toISOString() : null;
-  // No reliable outstanding-share count is exposed by the current profile adapter.
-  // Never infer it from market capitalization / price and call that independent verification.
-  const reportedSharesOutstanding: number | null = null;
-  const computedMarketCap: number | null = null;
+  // Dated balance-sheet shares are historical; never label this a current independent market-cap verification.
+  const reportedSharesOutstanding = valid(balanceResult.row?.commonStockSharesOutstanding ?? null);
+  const shareCountDate = reportedSharesOutstanding != null ? balanceResult.row?.date ?? null : null;
+  const shareCountSource = reportedSharesOutstanding != null ? "FMP quarterly balance sheet" : null;
+  const impliedSharesFromVendorMarketCap = marketCap != null && quotePrice != null && quotePrice > 0
+    ? marketCap / quotePrice : null;
+  const shareCountDifferencePct = percentDifference(reportedSharesOutstanding, impliedSharesFromVendorMarketCap);
+  const shareCountStatus = shareCountDifferencePct == null ? "UNVERIFIED"
+    : shareCountDifferencePct > 5 ? "MISMATCH" : "CONSISTENT";
+  const computedMarketCap = reportedSharesOutstanding != null && quotePrice != null
+    ? reportedSharesOutstanding * quotePrice : null;
   const marketCapDifferencePct = percentDifference(marketCap, valid(quoteResult.row?.marketCap ?? null));
   const balanceSheetCash = valid(balanceResult.row?.cashAndCashEquivalents ?? null);
   const balanceSheetDebt = valid(balanceResult.row?.totalDebt ?? null);
@@ -104,7 +111,8 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     ? marketCap + balanceSheetDebt - balanceSheetCash : null;
   const enterpriseValueDifferencePct = percentDifference(enterpriseValue, computedEnterpriseValue);
   const reconciliation = {
-    quotePrice, quoteTimestamp, reportedSharesOutstanding, computedMarketCap,
+    quotePrice, quoteTimestamp, reportedSharesOutstanding, shareCountDate, shareCountSource,
+    impliedSharesFromVendorMarketCap, shareCountDifferencePct, shareCountStatus, computedMarketCap,
     marketCapDifferencePct, marketCapStatus: status(marketCapDifferencePct),
     balanceSheetDate: balanceResult.row?.date ?? null,
     balanceSheetCash, balanceSheetDebt, computedEnterpriseValue,
@@ -116,10 +124,14 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     "TTM values are calculated from four dated FMP quarters but not reconciled to SEC filings.",
     "TTM free cash flow is unavailable; annual free cash flow is not a TTM substitute.",
     "Quote timestamp may be unavailable; fetchedAt is not a quote timestamp.",
-    "Independent share-count reconciliation is unavailable; quote market cap comparison uses the same vendor.",
+    "Shares outstanding are sourced from a dated quarterly FMP balance sheet, not an independent live share register.",
+    "Historical shares times a later quoted price is a diagnostic, not a contemporaneous market-cap calculation.",
+    "Market-cap MATCH compares two endpoints from the same vendor and does not validate share count.",
     "Enterprise value approximation is market cap + reported debt - reported cash; minority interest, leases and other adjustments may be excluded.",
     "Market valuation and balance sheet may have different effective dates; SEC provenance remains unverified.",
   ];
+  if (shareCountStatus === "MISMATCH") limitations.push("Historical reported shares disagree with shares implied by vendor market cap / quoted price by more than 5%; investigate corporate actions, dilution, and dates.");
+  if (shareCountStatus === "UNVERIFIED") limitations.push("Share-count consistency could not be evaluated.");
   if (quoteResult.error) limitations.push("Quote retrieval: " + quoteResult.error);
   if (balanceResult.error) limitations.push("Balance-sheet retrieval: " + balanceResult.error);
   if (reconciliation.marketCapStatus === "MISMATCH") limitations.push("FMP quote market cap differs from FMP profile market cap by more than 5%.");
