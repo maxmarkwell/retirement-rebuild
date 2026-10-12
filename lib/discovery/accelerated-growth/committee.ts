@@ -4,7 +4,7 @@ import { AgResearchOutputError, withAgResearchRetry } from "./research-reliabili
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
-export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v1";
+export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v2";
 
 export type AgCommitteeDecision = {
   symbol: string;
@@ -60,7 +60,13 @@ HARD RULES:
 - Treat valuation as an expectations/risk question, not a mechanical multiple cutoff.
 - Preserve observable thesis clocks and invalidation conditions.
 - Explicitly weigh the strongest evidence AGAINST ownership.
-- If material unresolved questions prevent ownership conviction, choose WATCH.
+- Do not treat uncertainty, an unproven future catalyst, or the absence of perfect confirmation as automatic grounds for WATCH. Distinguish risks that can be underwritten today from missing evidence that genuinely prevents a reasoned ownership judgment.
+- Evaluate favorable, central, and adverse business outcomes qualitatively. Consider the plausibility and consequences of each, including downside severity, rather than inventing numerical probabilities or stock-price targets.
+- Assess prospective investment merit relative to expectations already embedded in the current valuation. A strong business can be an unattractive investment; an uncertain catalyst can still justify ownership if the prospective reward adequately compensates for risk. If valuation evidence is absent or stale, explicitly identify that limitation rather than inventing it.
+- For BUY, explain why available evidence and prospective risk/reward support ownership now despite remaining uncertainty. For WATCH, explicitly explain why waiting for specified new evidence is preferable to ownership now, including the opportunity cost of waiting and why the unresolved issue is decision-critical. For REJECT, explain why the thesis or risk/reward fails.
+- Evaluate the company's existing earnings power separately from the incremental catalyst; do not assume that the entire ownership case stands or falls on full validation of the new catalyst.
+- Maintain independent judgment. No BUY quotas, no forced advancement, and no preference for any decision label.
+- If material unresolved questions genuinely prevent a defensible ownership judgment after weighing risk, reward, valuation, and the cost of waiting, choose WATCH.
 - The output is research adjudication only. It must not create transactions or imply brokerage execution.
 
 Deep Research dossier:
