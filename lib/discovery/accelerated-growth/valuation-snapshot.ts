@@ -1,7 +1,8 @@
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
 
 export type AgValuationSnapshot = {
-  version: "ag-valuation-v2";
+  version: "ag-valuation-v3";
+  reconciliation: { quotePrice: number | null; quoteTimestamp: string | null; reportedSharesOutstanding: number | null; computedMarketCap: number | null; marketCapDifferencePct: number | null; marketCapStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; balanceSheetDate: string | null; balanceSheetCash: number | null; balanceSheetDebt: number | null; computedEnterpriseValue: number | null; enterpriseValueDifferencePct: number | null; enterpriseValueStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; };
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmQuarterEnds: string[];
@@ -54,29 +55,82 @@ async function getQuarterly(symbol: string): Promise<Quarter[]> {
   return json as Quarter[];
 }
 
+type Quote = { price?: number; timestamp?: number; marketCap?: number };
+type Balance = { date?: string; cashAndCashEquivalents?: number; totalDebt?: number };
+async function fmpRows<T>(endpoint: string, symbol: string): Promise<T[]> {
+  const key = process.env.FMP_API_KEY;
+  if (!key) throw new Error("FMP_API_KEY missing");
+  const url = new URL("https://financialmodelingprep.com/stable/" + endpoint);
+  url.searchParams.set("symbol", symbol);
+  url.searchParams.set("apikey", key);
+  if (endpoint === "balance-sheet-statement") { url.searchParams.set("period", "quarter"); url.searchParams.set("limit", "1"); }
+  const response = await fetch(url, { next: { revalidate: 3600 } });
+  if (!response.ok) throw new Error(endpoint + " status " + response.status);
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) throw new Error(endpoint + " invalid response");
+  return data as T[];
+}
+const percentDifference = (a: number | null, b: number | null): number | null =>
+  a != null && b != null && a > 0 && b > 0 ? Math.abs(a-b)/Math.max(a,b)*100 : null;
+const status = (difference: number | null): "MATCH" | "MISMATCH" | "UNVERIFIED" =>
+  difference == null ? "UNVERIFIED" : difference <= 5 ? "MATCH" : "MISMATCH";
+
 export async function getAgValuationSnapshot(symbol: string): Promise<AgValuationSnapshot> {
   const f = await getCompanyFundamentals(symbol);
   const quarterResult = await getQuarterly(symbol).then(rows => ({rows,error:null as string | null})).catch(e => ({rows:[] as Quarter[],error:String(e)}));
   const ttm=computeTtm(quarterResult.rows);
+  const [quoteResult, balanceResult] = await Promise.all([
+    fmpRows<Quote>("quote", symbol).then(rows => ({ row: rows[0] ?? null, error: null as string | null }))
+      .catch(e => ({ row: null as Quote | null, error: String(e) })),
+    fmpRows<Balance>("balance-sheet-statement", symbol).then(rows => ({ row: rows[0] ?? null, error: null as string | null }))
+      .catch(e => ({ row: null as Balance | null, error: String(e) })),
+  ]);
   const marketCap = valid(f.marketCap);
   const enterpriseValue = valid(f.enterpriseValue);
   const annualRevenue = valid(f.revenue);
   const annualNetIncome = valid(f.netIncome);
   const annualFreeCashFlow = valid(f.freeCashFlow);
+  const quotePrice = valid(quoteResult.row?.price ?? null);
+  const quoteTimestamp = typeof quoteResult.row?.timestamp === "number" && Number.isFinite(quoteResult.row.timestamp)
+    ? new Date(quoteResult.row.timestamp * 1000).toISOString() : null;
+  // No reliable outstanding-share count is exposed by the current profile adapter.
+  // Never infer it from market capitalization / price and call that independent verification.
+  const reportedSharesOutstanding: number | null = null;
+  const computedMarketCap: number | null = null;
+  const marketCapDifferencePct = percentDifference(marketCap, valid(quoteResult.row?.marketCap ?? null));
+  const balanceSheetCash = valid(balanceResult.row?.cashAndCashEquivalents ?? null);
+  const balanceSheetDebt = valid(balanceResult.row?.totalDebt ?? null);
+  const computedEnterpriseValue = marketCap != null && balanceSheetCash != null && balanceSheetDebt != null
+    ? marketCap + balanceSheetDebt - balanceSheetCash : null;
+  const enterpriseValueDifferencePct = percentDifference(enterpriseValue, computedEnterpriseValue);
+  const reconciliation = {
+    quotePrice, quoteTimestamp, reportedSharesOutstanding, computedMarketCap,
+    marketCapDifferencePct, marketCapStatus: status(marketCapDifferencePct),
+    balanceSheetDate: balanceResult.row?.date ?? null,
+    balanceSheetCash, balanceSheetDebt, computedEnterpriseValue,
+    enterpriseValueDifferencePct, enterpriseValueStatus: status(enterpriseValueDifferencePct),
+  };
   const limitations = [
     "FMP market values may be cached for up to one hour; fetchedAt is not the market quote timestamp.",
     "Annual financial values are context only, NOT trailing twelve months; fiscal period end is unavailable.",
     "TTM values are calculated from four dated FMP quarters but not reconciled to SEC filings.",
     "TTM free cash flow is unavailable; annual free cash flow is not a TTM substitute.",
-    "Share price, balance-sheet cash/debt timestamps, and independently verified SEC provenance are not included.",
+    "Quote timestamp may be unavailable; fetchedAt is not a quote timestamp.",
+    "Independent share-count reconciliation is unavailable; quote market cap comparison uses the same vendor.",
+    "Enterprise value approximation is market cap + reported debt - reported cash; minority interest, leases and other adjustments may be excluded.",
+    "Market valuation and balance sheet may have different effective dates; SEC provenance remains unverified.",
   ];
+  if (quoteResult.error) limitations.push("Quote retrieval: " + quoteResult.error);
+  if (balanceResult.error) limitations.push("Balance-sheet retrieval: " + balanceResult.error);
+  if (reconciliation.marketCapStatus === "MISMATCH") limitations.push("FMP quote market cap differs from FMP profile market cap by more than 5%.");
+  if (reconciliation.enterpriseValueStatus === "MISMATCH") limitations.push("Vendor enterprise value differs from simplified balance-sheet reconstruction by more than 5%.");
   if (quarterResult.error) limitations.push("Quarterly fetch: "+quarterResult.error);
   if (ttm.error) limitations.push("TTM validation: "+ttm.error);
   if (marketCap == null) limitations.push("Market capitalization unavailable.");
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v2", ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v3", reconciliation, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
