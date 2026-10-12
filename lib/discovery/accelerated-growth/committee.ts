@@ -1,10 +1,11 @@
+import type { AgValuationSnapshot } from "./valuation-snapshot";
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { AgDeepResearch } from "./deep-research";
 import { AgResearchOutputError, withAgResearchRetry } from "./research-reliability";
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
-export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v3";
+export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v4";
 
 export type AgCommitteeDecision = {
   symbol: string;
@@ -43,7 +44,7 @@ const schema = {
   required: ["decision", "ownershipThesis", "committeeRationale", "valuationEvidence", "valuationDataQuality", "strongestEvidence", "strongestCounterEvidence", "requiredMonitoring", "thesisClock", "invalidation", "confidence"],
 } as const;
 
-function prompt(research: AgDeepResearch) {
+function prompt(research: AgDeepResearch, valuation: AgValuationSnapshot | null) {
   return `You are the Investment Committee for the Accelerated Growth strategy.
 
 MANDATE:
@@ -76,11 +77,14 @@ HARD RULES:
 - If material unresolved questions genuinely prevent a defensible ownership judgment after weighing risk, reward, valuation, and the cost of waiting, choose WATCH.
 - The output is research adjudication only. It must not create transactions or imply brokerage execution.
 
+Deterministic valuation snapshot (respect its data limitations):
+${JSON.stringify(valuation, null, 2)}
+
 Deep Research dossier:
 ${JSON.stringify(research, null, 2)}`;
 }
 
-export async function runAgCommittee(research: AgDeepResearch): Promise<AgCommitteeDecision> {
+export async function runAgCommittee(research: AgDeepResearch, valuation: AgValuationSnapshot | null = null): Promise<AgCommitteeDecision> {
   if (research.researchStatus !== "PROCEED") {
     throw new Error(`AG Committee requires PROCEED status. ${research.symbol} is ${research.researchStatus}.`);
   }
@@ -89,7 +93,7 @@ export async function runAgCommittee(research: AgDeepResearch): Promise<AgCommit
     const client = getOpenAIClient();
     const response = await client.responses.create({
       model: AG_COMMITTEE_MODEL,
-      input: prompt(research),
+      input: prompt(research, valuation),
       text: { format: { type: "json_schema", name: "ag_committee_decision", strict: true, schema } },
     });
 
