@@ -4,7 +4,7 @@ import { AgResearchOutputError, withAgResearchRetry } from "./research-reliabili
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
-export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v2";
+export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v3";
 
 export type AgCommitteeDecision = {
   symbol: string;
@@ -12,6 +12,8 @@ export type AgCommitteeDecision = {
   decision: "BUY" | "WATCH" | "REJECT";
   ownershipThesis: string;
   committeeRationale: string;
+  valuationEvidence: string;
+  valuationDataQuality: "QUANTIFIED" | "PARTIAL" | "UNAVAILABLE";
   strongestEvidence: string[];
   strongestCounterEvidence: string[];
   requiredMonitoring: string[];
@@ -29,6 +31,8 @@ const schema = {
     decision: { type: "string", enum: ["BUY", "WATCH", "REJECT"] },
     ownershipThesis: { type: "string" },
     committeeRationale: { type: "string" },
+    valuationEvidence: { type: "string" },
+    valuationDataQuality: { type: "string", enum: ["QUANTIFIED", "PARTIAL", "UNAVAILABLE"] },
     strongestEvidence: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 5 },
     strongestCounterEvidence: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 5 },
     requiredMonitoring: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
@@ -36,7 +40,7 @@ const schema = {
     invalidation: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
     confidence: { type: "number", minimum: 0, maximum: 100 },
   },
-  required: ["decision", "ownershipThesis", "committeeRationale", "strongestEvidence", "strongestCounterEvidence", "requiredMonitoring", "thesisClock", "invalidation", "confidence"],
+  required: ["decision", "ownershipThesis", "committeeRationale", "valuationEvidence", "valuationDataQuality", "strongestEvidence", "strongestCounterEvidence", "requiredMonitoring", "thesisClock", "invalidation", "confidence"],
 } as const;
 
 function prompt(research: AgDeepResearch) {
@@ -58,6 +62,9 @@ HARD RULES:
 - Do NOT assume that PROCEED means BUY. Challenge the thesis independently.
 - Do NOT reward market cap, volatility, hype, or industry popularity.
 - Treat valuation as an expectations/risk question, not a mechanical multiple cutoff.
+- Populate valuationEvidence with the actual numerical valuation inputs available in the supplied dossier: dated share price, market capitalization, enterprise value, trailing revenue/earnings, relevant multiples, cash, debt, and dilution. Explicitly identify each missing input. Do not invent or backfill missing figures, market quotes, dates, or citations.
+- Set valuationDataQuality to QUANTIFIED only if dated market valuation and relevant financial denominator(s) are supplied and sufficiently reliable to assess expectations; PARTIAL if some numbers are present but important inputs are missing or stale; UNAVAILABLE if there is no usable quantitative valuation basis.
+- Do not claim the current valuation already prices in success, is expensive, cheap, or supports a favorable risk/reward without a quantitative basis. When data is PARTIAL or UNAVAILABLE, state that the valuation conclusion is provisional and explain how this limitation affects the decision. Do not turn missing data into an automatic WATCH or BUY.
 - Preserve observable thesis clocks and invalidation conditions.
 - Explicitly weigh the strongest evidence AGAINST ownership.
 - Do not treat uncertainty, an unproven future catalyst, or the absence of perfect confirmation as automatic grounds for WATCH. Distinguish risks that can be underwritten today from missing evidence that genuinely prevents a reasoned ownership judgment.
