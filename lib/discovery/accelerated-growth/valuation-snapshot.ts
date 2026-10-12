@@ -1,8 +1,9 @@
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
 
 export type AgValuationSnapshot = {
-  version: "ag-valuation-v4";
+  version: "ag-valuation-v5";
   reconciliation: { quotePrice: number | null; quoteTimestamp: string | null; reportedSharesOutstanding: number | null; shareCountDate: string | null; shareCountSource: string | null; impliedSharesFromVendorMarketCap: number | null; shareCountDifferencePct: number | null; shareCountStatus: "CONSISTENT" | "MISMATCH" | "UNVERIFIED"; computedMarketCap: number | null; marketCapDifferencePct: number | null; marketCapStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; balanceSheetDate: string | null; balanceSheetCash: number | null; balanceSheetDebt: number | null; computedEnterpriseValue: number | null; enterpriseValueDifferencePct: number | null; enterpriseValueStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; };
+  secReconciliation: { cik: string | null; sharesOutstanding: number | null; shareCountDate: string | null; filingDate: string | null; accession: string | null; source: string | null; computedMarketCap: number | null; differencePct: number | null; status: "CONSISTENT" | "MISMATCH" | "UNVERIFIED"; error: string | null; };
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmQuarterEnds: string[];
@@ -75,15 +76,44 @@ const percentDifference = (a: number | null, b: number | null): number | null =>
 const status = (difference: number | null): "MATCH" | "MISMATCH" | "UNVERIFIED" =>
   difference == null ? "UNVERIFIED" : difference <= 5 ? "MATCH" : "MISMATCH";
 
+type SecFact = { val?: number; end?: string; filed?: string; accn?: string; form?: string };
+async function getSecShares(symbol: string): Promise<{cik:string|null; row:SecFact|null; error:string|null}> {
+  // SEC requires a descriptive user agent with a contact address; do not send unidentified requests.
+  const agent = process.env.SEC_USER_AGENT;
+  if (!agent || !agent.includes("@")) return {cik:null,row:null,error:"SEC_USER_AGENT with contact email not configured"};
+  const headers = { "User-Agent":agent, Accept:"application/json" };
+  try {
+    const tickersResponse = await fetch("https://www.sec.gov/files/company_tickers.json", {headers,next:{revalidate:86400}});
+    if (!tickersResponse.ok) throw new Error("SEC ticker lookup HTTP "+tickersResponse.status);
+    const tickers: unknown = await tickersResponse.json();
+    if (!tickers || typeof tickers !== "object") throw new Error("Invalid SEC ticker lookup");
+    const entries = Object.values(tickers as Record<string,unknown>);
+    const match = entries.find(v => !!v && typeof v === "object" && "ticker" in v &&
+      String((v as {ticker:unknown}).ticker).toUpperCase() === symbol.toUpperCase()) as {cik_str?:number}|undefined;
+    if (!match || !Number.isInteger(match.cik_str)) throw new Error("SEC ticker not found");
+    const cik = String(match.cik_str).padStart(10,"0");
+    const response = await fetch("https://data.sec.gov/api/xbrl/companyfacts/CIK"+cik+".json", {headers,next:{revalidate:21600}});
+    if (!response.ok) throw new Error("SEC companyfacts HTTP "+response.status);
+    const data: unknown = await response.json();
+    const fact = (data as {facts?:{dei?:{EntityCommonStockSharesOutstanding?:{units?:{shares?:SecFact[]}}}}})?.facts?.dei?.EntityCommonStockSharesOutstanding?.units?.shares;
+    if (!Array.isArray(fact)) return {cik,row:null,error:"SEC shares fact unavailable"};
+    const rows = fact.filter(r => r && Number.isFinite(r.val) && (r.val as number)>0 &&
+      /^\\d{4}-\\d{2}-\\d{2}$/.test(r.end ?? "") && /^\\d{4}-\\d{2}-\\d{2}$/.test(r.filed ?? "") &&
+      (r.form === "10-Q" || r.form === "10-K") && (r.end as string) <= new Date().toISOString().slice(0,10));
+    rows.sort((a,b) => (b.end ?? "").localeCompare(a.end ?? "") || (b.filed ?? "").localeCompare(a.filed ?? ""));
+    return {cik,row:rows[0]??null,error:rows.length ? null : "No dated SEC 10-Q/10-K share count"};
+  } catch(e) { return {cik:null,row:null,error:String(e)}; }
+}
 export async function getAgValuationSnapshot(symbol: string): Promise<AgValuationSnapshot> {
   const f = await getCompanyFundamentals(symbol);
   const quarterResult = await getQuarterly(symbol).then(rows => ({rows,error:null as string | null})).catch(e => ({rows:[] as Quarter[],error:String(e)}));
   const ttm=computeTtm(quarterResult.rows);
-  const [quoteResult, balanceResult] = await Promise.all([
+  const [quoteResult, balanceResult, secResult] = await Promise.all([
     fmpRows<Quote>("quote", symbol).then(rows => ({ row: rows[0] ?? null, error: null as string | null }))
       .catch(e => ({ row: null as Quote | null, error: String(e) })),
     fmpRows<Balance>("balance-sheet-statement", symbol).then(rows => ({ row: rows[0] ?? null, error: null as string | null }))
       .catch(e => ({ row: null as Balance | null, error: String(e) })),
+    getSecShares(symbol),
   ]);
   const marketCap = valid(f.marketCap);
   const enterpriseValue = valid(f.enterpriseValue);
@@ -118,6 +148,16 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     balanceSheetCash, balanceSheetDebt, computedEnterpriseValue,
     enterpriseValueDifferencePct, enterpriseValueStatus: status(enterpriseValueDifferencePct),
   };
+  const secShares = valid(secResult.row?.val ?? null);
+  const secComputedCap = secShares != null && quotePrice != null && quotePrice > 0 ? secShares * quotePrice : null;
+  const secDifference = percentDifference(marketCap, secComputedCap);
+  const secStatus: "CONSISTENT" | "MISMATCH" | "UNVERIFIED" = secDifference == null ? "UNVERIFIED" : secDifference > 5 ? "MISMATCH" : "CONSISTENT";
+  const secReconciliation = {
+    cik:secResult.cik, sharesOutstanding:secShares, shareCountDate:secResult.row?.end ?? null,
+    filingDate:secResult.row?.filed ?? null, accession:secResult.row?.accn ?? null,
+    source:secShares != null ? "SEC companyfacts DEI EntityCommonStockSharesOutstanding" : null,
+    computedMarketCap:secComputedCap, differencePct:secDifference, status:secStatus, error:secResult.error,
+  };
   const limitations = [
     "FMP market values may be cached for up to one hour; fetchedAt is not the market quote timestamp.",
     "Annual financial values are context only, NOT trailing twelve months; fiscal period end is unavailable.",
@@ -128,8 +168,11 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     "Historical shares times a later quoted price is a diagnostic, not a contemporaneous market-cap calculation.",
     "Market-cap MATCH compares two endpoints from the same vendor and does not validate share count.",
     "Enterprise value approximation is market cap + reported debt - reported cash; minority interest, leases and other adjustments may be excluded.",
-    "Market valuation and balance sheet may have different effective dates; SEC provenance remains unverified.",
+    "Market valuation and balance sheet may have different effective dates; financial statement values are not SEC reconciled.",
+    "SEC DEI shares are dated and may not reflect later offerings or corporate actions; filing-based market cap is diagnostic, not verified current cap.",
   ];
+  if (secStatus === "MISMATCH") limitations.push("SEC-reported dated shares times current quote materially disagrees with vendor market cap; vendor multiples are disputed.");
+  if (secStatus === "UNVERIFIED") limitations.push("SEC share-count verification unavailable: "+(secResult.error ?? "insufficient data"));
   if (shareCountStatus === "MISMATCH") limitations.push("Historical reported shares disagree with shares implied by vendor market cap / quoted price by more than 5%; investigate corporate actions, dilution, and dates.");
   if (shareCountStatus === "UNVERIFIED") limitations.push("Share-count consistency could not be evaluated.");
   if (quoteResult.error) limitations.push("Quote retrieval: " + quoteResult.error);
@@ -142,7 +185,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v4", reconciliation, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v5", reconciliation, secReconciliation, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
