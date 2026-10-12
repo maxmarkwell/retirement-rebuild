@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as { research?: AgDeepResearch };
     const research = body?.research;
-    if (!research || !/^[A-Z][A-Z0-9.-]{0,9}$/.test(research.symbol ?? "") || research.researchStatus !== "PROCEED" || research.promptVersion !== "ag-deep-research-v1" || !research.thesis?.trim() || !Array.isArray(research.evidenceAgainst) || !Array.isArray(research.invalidation)) return NextResponse.json({ error: "A valid PROCEED deep research result is required." }, { status: 400 });
+    if (!research || !/^[A-Z][A-Z0-9.-]{0,9}$/.test(research.symbol ?? "") || research.researchStatus !== "PROCEED" || !["ag-deep-research-v1", "ag-deep-research-v2"].includes(research.promptVersion ?? "") || !research.thesis?.trim() || !Array.isArray(research.evidenceAgainst) || !Array.isArray(research.invalidation)) return NextResponse.json({ error: "A valid PROCEED deep research result is required." }, { status: 400 });
     const decision = await runAgCommittee(research);
     return NextResponse.json({ version: "ag-committee-preview-v1", mode: "read_only", executionEnabled: false, decisionsPersisted: false, transactionsWritten: false, decision }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
