@@ -32,7 +32,7 @@ test("vendor multiples are checked and exposed individually", () => {
   const result = auditValuationNarrative("FMP vendor P/S 18.08x, P/E 28.40x, EV/sales 18.13x.", values);
   assert.equal(result.status, "PASS");
   assert.equal(result.checked, 3);
-  assert.equal(result.claimsChecked.length, 3);
+  assert.equal(result.claimsChecked?.length, 3);
 });
 test("incorrect SEC valuation multiple is flagged", () => {
   const result = auditValuationNarrative("SEC-derived P/S 25.43x.", values);
