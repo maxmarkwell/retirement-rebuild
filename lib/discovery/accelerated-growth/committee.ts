@@ -5,7 +5,7 @@ import { AgResearchOutputError, withAgResearchRetry } from "./research-reliabili
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
-export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v5";
+export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v6";
 
 export type AgCommitteeDecision = {
   symbol: string;
@@ -63,7 +63,7 @@ HARD RULES:
 - Do NOT assume that PROCEED means BUY. Challenge the thesis independently.
 - Do NOT reward market cap, volatility, hype, or industry popularity.
 - Treat valuation as an expectations/risk question, not a mechanical multiple cutoff.
-- Populate valuationEvidence with the actual numerical valuation inputs available in the supplied dossier: dated share price, market capitalization, enterprise value, trailing revenue/earnings, relevant multiples, cash, debt, and dilution. Explicitly identify each missing input. Do not invent or backfill missing figures, market quotes, dates, or citations.
+- For every dollar figure, verify units arithmetically before writing: 1 trillion = 1,000 billion = 1,000,000 million. Example: $5,429,332,215,000 is $5.429 trillion, NOT $5,429 trillion. Prefer rounding market capitalization and enterprise value to three decimal places in trillions for trillion-dollar companies. Do not copy raw dollar values and label them trillions.\n- Populate valuationEvidence with the actual numerical valuation inputs available in the supplied dossier: dated share price, market capitalization, enterprise value, trailing revenue/earnings, relevant multiples, cash, debt, and dilution. Explicitly identify each missing input. Do not invent or backfill missing figures, market quotes, dates, or citations.
 - valuationDataQuality measures the completeness and reliability of the valuation evidence, NOT merely whether some ratios can be calculated. QUANTIFIED requires dated market inputs, reliable relevant financial denominators, and no material unresolved gaps that could alter the valuation judgment. PARTIAL applies when a usable numerical basis exists but important inputs are missing, stale, disputed, or unreconciled. UNAVAILABLE applies when no usable quantitative basis exists.
 - The deterministic snapshot's dataQuality describes input completeness and is not automatically the same classification as your valuationDataQuality. Explain any difference explicitly in valuationEvidence. In particular, if the snapshot is PARTIAL, do not label your assessment QUANTIFIED without explaining exactly why its missing or unreconciled inputs are immaterial to the ownership decision.
 - Distinguish FMP balance-sheet share verification from SEC share reconciliation; do not repeat a generic "share-count consistency unavailable" limitation as though SEC reconciliation also failed when SEC shares were successfully compared.
