@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
         cycleDate: cycle.cycleDate,
         cycleStatus: cycle.status,
         reusedDailyCycle: true,
-        retryAvailable: cycle.status === "failed",
+        retryAvailable: false,
+        retryBlockedReason: cycle.reason === "retry_requires_persistence_reconciliation"
+          ? "AG decisions may have been partially persisted; reconcile the failed cycle before retrying."
+          : undefined,
         executionEnabled: false,
         transactionsWritten: false,
       });
@@ -43,7 +46,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       error: retryableCycleFailure ? undefined : message,
       reason: retryableCycleFailure ? message : undefined,
-      retryAvailable: retryableCycleFailure,
+      retryAvailable: false,
+      retryBlockedReason: "Failed AG cycles require persistence reconciliation before retry.",
       executionEnabled: false,
       transactionsWritten: false,
     }, { status: retryableCycleFailure ? 409 : 500 });

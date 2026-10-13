@@ -8,6 +8,9 @@ import {
 import { runAgDailyCycle } from "./daily-cycle";
 import { persistAgHoldingReviewDecisions, runAgHoldingReviewPipeline } from "./holding-review-pipeline";
 import { executeAgDailyCycleTransactions } from "./daily-cycle-execution";
+import { assertAgDecisionBatchIsUnambiguous } from "./daily-cycle-decision-preflight";
+import { validateAgCycleCounts } from "./daily-cycle-counts";
+import { createClient } from "@/lib/supabase/server";
 
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
@@ -15,11 +18,16 @@ export async function runAgResearchDailyCycle(options?: {
   executeTransactions?: boolean;
 }) {
   const maxCandidates = options?.maxCandidates ?? 5;
-  const executeTransactions = options?.executeTransactions === true;
+  // AG remains research-only until reconciliation and execution controls are validated.
+  if (options?.executeTransactions === true) {
+    throw new Error("AG_PAPER_EXECUTION_DISABLED");
+  }
+  const executeTransactions = false;
 
   return runAgDailyCycle({
     maxCandidates,
     retryFailed: options?.retryFailed ?? false,
+    retrySafety: "may_write",
     work: async (context) => {
       const holdingReviews = await runAgHoldingReviewPipeline();
       if (holdingReviews.errors.length > 0 || holdingReviews.failedCount > 0) {
@@ -31,23 +39,77 @@ export async function runAgResearchDailyCycle(options?: {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
+      if (holdingReviews.portfolioId !== context.portfolioId || holdingReviews.eraId !== context.strategyEraId) {
+        throw new Error("AG_CYCLE_HOLDING_CONTEXT_MISMATCH");
+      }
+      assertAgDecisionBatchIsUnambiguous({
+        holdingSymbols: holdingReviews.decisions.map((decision) => decision.symbol),
+        committeeSymbols: pipeline.decisions.map((decision) => decision.symbol),
+      });
+
+      // Validate the research results before the first irreversible write.
+      validateAgCycleCounts({
+        universeCount: pipeline.upstream.discovery.universeCount,
+        preselectedCount: pipeline.upstream.discovery.preselectedCount,
+        evaluatedCount: pipeline.upstream.discovery.evaluatedCount,
+        discoveryAdvanceCount: pipeline.upstream.discovery.advanceCount,
+        catalystSupportedCount: pipeline.upstream.catalystSupportedCount,
+        deepResearchCompletedCount: pipeline.upstream.deepResearchCompletedCount,
+        deepResearchFailedCount: pipeline.upstream.deepResearchFailedCount,
+        proceedCount: pipeline.upstream.proceedCount,
+        committeeDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
+        persistedDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
+      });
+
+      const supabase = await createClient();
+      const markStage = async (stage: string) => {
+        const { data, error } = await supabase.from("ag_daily_cycles").update({
+          failure_message: `AG_PERSISTENCE_IN_PROGRESS:${stage}`,
+          updated_at: new Date().toISOString(),
+        }).eq("id", context.cycleId).eq("portfolio_id", context.portfolioId)
+          .eq("strategy_era_id", context.strategyEraId).eq("status", "running").select("id");
+        if (error || data?.length !== 1) throw new Error(`AG_STAGE_CHECKPOINT_FAILED:${stage}: ${error?.message ?? "cycle no longer running"}`);
+        if (stage.endsWith("_completed")) lastCompletedStage = stage;
+      };
+
+      let persistenceStage = "research_watchlist";
+      let lastCompletedStage: string | null = null;
+      try {
+      await markStage(persistenceStage);
       await persistAgResearchWatchlist(
         context.portfolioId,
         pipeline.upstream.deepResearchOutcomes,
         pipeline.upstream.quantitativeWatchResolutions
       );
+      await markStage("research_watchlist_completed");
+      persistenceStage = "committee_watch_supersession";
+      await markStage(persistenceStage);
       const supersededCommitteeWatchCount = await supersedeAgCommitteeWatches(
         context.portfolioId,
         pipeline.upstream.committeeWatchResolutions
       );
-      const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions);
-      const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions);
+      await markStage("committee_watch_supersession_completed");
+      persistenceStage = "holding_decisions";
+      await markStage(persistenceStage);
+      const persistedHoldingReviews = await persistAgHoldingReviewDecisions(context.portfolioId, holdingReviews.decisions, context.cycleId);
+      await markStage("holding_decisions_completed");
+      persistenceStage = "committee_decisions";
+      await markStage(persistenceStage);
+      const persisted = await persistAgCommitteeDecisions(context.portfolioId, pipeline.decisions, context.cycleId);
+      if (persistedHoldingReviews.length !== holdingReviews.decisions.length || persisted.length !== pipeline.decisions.length) {
+        throw new Error("AG_PERSISTED_DECISION_COUNT_MISMATCH");
+      }
+      await markStage("committee_decisions_completed");
+      persistenceStage = "paper_execution";
+      await markStage(persistenceStage);
       const execution = await executeAgDailyCycleTransactions({
         enabled: executeTransactions,
         buyDecisions: persisted,
         holdingDecisions: persistedHoldingReviews,
       });
 
+      await markStage("paper_execution_completed");
+      persistenceStage = "completed";
       return {
         result: {
           persisted: true,
@@ -66,6 +128,8 @@ export async function runAgResearchDailyCycle(options?: {
           committeeDecisionCount: pipeline.decisions.length,
           persistedCount: persisted.length,
           persistedDecisions: persisted,
+          reusedCommitteeDecisionCount: persisted.filter((decision) => decision.reused).length,
+          reusedHoldingDecisionCount: persistedHoldingReviews.filter((decision) => decision.reused).length,
           decisions: pipeline.decisions,
           upstream: pipeline.upstream,
         },
@@ -82,6 +146,10 @@ export async function runAgResearchDailyCycle(options?: {
           persistedDecisionCount: persisted.length + persistedHoldingReviews.length,
         },
       };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown persistence error";
+        throw new Error(`AG_PERSISTENCE_STAGE_FAILED:${persistenceStage}:LAST_COMPLETED:${lastCompletedStage ?? "none"}: ${message}`);
+      }
     },
   });
 }

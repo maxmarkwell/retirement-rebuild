@@ -7,6 +7,7 @@ import { fromAgPersistedDecisionType, getAgDecisionLifecycleAction, toAgPersiste
 
 export type PersistedAgCommitteeDecision = {
   decisionId: string;
+  reused?: boolean;
   symbol: string;
   decision: AgCommitteeDecision["decision"];
 };
@@ -14,6 +15,10 @@ export type PersistedAgCommitteeDecision = {
 export type AgCommitteePipelineResult = {
   upstream: {
     discovery: Awaited<ReturnType<typeof runAgDeepResearchPipeline>>["discovery"];
+    eligibleUniverseCount: number;
+    rejectedByTradabilityCount: number;
+    reassessmentRequestedCount: number;
+    reassessmentSelectedCount: number;
     catalystSupportedCount: number;
     deepResearchCompletedCount: number;
     deepResearchFailedCount: number;
@@ -47,6 +52,10 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
 
   const upstreamSummary = {
     discovery: upstream.discovery,
+    eligibleUniverseCount: upstream.discovery.eligibleUniverseCount,
+    rejectedByTradabilityCount: upstream.discovery.rejectedByTradabilityCount,
+    reassessmentRequestedCount: upstream.discovery.reassessmentRequestedCount,
+    reassessmentSelectedCount: upstream.discovery.reassessmentSelectedCount,
     catalystSupportedCount: upstream.catalystSupportedCount,
     deepResearchCompletedCount: upstream.completedCount,
     deepResearchFailedCount: upstream.failedCount,
@@ -227,7 +236,8 @@ export async function supersedeAgCommitteeWatches(
 
 export async function persistAgCommitteeDecisions(
   portfolioId: string,
-  decisions: AgCommitteeDecision[]
+  decisions: AgCommitteeDecision[],
+  cycleId?: string
 ): Promise<PersistedAgCommitteeDecision[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -266,12 +276,18 @@ export async function persistAgCommitteeDecisions(
       .from("investment_decisions")
       .select("id, decision_type, transaction_id")
       .eq("portfolio_id", portfolioId)
-      .eq("ticker", decision.symbol)
+      .eq("user_id", user.id)
+      .eq("ticker", decision.symbol.toUpperCase())
       .eq("source", "ai_committee")
       .eq("status", "active")
       .gte("created_at", era.inception_at)
       .maybeSingle();
     if (existingError) throw new Error(`Unable to check existing AG decision for ${decision.symbol}: ${existingError.message}`);
+
+    // An executed BUY cannot be recycled as a fresh executable decision.
+    if (existing && existing.transaction_id && decision.decision === "BUY") {
+      throw new Error(`AG_BUY_ALREADY_EXECUTED:${decision.symbol.toUpperCase()}`);
+    }
 
     if (existing && getAgDecisionLifecycleAction({
       existingActiveDecisionType: existing.decision_type,
@@ -279,21 +295,11 @@ export async function persistAgCommitteeDecisions(
     }) === "REUSE") {
       persisted.push({
         decisionId: existing.id,
+        reused: true,
         symbol: decision.symbol,
         decision: fromAgPersistedDecisionType(existing.decision_type),
       });
       continue;
-    }
-
-    if (existing) {
-      const { error: supersedeError } = await supabase
-        .from("investment_decisions")
-        .update({ status: "superseded" })
-        .eq("id", existing.id)
-        .eq("status", "active");
-      if (supersedeError) {
-        throw new Error(`Unable to supersede prior AG decision for ${decision.symbol}: ${supersedeError.message}`);
-      }
     }
 
     const { data: row, error } = await supabase
@@ -303,7 +309,7 @@ export async function persistAgCommitteeDecisions(
         portfolio_id: portfolioId,
         transaction_id: null,
         decision_type: decisionType,
-        ticker: decision.symbol,
+        ticker: decision.symbol.toUpperCase(),
         decision_date: new Date().toISOString(),
         decision_price: null,
         recommended_quantity: null,
@@ -323,11 +329,12 @@ export async function persistAgCommitteeDecisions(
         ag_theme_key: executionEvidence?.themeKey ?? null,
         source: "ai_committee",
         status: "active",
+        notes: cycleId ? JSON.stringify({ agCycleId: cycleId, agDecisionOrigin: "committee" }) : null,
       })
       .select("id")
       .single();
     if (error || !row) throw new Error(`Unable to persist AG decision for ${decision.symbol}: ${error?.message ?? "Unknown error"}`);
-    persisted.push({ decisionId: row.id, symbol: decision.symbol, decision: decision.decision });
+    persisted.push({ decisionId: row.id, reused: false, symbol: decision.symbol, decision: decision.decision });
   }
   return persisted;
 }

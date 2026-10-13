@@ -1,0 +1,62 @@
+name: AG Discovery v2 validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/v2-*.ts'
+      - '.github/workflows/ag-discovery-v2.yml'
+  push:
+    branches:
+      - 'feat/ag-discovery-v2-evidence-foundation'
+
+permissions:
+  contents: read
+
+jobs:
+  v2-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Generate Next.js route types
+        run: npx next typegen
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit --incremental false
+      - name: Isolated Discovery v2 fixtures
+        run: |
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/daily-cycle-counts.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/daily-cycle-decision-preflight.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-evidence.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-path-evaluators.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-financial-survival.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-gate.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-additional-paths.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-data-lineage.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-lineage-builder.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-normalizer.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-transport.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-scale-policy.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-scale-audit.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-vendor-scale-diagnostic.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-scale-evidence-bridge.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-priority.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-slot-shadow.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-history-shadow.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-research-issuer-history.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-history-capture.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-history-source-archive.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-history-cycle-linkage.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-history-archive-batch.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-companyfacts.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-cross-source-reconciliation.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-sec-transport.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-comparison.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-evaluator.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-outcomes.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-offline-shadow-run.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-snapshot-manifest.test.ts
+          npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/v2-shadow-evidence.test.ts

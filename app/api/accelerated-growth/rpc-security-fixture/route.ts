@@ -54,6 +54,8 @@ export async function POST() {
       decision: "BUY",
       ownershipThesis: "Synthetic local-only BUY used exclusively to validate database execution invariants.",
       committeeRationale: "Security fixture; not investment research and not a real security recommendation.",
+      valuationEvidence: "Synthetic security fixture; no real valuation data.",
+      valuationDataQuality: "UNAVAILABLE",
       strongestEvidence: ["Synthetic fixture only."],
       strongestCounterEvidence: ["Must never be treated as an investable security."],
       requiredMonitoring: ["Delete fixture after RPC hardening tests."],

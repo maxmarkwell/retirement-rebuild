@@ -1,0 +1,66 @@
+import type { V2HistoricalCycleArchive } from "./v2-history-archive-batch";
+import type { V2ArchivedManifest } from "./v2-history-source-archive";
+import { verifyV2HistoricalArchiveBatch } from "./v2-history-archive-batch";
+
+/**
+ * Source-inventory gate for interpreting a historical pilot. Internal cycle
+ * consistency is not proof that the underlying external evidence is genuine.
+ */
+export type V2PilotEvidenceReadiness =
+  | { accepted: false; issues: string[] }
+  | { accepted: true; cycleCount: number; cyclesWithSecFilings: number;
+      cyclesWithVendorRaw: number; cyclesWithBothExternalKinds: number;
+      cyclesWithoutExternalEvidence: number; totalSecFilingSources: number;
+      totalVendorRawSources: number; bothExternalKindsPresentEveryCycle: boolean;
+      historicalEvidenceVerified: false; evaluationStatus: "NOT_EVALUABLE";
+      blockers: string[];
+      cycleEvidenceGaps: { runId: string; researchAsOf: string;
+        secFilingSources: number; vendorRawSources: number;
+        missingKinds: ("SEC_FILING" | "VENDOR_RAW")[] }[] };
+
+export function inspectV2PilotEvidenceReadiness(
+  archives: readonly V2HistoricalCycleArchive[],
+): V2PilotEvidenceReadiness {
+  const result = verifyV2HistoricalArchiveBatch(archives);
+  if (!result.accepted) return result;
+  let cyclesWithSecFilings = 0;
+  let cyclesWithVendorRaw = 0;
+  let cyclesWithBothExternalKinds = 0;
+  let cyclesWithoutExternalEvidence = 0;
+  let totalSecFilingSources = 0;
+  let totalVendorRawSources = 0;
+  const cycleEvidenceGaps: Extract<V2PilotEvidenceReadiness, { accepted: true }>["cycleEvidenceGaps"] = [];
+  for (const archive of archives) {
+    const manifest = JSON.parse(archive.manifestUtf8) as V2ArchivedManifest;
+    const sec = manifest.sources.filter(s => s.kind === "SEC_FILING").length;
+    const vendor = manifest.sources.filter(s => s.kind === "VENDOR_RAW").length;
+    totalSecFilingSources += sec;
+    totalVendorRawSources += vendor;
+    if (sec) cyclesWithSecFilings++;
+    if (vendor) cyclesWithVendorRaw++;
+    if (sec && vendor) cyclesWithBothExternalKinds++;
+    if (!sec && !vendor) cyclesWithoutExternalEvidence++;
+    const cycle = archive.envelope.history.cycles[0];
+    const missingKinds: ("SEC_FILING" | "VENDOR_RAW")[] = [];
+    if (!sec) missingKinds.push("SEC_FILING");
+    if (!vendor) missingKinds.push("VENDOR_RAW");
+    cycleEvidenceGaps.push({ runId: cycle.runId, researchAsOf: cycle.researchAsOf,
+      secFilingSources: sec, vendorRawSources: vendor, missingKinds });
+  }
+  return {
+    accepted: true, cycleCount: result.cycleCount,
+    cyclesWithSecFilings, cyclesWithVendorRaw,
+    cyclesWithBothExternalKinds, cyclesWithoutExternalEvidence,
+    totalSecFilingSources, totalVendorRawSources,
+    bothExternalKindsPresentEveryCycle: cyclesWithBothExternalKinds === result.cycleCount,
+    cycleEvidenceGaps,
+    historicalEvidenceVerified: false,
+    evaluationStatus: "NOT_EVALUABLE",
+    blockers: [
+      "EXTERNAL_SOURCE_AUTHENTICITY_NOT_VERIFIED",
+      "HISTORICAL_UNIVERSE_COMPLETENESS_NOT_VERIFIED",
+      "POINT_IN_TIME_ASSESSMENT_PROVENANCE_NOT_VERIFIED",
+      "INDEPENDENT_REVIEW_NOT_VERIFIED",
+    ],
+  };
+}

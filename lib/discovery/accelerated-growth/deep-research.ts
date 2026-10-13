@@ -5,7 +5,7 @@ import { AgResearchOutputError, withAgResearchRetry } from "./research-reliabili
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_DEEP_RESEARCH_MODEL = "gpt-5.6-terra";
-export const AG_DEEP_RESEARCH_PROMPT_VERSION = "ag-deep-research-v1";
+export const AG_DEEP_RESEARCH_PROMPT_VERSION = "ag-deep-research-v2";
 
 export type AgDeepResearch = {
   symbol: string; companyName: string | null; researchStatus: "PROCEED" | "WATCH" | "STOP";
@@ -41,10 +41,12 @@ Use current web research. Prefer SEC filings, company investor-relations materia
 
 You MUST NOT recommend BUY/SELL, predict a stock price, or size/allocate capital.
 
-researchStatus means:
-- PROCEED: evidence is sufficiently strong and internally consistent to justify Committee review.
-- WATCH: thesis is plausible but important evidence is missing, mixed, too early, or valuation/financial conditions materially reduce clarity.
-- STOP: catalyst is contradicted, economically weak, stale, primarily narrative, or financial/valuation risks overwhelm the acceleration case.
+researchStatus is a GATE TO COMMITTEE REVIEW, NOT A BUY DECISION:
+- PROCEED: a specific, evidenced positive change and a credible route to per-share economic benefit warrant an independent Committee debate. Normal uncertainty, nonzero risk, incomplete future confirmation, and a non-cheap valuation do not alone disqualify a candidate. The Committee can still WATCH or REJECT.
+- WATCH: identify a specific, material, currently unresolved decision-blocker that makes Committee debate premature. Explain why the available evidence cannot support an informed ownership-merit debate today; name the observable fact that could resolve it.
+- STOP: material contradictory evidence defeats the catalyst, or risks overwhelm the plausible upside.
+
+DECISION CALIBRATION: Assess each candidate on its own merits; never target a PROCEED quota. Before selecting WATCH, explicitly distinguish risks the Committee can weigh (and monitor) from missing facts that make the investment thesis unassessable. Do not demand proof of future success, multiple future quarters, positive free cash flow, or low valuation as universal prerequisites. Conversely, do not advance unsupported speculation, opaque unit economics, or an unbounded financing risk. If you choose WATCH, the thesis and unresolvedQuestions MUST state the concrete blocking fact, its materiality, and why the Committee cannot responsibly adjudicate it now. If you choose PROCEED, the evidenceAgainst and invalidation MUST still give the Committee a credible bear case.
 
 Evaluate:
 1. Catalyst validity and causal mechanism.

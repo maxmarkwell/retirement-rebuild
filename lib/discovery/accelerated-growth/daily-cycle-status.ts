@@ -23,11 +23,108 @@ export async function getAgDailyCycleStatus() {
     .maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
+  const stageMarker = cycle?.failure_message?.match(/^AG_PERSISTENCE_IN_PROGRESS:([a-z_]+)$/)?.[1] ?? null;
+  const failedStage = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:([a-z_]+):/)?.[1] ?? null;
+  const persistenceStage = stageMarker ?? failedStage;
+  const persistenceStarted = Boolean(persistenceStage);
+  const failedCompletedMarker = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:[a-z_]+:LAST_COMPLETED:([a-z_]+):/)?.[1] ?? null;
+  const completedStage = failedCompletedMarker && failedCompletedMarker !== "none"
+    ? failedCompletedMarker.replace(/_completed$/, "")
+    : persistenceStage?.endsWith("_completed") ? persistenceStage.slice(0, -"_completed".length) : null;
+  const hasUnknownWriteHistory = Boolean(cycle && cycle.status === "failed" && !persistenceStarted);
+  const stageMayBePartial = persistenceStarted && !persistenceStage?.endsWith("_completed");
+  const { count: activeDecisionCount, error: decisionError } = cycle
+    ? await supabase.from("investment_decisions").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("source", "ai_committee")
+        .eq("status", "active").gte("created_at", cycle.started_at)
+    : { count: null, error: null };
+  if (decisionError) throw new Error(`Unable to inspect AG cycle decision records: ${decisionError.message}`);
+
+  const { data: attributedDecisions, error: attributedError } = cycle
+    ? await supabase.from("investment_decisions")
+        .select("id, ticker, decision_type, status, transaction_id, created_at, notes")
+        .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("source", "ai_committee")
+        .like("notes", `%"agCycleId":"${cycle.id}"%`)
+        .order("created_at", { ascending: true }).limit(200)
+    : { data: null, error: null };
+  if (attributedError) throw new Error(`Unable to reconcile attributed AG decisions: ${attributedError.message}`);
+  const linkedDecisions = (attributedDecisions ?? []).filter((decision) => {
+    try { return JSON.parse(decision.notes ?? "{}").agCycleId === cycle?.id; }
+    catch { return false; }
+  });
+
+  const attributionIncomplete = (attributedDecisions?.length ?? 0) === 200;
+  const attributionCountIsComplete = !attributionIncomplete && Boolean(cycle);
+  const attributionCountMatchesPersisted = attributionCountIsComplete && cycle?.status === "completed" &&
+    typeof cycle.persisted_decision_count === "number"
+    ? linkedDecisions.length === cycle.persisted_decision_count
+    : null;
+  // Reused decisions are intentionally not rewritten with the new cycle ID, so
+  // a count mismatch alone is never evidence of missing persistence.
+  const decisionOrigins = linkedDecisions.reduce((counts, decision) => {
+    try {
+      const origin = JSON.parse(decision.notes ?? "{}").agDecisionOrigin;
+      if (origin === "committee") counts.committee += 1;
+      else if (origin === "holding_review") counts.holdingReview += 1;
+      else counts.unknown += 1;
+    } catch { counts.unknown += 1; }
+    return counts;
+  }, { committee: 0, holdingReview: 0, unknown: 0 });
+  const attributionCountGap = attributionCountIsComplete && cycle?.status === "completed" &&
+    typeof cycle.persisted_decision_count === "number"
+    ? cycle.persisted_decision_count - linkedDecisions.length : null;
+  const attributedTransactionCount = linkedDecisions.filter((decision) => Boolean(decision.transaction_id)).length;
+  const attributedSupersededCount = linkedDecisions.filter((decision) => decision.status === "superseded").length;
+  const decisionStageReached = persistenceStage === "holding_decisions" || persistenceStage === "committee_decisions" ||
+    persistenceStage === "paper_execution" || persistenceStage === "paper_execution_completed" ||
+    persistenceStage === "holding_decisions_completed" || persistenceStage === "committee_decisions_completed";
+  const reconciliationAssessment = !cycle ? "no_cycle"
+    : attributionIncomplete ? "inventory_truncated"
+    : cycle.status === "completed" ? "cycle_completed"
+    : cycle.status === "failed" && linkedDecisions.length > 0 ? "attributed_writes_found_review_required"
+    : cycle.status === "failed" && decisionStageReached ? "decision_stage_reached_no_attributed_writes"
+    : cycle.status === "failed" ? "write_history_unverified"
+    : "cycle_not_failed";
+
   return {
     cycleDate,
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
-    retryAvailable: cycle?.status === "failed",
+    retryAvailable: false,
+    reconciliation: {
+      persistenceStage,
+      persistenceStarted,
+      lastConfirmedCompletedStage: completedStage,
+      stageMayBePartial,
+      hasUnknownWriteHistory,
+      activeDecisionsCreatedSinceCycleStart: activeDecisionCount,
+      decisionCountIsCycleAttribution: false,
+      attributedDecisionCount: linkedDecisions.length,
+      attributionCountMatchesPersisted,
+      attributionCountGap,
+      attributionCountMismatchMayBeReuse: attributionCountMatchesPersisted === false,
+      attributedDecisionOrigins: decisionOrigins,
+      attributedDecisionsWithTransactions: attributedTransactionCount,
+      attributedSupersededDecisions: attributedSupersededCount,
+      reusedDecisionAttributionAvailable: false,
+      reusedDecisionCheckpointSupport: "schema_change_required",
+      reusedDecisionCheckpointReason: "Existing symbol checkpoints permit only catalyst_deep_research and committee parent stages; decision_persistence is not allowed.",
+      reconciliationAssessment,
+      attributedDecisionScanLimit: 200,
+      attributedDecisionScanMayBeTruncated: (attributedDecisions?.length ?? 0) === 200,
+      attributedDecisions: linkedDecisions.map(({ id, ticker, decision_type, status, transaction_id, created_at }) => ({
+        id, ticker, decisionType: decision_type, status, hasTransaction: Boolean(transaction_id), createdAt: created_at,
+      })),
+      recoveryState: cycle?.status === "failed"
+        ? "manual_review_required"
+        : cycle?.status === "running" && persistenceStarted
+          ? "persistence_in_progress_or_interrupted"
+          : "not_applicable",
+      automaticRetryPermitted: false,
+    },
+    retryBlockedReason: cycle?.status === "failed"
+      ? "AG cycle retries require reconciliation because prior persistence may be partial."
+      : null,
     executionEnabled: false,
     transactionsWrittenByCycle: false,
     cycle: cycle ?? null,

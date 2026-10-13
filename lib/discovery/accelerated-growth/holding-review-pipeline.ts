@@ -57,7 +57,8 @@ export async function runAgHoldingReviewPipeline(): Promise<AgHoldingReviewPipel
 
 export async function persistAgHoldingReviewDecisions(
   portfolioId: string,
-  decisions: AgHoldingReviewDecision[]
+  decisions: AgHoldingReviewDecision[],
+  cycleId?: string
 ): Promise<PersistedAgHoldingReviewDecision[]> {
   if (decisions.length === 0) return [];
   const supabase = await createClient();
@@ -70,30 +71,33 @@ export async function persistAgHoldingReviewDecisions(
     .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null).single();
   if (eraError || !era) throw new Error("An open paper Accelerated Growth strategy era is required.");
 
+  const { data: portfolio, error: portfolioError } = await supabase.from("portfolios")
+    .select("id").eq("id", portfolioId).eq("user_id", user.id)
+    .eq("type", "paper_active").eq("is_real_money", false).single();
+  if (portfolioError || !portfolio) throw new Error("AG holding reviews require a paper_active non-real-money portfolio.");
+
   const persisted: PersistedAgHoldingReviewDecision[] = [];
   for (const decision of decisions) {
     const decisionType = decision.decision === "SELL" ? "sell" : "hold";
     const { data: existing, error: existingError } = await supabase.from("investment_decisions")
       .select("id, decision_type, transaction_id")
-      .eq("portfolio_id", portfolioId).eq("ticker", decision.symbol).eq("source", "ai_committee")
+      .eq("portfolio_id", portfolioId).eq("user_id", user.id).eq("ticker", decision.symbol.toUpperCase()).eq("source", "ai_committee")
       .eq("status", "active").gte("created_at", era.inception_at).maybeSingle();
     if (existingError) throw new Error(`Unable to inspect active holding decision for ${decision.symbol}: ${existingError.message}`);
+
+    if (existing && existing.transaction_id && decision.decision === "SELL") {
+      throw new Error(`AG_SELL_ALREADY_EXECUTED:${decision.symbol.toUpperCase()}`);
+    }
 
     if (existing && getAgHoldingDecisionLifecycleAction({ existingActiveDecisionType: existing.decision_type, nextDecision: decision.decision }) === "REUSE") {
       persisted.push({ decisionId: existing.id, symbol: decision.symbol, decision: decision.decision, reused: true });
       continue;
     }
 
-    if (existing) {
-      const { error: supersedeError } = await supabase.from("investment_decisions")
-        .update({ status: "superseded" }).eq("id", existing.id).eq("status", "active");
-      if (supersedeError) throw new Error(`Unable to supersede prior holding decision for ${decision.symbol}: ${supersedeError.message}`);
-    }
-
     const { data, error } = await supabase.from("investment_decisions").insert({
       user_id: user.id,
       portfolio_id: portfolioId,
-      ticker: decision.symbol,
+      ticker: decision.symbol.toUpperCase(),
       decision_type: decisionType,
       decision_date: new Date().toISOString(),
       source: "ai_committee",
@@ -108,7 +112,7 @@ export async function persistAgHoldingReviewDecisions(
       primary_risks: decision.strongestCounterEvidence.join("\n"),
       recommended_quantity: null,
       recommended_allocation: null,
-      notes: JSON.stringify({ agHoldingReview: true, rationale: decision.rationale, model: decision.model, promptVersion: decision.promptVersion }),
+      notes: JSON.stringify({ agHoldingReview: true, agCycleId: cycleId ?? null, agDecisionOrigin: "holding_review", rationale: decision.rationale, model: decision.model, promptVersion: decision.promptVersion }),
     }).select("id").single();
     if (error || !data) throw new Error(`Unable to persist AG holding review for ${decision.symbol}: ${error?.message ?? "unknown error"}`);
     persisted.push({ decisionId: data.id, symbol: decision.symbol, decision: decision.decision, reused: false });

@@ -11,7 +11,7 @@ export type AgQuantitativeWatchResolution = {
 export type AgCommitteeWatchResolution = AgQuantitativeWatchResolution;
 
 export type AgDeepResearchPipelineResult = {
-  discovery: { universeCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
+  discovery: { universeCount: number; eligibleUniverseCount: number; rejectedByTradabilityCount: number; reassessmentRequestedCount: number; reassessmentSelectedCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
   catalystSupportedCount: number; requestedCount: number; completedCount: number; failedCount: number;
   results: AgDeepResearch[];
   quantitativeWatchResolutions: AgQuantitativeWatchResolution[];
@@ -63,12 +63,16 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
   const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
   const discoverySummary = {
-    universeCount: discovery.universeCount, preselectedCount: discovery.preselectedCount,
+    universeCount: discovery.universeCount, eligibleUniverseCount: discovery.eligibleUniverseCount,
+    rejectedByTradabilityCount: discovery.rejectedByTradabilityCount,
+    reassessmentRequestedCount: discovery.reassessmentRequestedCount,
+    reassessmentSelectedCount: discovery.reassessmentSelectedCount,
+    preselectedCount: discovery.preselectedCount,
     evaluatedCount: discovery.evaluatedCount, advanceCount: discovery.advanceCount,
     rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly,
   };
-  if (discovery.rateLimited || discovery.stoppedEarly) {
-    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], committeeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: "Deep research skipped because AG Discovery did not complete cleanly." }] };
+  if (discovery.errors.length > 0 || discovery.rateLimited || discovery.stoppedEarly) {
+    return { discovery: discoverySummary, catalystSupportedCount: 0, requestedCount: 0, completedCount: 0, failedCount: 0, results: [], quantitativeWatchResolutions: [], committeeWatchResolutions: [], errors: [{ symbol: "DISCOVERY", stage: "DISCOVERY", error: `Deep research skipped: AG Discovery had ${discovery.errors.length} candidate evaluation failure(s); rateLimited=${discovery.rateLimited}; stoppedEarly=${discovery.stoppedEarly}.` }] };
   }
 
   const quantitativeWatchResolutions: AgQuantitativeWatchResolution[] = discovery.candidates
