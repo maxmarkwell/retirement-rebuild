@@ -6,6 +6,35 @@ import type { AgDeepResearch } from "@/lib/discovery/accelerated-growth/deep-res
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+
+function auditValuationNarrative(text: string, valuation: Awaited<ReturnType<typeof getAgValuationSnapshot>> | null) {
+  const findings: string[] = [];
+  let checked = 0;
+  if (!valuation) return { version: "ag-narrative-audit-v1", status: "NOT_EVALUATED", checked, findings: ["Valuation unavailable"] };
+  // Require an unambiguous vendor/SEC basis and metric within the same clause.
+  const clauses = text.split(/[;\n]|(?<=[.!?])\s+/);
+  for (const clause of clauses) {
+    const lower = clause.toLowerCase();
+    const sec = /sec[- ](?:share|derived|based|diagnostic)/.test(lower);
+    const vendor = /\b(?:fmp|vendor)\b/.test(lower);
+    if (sec === vendor) continue;
+    const metrics = [
+      { label: "market capitalization", test: /market cap(?:italization)?/, value: sec ? valuation.valuationComparison.secShareDiagnostic.marketCap : valuation.valuationComparison.vendor.marketCap },
+      { label: "enterprise value", test: /enterprise value/, value: sec ? valuation.valuationComparison.secShareDiagnostic.enterpriseValue : valuation.valuationComparison.vendor.enterpriseValue },
+    ];
+    const present = metrics.filter(m => m.test.test(lower));
+    if (present.length !== 1 || present[0].value == null) continue;
+    const amounts = [...clause.matchAll(/\$\s*([\d,]+(?:\.\d+)?)\s*(trillion|billion|million)\b/gi)];
+    if (amounts.length !== 1) continue;
+    const amount = Number(amounts[0][1].replace(/,/g, "")) * ({ trillion: 1e12, billion: 1e9, million: 1e6 }[amounts[0][2].toLowerCase() as "trillion" | "billion" | "million"]);
+    checked++;
+    const expected = present[0].value as number;
+    if (!Number.isFinite(amount) || Math.abs(amount - expected) / expected > 0.05)
+      findings.push(`${sec ? "SEC" : "vendor"} ${present[0].label}: ${amounts[0][0]} differs from snapshot by over 5% (possible unit error).`);
+  }
+  return { version: "ag-narrative-audit-v1", status: findings.length ? "FLAGGED" : checked ? "PASS" : "NOT_EVALUATED", checked, findings };
+}
+
 // Research-only Committee preview; does not create investment decisions.
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -36,7 +65,8 @@ export async function POST(request: NextRequest) {
       return null;
     });
     const decision = await runAgCommittee(research, valuation);
-    return NextResponse.json({ version: "ag-committee-preview-v1", mode: "read_only", executionEnabled: false, decisionsPersisted: false, transactionsWritten: false, valuationSnapshot: valuation, decision }, { headers: { "Cache-Control": "private, no-store" } });
+    const valuationNarrativeAudit = auditValuationNarrative(decision.valuationEvidence, valuation);
+    return NextResponse.json({ version: "ag-committee-preview-v1", mode: "read_only", executionEnabled: false, decisionsPersisted: false, transactionsWritten: false, valuationSnapshot: valuation, decision, valuationNarrativeAudit }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("AG committee preview failed", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Committee preview failed." }, { status: 500 });
