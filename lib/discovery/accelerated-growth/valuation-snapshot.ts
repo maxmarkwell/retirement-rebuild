@@ -195,7 +195,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     "TTM values are calculated from four dated FMP quarters but not reconciled to SEC filings.",
     "TTM free cash flow is unavailable; annual free cash flow is not a TTM substitute.",
     "Quote timestamp may be unavailable; fetchedAt is not a quote timestamp.",
-    "Shares outstanding are sourced from a dated quarterly FMP balance sheet, not an independent live share register.",
+    "FMP balance-sheet shares, when available, are dated historical values and are not an independent live share register.",
     "Historical shares times a later quoted price is a diagnostic, not a contemporaneous market-cap calculation.",
     "Market-cap MATCH compares two endpoints from the same vendor and does not validate share count.",
     "Enterprise value approximation is market cap + reported debt - reported cash; minority interest, leases and other adjustments may be excluded.",
@@ -205,7 +205,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (secStatus === "MISMATCH") limitations.push("SEC-reported dated shares times current quote materially disagrees with vendor market cap; vendor multiples are disputed. Compare valuationComparison.vendor and valuationComparison.secShareDiagnostic; neither is verified current valuation.");
   if (secStatus === "UNVERIFIED") limitations.push("SEC share-count verification unavailable: "+(secResult.error ?? "insufficient data"));
   if (shareCountStatus === "MISMATCH") limitations.push("Historical reported shares disagree with shares implied by vendor market cap / quoted price by more than 5%; investigate corporate actions, dilution, and dates.");
-  if (shareCountStatus === "UNVERIFIED") limitations.push("Share-count consistency could not be evaluated.");
+  if (shareCountStatus === "UNVERIFIED") limitations.push("FMP balance-sheet share-count consistency could not be evaluated; this is separate from the SEC share reconciliation reported in secReconciliation.");
   if (quoteResult.error) limitations.push("Quote retrieval: " + quoteResult.error);
   if (balanceResult.error) limitations.push("Balance-sheet retrieval: " + balanceResult.error);
   if (reconciliation.marketCapStatus === "MISMATCH") limitations.push("FMP quote market cap differs from FMP profile market cap by more than 5%.");
