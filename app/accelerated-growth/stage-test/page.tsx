@@ -6,7 +6,7 @@ export default function AgStageTestPage() {
   const [input, setInput] = useState("");
   const [symbol, setSymbol] = useState("NVDA");
   const [output, setOutput] = useState("");
-  const [outputStage, setOutputStage] = useState<"discovery" | "catalyst" | "deep" | "committee" | null>(null);
+  const [outputStage, setOutputStage] = useState<"universe" | "discovery" | "catalyst" | "deep" | "committee" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   function downloadJson() {
@@ -14,7 +14,7 @@ export default function AgStageTestPage() {
     try {
       const parsed = JSON.parse(output) as JsonRecord;
       const record = (parsed.decision ?? parsed.research ?? parsed.catalyst ?? parsed.evaluation ?? parsed) as JsonRecord;
-      const downloadSymbol = typeof record.symbol === "string" ? record.symbol.replace(/[^a-zA-Z0-9_-]/g, "").toUpperCase() : (typeof parsed.symbol === "string" ? parsed.symbol : symbol.trim().toUpperCase());
+      const downloadSymbol = outputStage === "universe" ? "UNIVERSE" : typeof record.symbol === "string" ? record.symbol.replace(/[^a-zA-Z0-9_-]/g, "").toUpperCase() : (typeof parsed.symbol === "string" ? parsed.symbol : symbol.trim().toUpperCase());
       const stage = outputStage ?? "result";
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const blob = new Blob([JSON.stringify(parsed, null, 2) + "\n"], { type: "application/json" });
@@ -30,11 +30,13 @@ export default function AgStageTestPage() {
       setError("Result is not valid JSON and cannot be downloaded.");
     }
   }
-  async function run(stage: "discovery" | "catalyst" | "deep" | "committee") {
+  async function run(stage: "universe" | "discovery" | "catalyst" | "deep" | "committee") {
     setError(""); setBusy(true); setOutputStage(null); setOutput("");
     try {
       let response: Response;
-      if (stage === "discovery" || stage === "catalyst") {
+      if (stage === "universe") {
+        response = await fetch("/api/accelerated-growth/universe-discovery-preview", { cache: "no-store" });
+      } else if (stage === "discovery" || stage === "catalyst") {
         const ticker = symbol.trim().toUpperCase();
         if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) throw new Error("Enter a valid ticker symbol.");
         const route = stage === "discovery" ? "discovery-preview" : "catalyst-preview";
@@ -53,7 +55,8 @@ export default function AgStageTestPage() {
   }
   return <main className="mx-auto max-w-4xl space-y-4 p-6">
     <h1 className="text-2xl font-bold">AG Research Stage Diagnostics</h1>
-    <p className="text-sm text-gray-600">Paper-only, read-only tests. Discovery evaluates one ticker against the current tradable universe and quantitative ADVANCE gate; it is NOT full-universe ranking. Catalyst independently rechecks that gate. Deep Research requires a SUPPORTED/MIXED catalyst; Committee requires PROCEED research. Download each result before proceeding. No investment decisions or trades are saved.</p>
+    <p className="text-sm text-gray-600">Paper-only, read-only tests. Universe Discovery screens a bounded selection across market-cap buckets and ranks the results; it is NOT an exhaustive universe ranking. Single-ticker Discovery evaluates one ticker against the current tradable universe and quantitative ADVANCE gate. Catalyst independently rechecks that gate. Deep Research requires a SUPPORTED/MIXED catalyst; Committee requires PROCEED research. Download each result before proceeding. No investment decisions or trades are saved.</p>
+    <button disabled={busy} className="rounded bg-emerald-800 px-4 py-2 text-white disabled:opacity-50" onClick={()=>run("universe")}>Run Universe Discovery Shortlist (read-only)</button>
     <label htmlFor="ag-symbol" className="block font-semibold">Ticker for Discovery and Catalyst</label>
     <input id="ag-symbol" value={symbol} onChange={e=>setSymbol(e.target.value.toUpperCase())} className="rounded border p-2 font-mono" maxLength={10} />
     <div className="flex flex-wrap gap-3">
