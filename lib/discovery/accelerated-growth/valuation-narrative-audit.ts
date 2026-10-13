@@ -3,12 +3,19 @@ export type ValuationAuditInputs = {
   vendorEnterpriseValue: number | null;
   secMarketCap: number | null;
   secEnterpriseValue: number | null;
+  vendorPriceToSales?: number | null;
+  vendorPriceToEarnings?: number | null;
+  vendorEvToSales?: number | null;
+  secPriceToSales?: number | null;
+  secPriceToEarnings?: number | null;
+  secEvToSales?: number | null;
 };
 
 export function auditValuationNarrative(text: string, values: ValuationAuditInputs | null) {
   const findings: string[] = [];
   let checked = 0;
-  if (!values || !text) return { version: "ag-narrative-audit-v2", status: "NOT_EVALUATED", checked, findings: ["Missing narrative or valuation inputs"] };
+  const claimsChecked: Array<{ basis: string; metric: string; stated: number; expected: number; deviationPct: number; passed: boolean }> = [];
+  if (!values || !text) return { version: "ag-narrative-audit-v3", status: "NOT_EVALUATED", checked, claimsChecked, findings: ["Missing narrative or valuation inputs"] };
   // Anchor each claim to its metric; stop at punctuation, conjunctions and the next metric.
   // A basis applies only when explicit in the current sentence or inherited from a
   // single-basis sentence. Mixed-basis sentences without local attribution are skipped.
@@ -35,6 +42,7 @@ export function auditValuationNarrative(text: string, values: ValuationAuditInpu
       const actual = Number(match[2].replace(/,/g, "")) * (unit === "trillion" ? 1e12 : unit === "billion" ? 1e9 : 1e6);
       checked++;
       const deviation = Math.abs(actual - expected) / expected;
+      claimsChecked.push({ basis, metric: isEv ? "enterpriseValue" : "marketCap", stated: actual, expected, deviationPct: deviation * 100, passed: Number.isFinite(actual) && deviation <= 0.05 });
       if (!Number.isFinite(actual) || deviation > 0.05)
         findings.push(`${basis} ${isEv ? "enterprise value" : "market capitalization"}: ${match[0]} differs from snapshot by ${Number.isFinite(deviation) ? (deviation * 100).toFixed(1) + "%" : "a nonfinite amount"}.`);
     }
