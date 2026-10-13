@@ -14,14 +14,14 @@ export default function AgStageTestPage() {
     try {
       const parsed = JSON.parse(output) as JsonRecord;
       const record = (parsed.decision ?? parsed.research ?? parsed.catalyst ?? parsed.evaluation ?? parsed) as JsonRecord;
-      const symbol = typeof record.symbol === "string" ? record.symbol.replace(/[^a-zA-Z0-9_-]/g, "").toUpperCase() : (typeof parsed.symbol === "string" ? parsed.symbol : symbol.trim().toUpperCase());
+      const downloadSymbol = typeof record.symbol === "string" ? record.symbol.replace(/[^a-zA-Z0-9_-]/g, "").toUpperCase() : (typeof parsed.symbol === "string" ? parsed.symbol : symbol.trim().toUpperCase());
       const stage = outputStage ?? "result";
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const blob = new Blob([JSON.stringify(parsed, null, 2) + "\n"], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `ag-${symbol}-${stage}-${timestamp}.json`;
+      anchor.download = `ag-${downloadSymbol}-${stage}-${timestamp}.json`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
