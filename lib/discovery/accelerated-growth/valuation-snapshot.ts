@@ -98,7 +98,7 @@ async function getSecShares(symbol: string): Promise<{cik:string|null; row:SecFa
     const fact = (data as {facts?:{dei?:{EntityCommonStockSharesOutstanding?:{units?:{shares?:SecFact[]}}}}})?.facts?.dei?.EntityCommonStockSharesOutstanding?.units?.shares;
     if (!Array.isArray(fact)) return {cik,row:null,error:"SEC shares fact unavailable"};
     const rows = fact.filter(r => r && Number.isFinite(r.val) && (r.val as number)>0 &&
-      /^\\d{4}-\\d{2}-\\d{2}$/.test(r.end ?? "") && /^\\d{4}-\\d{2}-\\d{2}$/.test(r.filed ?? "") &&
+      /^\d{4}-\d{2}-\d{2}$/.test(r.end ?? "") && /^\d{4}-\d{2}-\d{2}$/.test(r.filed ?? "") &&
       (r.form === "10-Q" || r.form === "10-K") && (r.end as string) <= new Date().toISOString().slice(0,10));
     rows.sort((a,b) => (b.end ?? "").localeCompare(a.end ?? "") || (b.filed ?? "").localeCompare(a.filed ?? ""));
     return {cik,row:rows[0]??null,error:rows.length ? null : "No dated SEC 10-Q/10-K share count"};
