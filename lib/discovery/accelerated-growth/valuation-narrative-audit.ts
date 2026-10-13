@@ -50,13 +50,13 @@ export function auditValuationNarrative(text: string, values: ValuationAuditInpu
   // Check explicitly labeled valuation multiples. A sentence naming both bases
   // is skipped rather than assigning a ratio to the wrong source.
   const patterns = [
-    { metric: "priceToSales", re: /\\b(?:P\\s*\\/\\s*S|price[- ]to[- ]sales)\\s*(?:is|was|of|at|:|=)?\\s*([\\d,]+(?:\\.\\d+)?)x\\b/gi, vendor: values.vendorPriceToSales, sec: values.secPriceToSales },
-    { metric: "priceToEarnings", re: /\\b(?:P\\s*\\/\\s*E|price[- ]to[- ]earnings)\\s*(?:is|was|of|at|:|=)?\\s*([\\d,]+(?:\\.\\d+)?)x\\b/gi, vendor: values.vendorPriceToEarnings, sec: values.secPriceToEarnings },
-    { metric: "evToSales", re: /\\b(?:EV\\s*\\/\\s*sales|EV[- ]to[- ]sales)\\s*(?:is|was|of|at|:|=)?\\s*([\\d,]+(?:\\.\\d+)?)x\\b/gi, vendor: values.vendorEvToSales, sec: values.secEvToSales },
+    { metric: "priceToSales", re: /\b(?:P\s*\/\s*S|price[- ]to[- ]sales)\s*(?:is|was|of|at|:|=)?\s*([\d,]+(?:\.\d+)?)x\b/gi, vendor: values.vendorPriceToSales, sec: values.secPriceToSales },
+    { metric: "priceToEarnings", re: /\b(?:P\s*\/\s*E|price[- ]to[- ]earnings)\s*(?:is|was|of|at|:|=)?\s*([\d,]+(?:\.\d+)?)x\b/gi, vendor: values.vendorPriceToEarnings, sec: values.secPriceToEarnings },
+    { metric: "evToSales", re: /\b(?:EV\s*\/\s*sales|EV[- ]to[- ]sales)\s*(?:is|was|of|at|:|=)?\s*([\d,]+(?:\.\d+)?)x\b/gi, vendor: values.vendorEvToSales, sec: values.secEvToSales },
   ];
   for (const sentence of sentences) {
-    const vendorMentioned = /\\b(?:FMP|vendor)\\b/i.test(sentence);
-    const secMentioned = /\\bSEC(?:[- ](?:share|derived|based|diagnostic))?\\b/i.test(sentence);
+    const vendorMentioned = /\b(?:FMP|vendor)\b/i.test(sentence);
+    const secMentioned = /\bSEC(?:[- ](?:share|derived|based|diagnostic))?\b/i.test(sentence);
     if (vendorMentioned === secMentioned) continue;
     const basis = vendorMentioned ? "vendor" : "sec";
     for (const pattern of patterns) {
