@@ -4,16 +4,17 @@ import { useState } from "react";
 type JsonRecord = Record<string, unknown>;
 export default function AgStageTestPage() {
   const [input, setInput] = useState("");
+  const [symbol, setSymbol] = useState("NVDA");
   const [output, setOutput] = useState("");
-  const [outputStage, setOutputStage] = useState<"deep" | "committee" | null>(null);
+  const [outputStage, setOutputStage] = useState<"discovery" | "catalyst" | "deep" | "committee" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   function downloadJson() {
     if (!output) return;
     try {
       const parsed = JSON.parse(output) as JsonRecord;
-      const record = (parsed.decision ?? parsed.research ?? parsed) as JsonRecord;
-      const symbol = typeof record.symbol === "string" ? record.symbol.replace(/[^a-zA-Z0-9_-]/g, "").toUpperCase() : "UNKNOWN";
+      const record = (parsed.decision ?? parsed.research ?? parsed.catalyst ?? parsed.evaluation ?? parsed) as JsonRecord;
+      const symbol = typeof record.symbol === "string" ? record.symbol.replace(/[^a-zA-Z0-9_-]/g, "").toUpperCase() : (typeof parsed.symbol === "string" ? parsed.symbol : symbol.trim().toUpperCase());
       const stage = outputStage ?? "result";
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const blob = new Blob([JSON.stringify(parsed, null, 2) + "\n"], { type: "application/json" });
@@ -29,12 +30,20 @@ export default function AgStageTestPage() {
       setError("Result is not valid JSON and cannot be downloaded.");
     }
   }
-  async function run(stage: "deep" | "committee") {
+  async function run(stage: "discovery" | "catalyst" | "deep" | "committee") {
     setError(""); setBusy(true); setOutputStage(null); setOutput("");
     try {
-      const parsed = JSON.parse(input) as JsonRecord;
-      const payload = stage === "deep" ? { catalyst: parsed.catalyst ?? parsed } : { research: parsed.research ?? parsed };
-      const response = await fetch(stage === "deep" ? "/api/accelerated-growth/deep-preview" : "/api/accelerated-growth/committee-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
+      let response: Response;
+      if (stage === "discovery" || stage === "catalyst") {
+        const ticker = symbol.trim().toUpperCase();
+        if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) throw new Error("Enter a valid ticker symbol.");
+        const route = stage === "discovery" ? "discovery-preview" : "catalyst-preview";
+        response = await fetch("/api/accelerated-growth/" + route + "?symbol=" + encodeURIComponent(ticker), { cache: "no-store" });
+      } else {
+        const parsed = JSON.parse(input) as JsonRecord;
+        const payload = stage === "deep" ? { catalyst: parsed.catalyst ?? parsed } : { research: parsed.research ?? parsed };
+        response = await fetch(stage === "deep" ? "/api/accelerated-growth/deep-preview" : "/api/accelerated-growth/committee-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
+      }
       const data = await response.json();
       setOutput(JSON.stringify(data, null, 2));
       setOutputStage(stage);
@@ -44,9 +53,15 @@ export default function AgStageTestPage() {
   }
   return <main className="mx-auto max-w-4xl space-y-4 p-6">
     <h1 className="text-2xl font-bold">AG Research Stage Diagnostics</h1>
-    <p className="text-sm text-gray-600">Paper-only, read-only research tests. Paste the entire prior-stage JSON response below. Deep research requires a SUPPORTED/MIXED catalyst; Committee requires a PROCEED deep-research result. No investment decisions or trades are saved.</p>
+    <p className="text-sm text-gray-600">Paper-only, read-only tests. Discovery evaluates one ticker against the current tradable universe and quantitative ADVANCE gate; it is NOT full-universe ranking. Catalyst independently rechecks that gate. Deep Research requires a SUPPORTED/MIXED catalyst; Committee requires PROCEED research. Download each result before proceeding. No investment decisions or trades are saved.</p>
+    <label htmlFor="ag-symbol" className="block font-semibold">Ticker for Discovery and Catalyst</label>
+    <input id="ag-symbol" value={symbol} onChange={e=>setSymbol(e.target.value.toUpperCase())} className="rounded border p-2 font-mono" maxLength={10} />
+    <div className="flex flex-wrap gap-3">
+      <button disabled={busy || !symbol.trim()} className="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50" onClick={()=>run("discovery")}>Run Discovery Check</button>
+      <button disabled={busy || !symbol.trim()} className="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50" onClick={()=>run("catalyst")}>Run Catalyst (requires ADVANCE)</button>
+    </div>
     <label htmlFor="ag-stage-input" className="block font-semibold">Prior-stage JSON</label>
-    <textarea id="ag-stage-input" aria-label="Prior-stage JSON" className="h-64 w-full rounded border p-3 font-mono text-xs" value={input} onChange={e=>setInput(e.target.value)} placeholder="Paste the full catalyst or deep-research JSON response here" />
+    <textarea id="ag-stage-input" aria-label="Prior-stage JSON" className="h-64 w-full rounded border p-3 font-mono text-xs" value={input} onChange={e=>setInput(e.target.value)} placeholder="Paste a saved catalyst or deep-research JSON response here" />
     <div className="flex flex-wrap gap-3"><button disabled={busy || !input.trim()} className="rounded bg-blue-800 px-4 py-2 text-white disabled:opacity-50" onClick={()=>run("deep")}>Run Deep Research</button><button disabled={busy || !input.trim()} className="rounded bg-gray-800 px-4 py-2 text-white disabled:opacity-50" onClick={()=>run("committee")}>Run Committee</button></div>
     {busy && <p role="status">Research is running. Do not navigate away.</p>}
     {error && <p role="alert" className="text-red-700">{error}</p>}
