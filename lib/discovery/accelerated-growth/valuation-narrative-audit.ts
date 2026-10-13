@@ -47,5 +47,30 @@ export function auditValuationNarrative(text: string, values: ValuationAuditInpu
         findings.push(`${basis} ${isEv ? "enterprise value" : "market capitalization"}: ${match[0]} differs from snapshot by ${Number.isFinite(deviation) ? (deviation * 100).toFixed(1) + "%" : "a nonfinite amount"}.`);
     }
   }
-  return { version: "ag-narrative-audit-v2", status: findings.length ? "FLAGGED" : checked ? "PASS" : "NOT_EVALUATED", checked, findings };
+  // Check explicitly labeled valuation multiples. A sentence naming both bases
+  // is skipped rather than assigning a ratio to the wrong source.
+  const patterns = [
+    { metric: "priceToSales", re: /\\b(?:P\\s*\\/\\s*S|price[- ]to[- ]sales)\\s*(?:is|was|of|at|:|=)?\\s*([\\d,]+(?:\\.\\d+)?)x\\b/gi, vendor: values.vendorPriceToSales, sec: values.secPriceToSales },
+    { metric: "priceToEarnings", re: /\\b(?:P\\s*\\/\\s*E|price[- ]to[- ]earnings)\\s*(?:is|was|of|at|:|=)?\\s*([\\d,]+(?:\\.\\d+)?)x\\b/gi, vendor: values.vendorPriceToEarnings, sec: values.secPriceToEarnings },
+    { metric: "evToSales", re: /\\b(?:EV\\s*\\/\\s*sales|EV[- ]to[- ]sales)\\s*(?:is|was|of|at|:|=)?\\s*([\\d,]+(?:\\.\\d+)?)x\\b/gi, vendor: values.vendorEvToSales, sec: values.secEvToSales },
+  ];
+  for (const sentence of sentences) {
+    const vendorMentioned = /\\b(?:FMP|vendor)\\b/i.test(sentence);
+    const secMentioned = /\\bSEC(?:[- ](?:share|derived|based|diagnostic))?\\b/i.test(sentence);
+    if (vendorMentioned === secMentioned) continue;
+    const basis = vendorMentioned ? "vendor" : "sec";
+    for (const pattern of patterns) {
+      for (const match of sentence.matchAll(pattern.re)) {
+        const expected = vendorMentioned ? pattern.vendor : pattern.sec;
+        if (expected == null || expected <= 0) continue;
+        const stated = Number(match[1].replace(/,/g, ""));
+        const deviationPct = Math.abs(stated - expected) / expected * 100;
+        const passed = Number.isFinite(stated) && deviationPct <= 5;
+        checked++;
+        claimsChecked.push({ basis, metric: pattern.metric, stated, expected, deviationPct, passed });
+        if (!passed) findings.push(`${basis} ${pattern.metric}: ${match[0]} differs from snapshot by ${deviationPct.toFixed(1)}%.`);
+      }
+    }
+  }
+  return { version: "ag-narrative-audit-v3", status: findings.length ? "FLAGGED" : checked ? "PASS" : "NOT_EVALUATED", checked, claimsChecked, findings };
 }
