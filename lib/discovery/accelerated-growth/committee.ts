@@ -5,7 +5,7 @@ import { AgResearchOutputError, withAgResearchRetry } from "./research-reliabili
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
-export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v4";
+export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v5";
 
 export type AgCommitteeDecision = {
   symbol: string;
@@ -64,7 +64,11 @@ HARD RULES:
 - Do NOT reward market cap, volatility, hype, or industry popularity.
 - Treat valuation as an expectations/risk question, not a mechanical multiple cutoff.
 - Populate valuationEvidence with the actual numerical valuation inputs available in the supplied dossier: dated share price, market capitalization, enterprise value, trailing revenue/earnings, relevant multiples, cash, debt, and dilution. Explicitly identify each missing input. Do not invent or backfill missing figures, market quotes, dates, or citations.
-- Set valuationDataQuality to QUANTIFIED only if dated market valuation and relevant financial denominator(s) are supplied and sufficiently reliable to assess expectations; PARTIAL if some numbers are present but important inputs are missing or stale; UNAVAILABLE if there is no usable quantitative valuation basis.
+- valuationDataQuality measures the completeness and reliability of the valuation evidence, NOT merely whether some ratios can be calculated. QUANTIFIED requires dated market inputs, reliable relevant financial denominators, and no material unresolved gaps that could alter the valuation judgment. PARTIAL applies when a usable numerical basis exists but important inputs are missing, stale, disputed, or unreconciled. UNAVAILABLE applies when no usable quantitative basis exists.
+- The deterministic snapshot's dataQuality describes input completeness and is not automatically the same classification as your valuationDataQuality. Explain any difference explicitly in valuationEvidence. In particular, if the snapshot is PARTIAL, do not label your assessment QUANTIFIED without explaining exactly why its missing or unreconciled inputs are immaterial to the ownership decision.
+- Distinguish FMP balance-sheet share verification from SEC share reconciliation; do not repeat a generic "share-count consistency unavailable" limitation as though SEC reconciliation also failed when SEC shares were successfully compared.
+- Explicitly distinguish TTM net income and revenue from unavailable TTM free cash flow; never use annual free cash flow as TTM.
+- When valuation evidence is disputed, assess both vendor and SEC diagnostic multiples and identify that neither is a verified contemporaneous market cap.
 - Do not claim the current valuation already prices in success, is expensive, cheap, or supports a favorable risk/reward without a quantitative basis. When data is PARTIAL or UNAVAILABLE, state that the valuation conclusion is provisional and explain how this limitation affects the decision. Do not turn missing data into an automatic WATCH or BUY.
 - Preserve observable thesis clocks and invalidation conditions.
 - Explicitly weigh the strongest evidence AGAINST ownership.
