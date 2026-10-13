@@ -1,9 +1,15 @@
 import { getCompanyFundamentals } from "@/lib/company-data/fmp";
 
 export type AgValuationSnapshot = {
-  version: "ag-valuation-v5";
+  version: "ag-valuation-v6";
   reconciliation: { quotePrice: number | null; quoteTimestamp: string | null; reportedSharesOutstanding: number | null; shareCountDate: string | null; shareCountSource: string | null; impliedSharesFromVendorMarketCap: number | null; shareCountDifferencePct: number | null; shareCountStatus: "CONSISTENT" | "MISMATCH" | "UNVERIFIED"; computedMarketCap: number | null; marketCapDifferencePct: number | null; marketCapStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; balanceSheetDate: string | null; balanceSheetCash: number | null; balanceSheetDebt: number | null; computedEnterpriseValue: number | null; enterpriseValueDifferencePct: number | null; enterpriseValueStatus: "MATCH" | "MISMATCH" | "UNVERIFIED"; };
   secReconciliation: { cik: string | null; sharesOutstanding: number | null; shareCountDate: string | null; filingDate: string | null; accession: string | null; source: string | null; computedMarketCap: number | null; differencePct: number | null; status: "CONSISTENT" | "MISMATCH" | "UNVERIFIED"; error: string | null; };
+  valuationComparison: {
+    vendor: { marketCap: number | null; enterpriseValue: number | null; priceToSales: number | null; priceToEarnings: number | null; evToSales: number | null; basis: "FMP_VENDOR" };
+    secShareDiagnostic: { sharesOutstanding: number | null; shareCountDate: string | null; quoteDate: string | null; marketCap: number | null; enterpriseValue: number | null; priceToSales: number | null; priceToEarnings: number | null; evToSales: number | null; basis: "HISTORICAL_SEC_SHARES_TIMES_LATER_QUOTE"; };
+    disputed: boolean;
+    interpretation: string;
+  };
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmQuarterEnds: string[];
@@ -158,6 +164,31 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     source:secShares != null ? "SEC companyfacts DEI EntityCommonStockSharesOutstanding" : null,
     computedMarketCap:secComputedCap, differencePct:secDifference, status:secStatus, error:secResult.error,
   };
+  // A dated filing share count multiplied by a later quote is a diagnostic only.
+  // Never replace the vendor values or label the diagnostic as a verified current valuation.
+  const diagnosticEv = secComputedCap != null && balanceSheetCash != null && balanceSheetDebt != null
+    ? secComputedCap + balanceSheetDebt - balanceSheetCash : null;
+  const valuationComparison: AgValuationSnapshot["valuationComparison"] = {
+    vendor: {
+      marketCap, enterpriseValue, priceToSales: multiple(marketCap, ttm.revenue),
+      priceToEarnings: multiple(marketCap, ttm.netIncome),
+      evToSales: multiple(enterpriseValue, ttm.revenue), basis: "FMP_VENDOR",
+    },
+    secShareDiagnostic: {
+      sharesOutstanding: secShares, shareCountDate: secResult.row?.end ?? null,
+      quoteDate: quoteTimestamp, marketCap: secComputedCap, enterpriseValue: diagnosticEv,
+      priceToSales: multiple(secComputedCap, ttm.revenue),
+      priceToEarnings: multiple(secComputedCap, ttm.netIncome),
+      evToSales: multiple(diagnosticEv, ttm.revenue),
+      basis: "HISTORICAL_SEC_SHARES_TIMES_LATER_QUOTE",
+    },
+    disputed: secStatus === "MISMATCH",
+    interpretation: secStatus === "MISMATCH"
+      ? "Material vendor-versus-SEC share discrepancy: both sets of multiples are provisional; do not use vendor multiples as authoritative. SEC-derived values combine dated historical shares, a later quote, and balance-sheet figures from potentially different dates."
+      : secStatus === "UNVERIFIED"
+        ? "Independent SEC share reconciliation unavailable; vendor multiples remain unverified."
+        : "SEC dated shares are broadly consistent with vendor-implied shares, but the SEC-based valuation remains historical-share diagnostic, not a verified current market capitalization.",
+  };
   const limitations = [
     "FMP market values may be cached for up to one hour; fetchedAt is not the market quote timestamp.",
     "Annual financial values are context only, NOT trailing twelve months; fiscal period end is unavailable.",
@@ -171,7 +202,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     "Market valuation and balance sheet may have different effective dates; financial statement values are not SEC reconciled.",
     "SEC DEI shares are dated and may not reflect later offerings or corporate actions; filing-based market cap is diagnostic, not verified current cap.",
   ];
-  if (secStatus === "MISMATCH") limitations.push("SEC-reported dated shares times current quote materially disagrees with vendor market cap; vendor multiples are disputed.");
+  if (secStatus === "MISMATCH") limitations.push("SEC-reported dated shares times current quote materially disagrees with vendor market cap; vendor multiples are disputed. Compare valuationComparison.vendor and valuationComparison.secShareDiagnostic; neither is verified current valuation.");
   if (secStatus === "UNVERIFIED") limitations.push("SEC share-count verification unavailable: "+(secResult.error ?? "insufficient data"));
   if (shareCountStatus === "MISMATCH") limitations.push("Historical reported shares disagree with shares implied by vendor market cap / quoted price by more than 5%; investigate corporate actions, dilution, and dates.");
   if (shareCountStatus === "UNVERIFIED") limitations.push("Share-count consistency could not be evaluated.");
@@ -185,7 +216,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v5", reconciliation, secReconciliation, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
