@@ -6,12 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 
-type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> };
+type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; activityPage?: string; activityType?: string; activitySearch?: string }> };
 const money = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 export default async function PortfolioWorkspace({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { tab = "overview" } = await searchParams;
+  const { tab = "overview", activityPage = "1", activityType = "all", activitySearch = "" } = await searchParams;
   const currentTab = ["overview", "holdings", "performance", "activity"].includes(tab) ? tab : "overview";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -60,6 +60,16 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
   const pct = base > 0 ? gain / base * 100 : null;
   const asOf = accounting.holdings.map((h) => fetched[h.ticker]).filter(Boolean).sort()[0];
   const portfolioName = portfolio.type === "paper_active" && era ? "Accelerated Growth" : portfolio.name;
+  const activityQuery = activitySearch.trim().slice(0, 40).toUpperCase();
+  const activityKind = ["buy", "sell"].includes(activityType) ? activityType : "all";
+  const activityRecords = (transactions ?? []).filter((t) =>
+    (activityKind === "all" || t.transaction_type.toLowerCase() === activityKind) &&
+    (!activityQuery || (t.ticker ?? "").toUpperCase().includes(activityQuery))
+  );
+  const activityPages = Math.max(1, Math.ceil(activityRecords.length / 10));
+  const activityPageNumber = Math.min(activityPages, Math.max(1, Number.parseInt(activityPage, 10) || 1));
+  const visibleActivity = activityRecords.slice((activityPageNumber - 1) * 10, activityPageNumber * 10);
+  const activityHref = (page: number) => `/portfolios/${id}?tab=activity&activityPage=${page}&activityType=${activityKind}&activitySearch=${encodeURIComponent(activityQuery)}`;
   const tabs = ["overview", "holdings", "performance", "activity"];
 
   return <main className="min-h-screen bg-slate-100 px-4 py-7 sm:px-8">
@@ -94,7 +104,36 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
         </div>}
         <Link href="/performance" className="mt-6 inline-block text-sm font-semibold text-cyan-800">Compare all portfolios →</Link>
       </section>}
-      {currentTab === "activity" && <section className="mt-6 rounded-xl bg-white p-5"><h2 className="text-lg font-semibold">Recorded transactions</h2><div className="mt-4 divide-y divide-slate-100">{(transactions ?? []).slice(0, 25).map((t) => <div key={t.id} className="flex flex-wrap justify-between gap-2 py-4 text-sm"><span className="font-semibold">{t.transaction_type.toUpperCase()} {t.ticker ?? ""}</span><span className="text-slate-600">{t.transaction_date} · {t.quantity ?? "—"} shares · {money(Number(t.gross_amount ?? 0))}</span></div>)}</div>{(transactions ?? []).length > 25 && <p className="text-xs text-slate-500">Showing the latest 25 transactions.</p>}</section>}
+      {currentTab === "activity" && <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Transaction activity</h2>
+        <p className="mt-1 text-xs text-slate-500">{activityRecords.length} matching transactions</p>
+        <form className="mt-4 flex flex-wrap items-end gap-2">
+          <input type="hidden" name="tab" value="activity" />
+          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">Ticker
+            <input name="activitySearch" defaultValue={activityQuery} placeholder="Search ticker" maxLength={40} className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">Type
+            <select name="activityType" defaultValue={activityKind} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900"><option value="all">All transactions</option><option value="buy">Buys</option><option value="sell">Sells</option></select>
+          </label>
+          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Apply</button>
+          <Link href={`/portfolios/${id}?tab=activity`} className="px-2 py-2 text-sm font-semibold text-cyan-800">Reset</Link>
+        </form>
+        <div className="mt-4 divide-y divide-slate-100">
+          {visibleActivity.map((t) => <details key={t.id} className="py-3">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-lg p-2 text-sm hover:bg-slate-50">
+              <span><strong className="uppercase text-cyan-800">{t.transaction_type}</strong> <strong className="ml-1">{t.ticker ?? "—"}</strong><span className="mt-1 block text-xs text-slate-500">{t.transaction_date ?? t.created_at?.slice(0, 10) ?? "Date unavailable"}</span></span>
+              <span className="text-right"><strong className="block tabular-nums">{money(Number(t.gross_amount ?? 0))}</strong><span className="text-xs text-slate-500">{t.quantity == null ? "—" : Number(t.quantity).toLocaleString("en-US", { maximumFractionDigits: 8 }) + " shares"} ▾</span></span>
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm"><div><span className="text-slate-500">Gross amount</span><strong className="block">{money(Number(t.gross_amount ?? 0))}</strong></div><div><span className="text-slate-500">Fees</span><strong className="block">{money(Number(t.fees ?? 0))}</strong></div></div>
+          </details>)}
+        </div>
+        {!visibleActivity.length && <p className="py-8 text-center text-sm text-slate-500">No transactions match these filters.</p>}
+        {activityPages > 1 && <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
+          {activityPageNumber > 1 ? <Link href={activityHref(activityPageNumber - 1)} className="rounded-lg border px-3 py-2">Previous</Link> : <span className="rounded-lg border px-3 py-2 text-slate-400">Previous</span>}
+          <span>Page {activityPageNumber} of {activityPages}</span>
+          {activityPageNumber < activityPages ? <Link href={activityHref(activityPageNumber + 1)} className="rounded-lg border px-3 py-2">Next</Link> : <span className="rounded-lg border px-3 py-2 text-slate-400">Next</span>}
+        </div>}
+      </section>}
     </div>
   </main>;
 }
