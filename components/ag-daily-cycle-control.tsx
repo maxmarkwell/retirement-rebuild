@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type CycleStatus = {
   cycleDate: string;
@@ -61,6 +61,12 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       setRunning(false);
     }
   }
+
+  useEffect(() => {
+    if (status.status !== "running") return;
+    const interval = window.setInterval(() => { void refreshStatus(); }, 15000);
+    return () => window.clearInterval(interval);
+  }, [status.status]);
 
   const completed = status.status === "completed";
   const failed = status.status === "failed";
