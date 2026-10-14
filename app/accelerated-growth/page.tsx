@@ -31,8 +31,8 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
           <Link href="/" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm">Dashboard</Link>
         </div>
 
-        <nav aria-label="Accelerated Growth sections" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-300 pb-2">
-          {(["overview", "positions", "committee", "research"] as const).map((item) => <Link key={item} href={`/accelerated-growth?tab=${item}`} aria-current={currentTab === item ? "page" : undefined} className={`whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold capitalize ${currentTab === item ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"}`}>{item}</Link>)}
+        <nav aria-label="Accelerated Growth sections" className="mb-6 grid grid-cols-2 gap-2 border-b border-slate-300 pb-3 sm:grid-cols-4">
+          {(["overview", "positions", "committee", "research"] as const).map((item) => <Link key={item} href={`/accelerated-growth?tab=${item}`} aria-current={currentTab === item ? "page" : undefined} className={`min-w-0 rounded-lg px-2 py-3 text-center text-sm font-semibold capitalize sm:px-4 ${currentTab === item ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"}`}>{item}</Link>)}
         </nav>
         <div className="grid min-w-0 grid-cols-1 gap-4">
           {currentTab === "overview" && <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
