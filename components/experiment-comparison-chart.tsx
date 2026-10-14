@@ -67,7 +67,7 @@ export default function ExperimentComparisonChart({
     <div className="min-w-0 w-full">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-slate-500">{visibleData.length} comparison dates</span><div className="flex flex-wrap gap-1" role="group" aria-label="Comparison time range">{(["1M", "3M", "6M", "1Y", "ALL"] as const).map((option) => <button key={option} type="button" aria-pressed={range === option} onClick={() => setRange(option)} className={`rounded-md px-3 py-2 text-xs font-semibold ${range === option ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{option === "ALL" ? "All" : option}</button>)}</div></div>
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Visible portfolios">{seriesOptions.map((series) => <button key={series.key} type="button" aria-pressed={shown[series.key]} onClick={() => toggleSeries(series.key)} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${shown[series.key] ? "border-slate-300 bg-white text-slate-900" : "border-slate-200 bg-slate-100 text-slate-500"}`}><span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: series.color, opacity: shown[series.key] ? 1 : 0.35 }} />{series.label}</button>)}</div>
-      <p className="mb-3 text-xs text-slate-500">Accelerated Growth currently uses paper execution. Portfolio lines show recorded investment returns, not projected results.</p>
+      <p className="mb-3 text-xs text-slate-500">Accelerated Growth currently uses paper execution. Missing snapshot dates appear as gaps rather than interpolated results.</p>
       <div className="h-80 w-full sm:h-96"><ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={visibleData}
@@ -125,7 +125,7 @@ export default function ExperimentComparisonChart({
             strokeWidth={3}
             dot={visibleData.length <= 12 ? { r: 3 } : false}
             activeDot={{ r: 6 }}
-            connectNulls
+
           />}
 
           {shown.acceleratedGrowth && <Line
@@ -136,7 +136,7 @@ export default function ExperimentComparisonChart({
             strokeWidth={3}
             dot={visibleData.length <= 12 ? { r: 3 } : false}
             activeDot={{ r: 6 }}
-            connectNulls
+
           />}
 
           {shown.benchmark && <Line
@@ -148,7 +148,7 @@ export default function ExperimentComparisonChart({
             strokeDasharray="3 3"
             dot={{ r: 3 }}
             activeDot={{ r: 6 }}
-            connectNulls
+
           />}
         </LineChart>
       </ResponsiveContainer></div>
