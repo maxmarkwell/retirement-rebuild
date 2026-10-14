@@ -18,7 +18,7 @@ export async function getAgDailyCycleStatus() {
 
   const cycleDate = denverAgCycleDate();
   const { data: cycle, error } = await supabase.from("ag_daily_cycles")
-    .select("id, cycle_date, status, started_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count")
+    .select("id, cycle_date, status, started_at, updated_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
     .maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
@@ -86,8 +86,16 @@ export async function getAgDailyCycleStatus() {
     : cycle.status === "failed" ? "write_history_unverified"
     : "cycle_not_failed";
 
+  // A running row alone does not prove that the request is still alive.
+  // Never automatically retry: a timed-out request may have made partial writes.
+  const lastActivityAt = cycle?.updated_at ?? cycle?.started_at ?? null;
+  const inactivityMinutes = lastActivityAt ? (Date.now() - Date.parse(lastActivityAt)) / 60000 : null;
+  const stalled = cycle?.status === "running" && inactivityMinutes !== null && inactivityMinutes >= 7;
+
   return {
     cycleDate,
+    stalled,
+    lastActivityAt,
     hasCycleToday: Boolean(cycle),
     status: cycle?.status ?? "not_run",
     retryAvailable: false,
@@ -122,7 +130,7 @@ export async function getAgDailyCycleStatus() {
           : "not_applicable",
       automaticRetryPermitted: false,
     },
-    retryBlockedReason: cycle?.status === "failed"
+    retryBlockedReason: stalled ? "No progress recorded for at least seven minutes. Review the cycle before retrying; some work may have been saved." : cycle?.status === "failed"
       ? "AG cycle retries require reconciliation because prior persistence may be partial."
       : null,
     executionEnabled: false,
