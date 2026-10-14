@@ -6,6 +6,8 @@ import { useState } from "react";
 type CycleStatus = {
   cycleDate: string;
   hasCycleToday: boolean;
+  stalled: boolean;
+  lastActivityAt: string | null;
   status: string;
   retryAvailable: boolean;
   retryBlockedReason?: string | null;
@@ -31,11 +33,14 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   const [status, setStatus] = useState(initialStatus);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   async function refreshStatus() {
     const response = await fetch("/api/accelerated-growth/daily-cycle/status", { cache: "no-store" });
+    if (!response.ok) { setStatusError("Could not refresh cycle status. Please try again."); return; }
     const body = await response.json();
-    if (response.ok) setStatus(body);
+    setStatus(body);
+    setStatusError(null);
   }
 
   async function runCycle() {
@@ -45,12 +50,12 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       const retry = status.retryAvailable ? "?retryFailed=true" : "";
       const response = await fetch(`/api/accelerated-growth/daily-cycle${retry}`, { method: "POST" });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.reason ?? body.error ?? "Accelerated Growth cycle failed.");
+      if (!response.ok) throw new Error(body.reason ?? body.error ?? "Research request ended unexpectedly. Refresh status before taking another action.");
       setMessage(body.reusedDailyCycle ? "Today's cycle already exists; no duplicate work was created." : "Today's Accelerated Growth research cycle completed.");
       await refreshStatus();
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Accelerated Growth cycle failed.");
+      setMessage(error instanceof Error ? error.message : "Research request failed. Check cycle status.");
       await refreshStatus();
     } finally {
       setRunning(false);
@@ -59,7 +64,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
   const completed = status.status === "completed";
   const failed = status.status === "failed";
-  const label = running ? "Running Research…" : failed ? "Cycle Failed — Review Required" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
+  const label = running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
@@ -71,7 +76,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         <button
           type="button"
           onClick={runCycle}
-          disabled={running || completed || failed}
+          disabled={running || completed || failed || status.status === "running"}
           className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {label}
@@ -79,6 +84,10 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       </div>
 
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
+      {status.status === "running" && <p role="status" className="mt-2 text-xs text-amber-800">{status.stalled ? "No recorded activity for at least seven minutes. This cycle needs review before another attempt." : "Cycle is recorded as running. This does not guarantee the server request is still active."}</p>}
+      {status.lastActivityAt && <p className="mt-1 text-xs text-gray-500">Last recorded activity: {new Date(status.lastActivityAt).toLocaleString()}</p>}
+      <button type="button" onClick={() => void refreshStatus()} className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800">Refresh Cycle Status</button>
+      {statusError && <p role="alert" className="mt-2 text-xs text-red-700">{statusError}</p>}
 
       {status.cycle && (
         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
