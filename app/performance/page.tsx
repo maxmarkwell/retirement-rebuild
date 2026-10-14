@@ -179,8 +179,8 @@ export default async function PerformancePage({
     summaries.map(
       ({ portfolio, summary }) => ({
         name: agEraById.has(portfolio.id) ? "Accelerated Growth" : portfolio.name,
-        currentValue: summary.currentValue,
-        returnPct: seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], portfolio),
+        currentValue: agEraById.has(portfolio.id) ? Number((allSnapshots ?? []).filter((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= "2026-10-14").at(-1)?.total_value ?? 0) : summary.currentValue,
+        returnPct: seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= "2026-10-14") as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }),
         excessReturnPct:
           portfolio.type === "benchmark" ||
           !benchmarkSummary
@@ -205,9 +205,12 @@ export default async function PerformancePage({
     buildExperimentComparisonSeries(
       (allSnapshots ?? []).filter((snapshot) => {
         const era = agEraById.get(snapshot.portfolio_id);
-        return !era || snapshot.snapshot_date >= era.inception_at.slice(0, 10);
+        return !era || snapshot.snapshot_date >= "2026-10-14";
       }) as PortfolioSnapshotRecord[],
-      comparisonPortfolios
+      comparisonPortfolios.map((portfolio) => ({
+        ...portfolio,
+        starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital,
+      }))
     );
 
   // ---------------------------------------------------------
