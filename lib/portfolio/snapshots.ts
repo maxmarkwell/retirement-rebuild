@@ -313,7 +313,7 @@ export async function captureDailySnapshotsForUser(
     error: contributionsError,
   } = await supabase
     .from("contributions")
-    .select("portfolio_id, amount")
+    .select("portfolio_id, amount, created_at")
     .eq("user_id", userId);
 
   if (contributionsError) {
@@ -345,6 +345,13 @@ export async function captureDailySnapshotsForUser(
   }
 
   // ---------------------------------------------------------
+  const { data: agEras, error: agErasError } = await supabase.from("portfolio_strategy_eras")
+    .select("portfolio_id, inception_at, reference_total_capital")
+    .eq("user_id", userId).eq("strategy_key", "accelerated_growth")
+    .eq("execution_mode", "paper").is("ended_at", null);
+  if (agErasError) throw new Error(`Unable to load AG era: ${agErasError.message}`);
+  const agEraById = new Map((agEras ?? []).map((era) => [era.portfolio_id, era]));
+
   // Refresh/load today's market prices
   // ---------------------------------------------------------
 
@@ -440,7 +447,8 @@ export async function captureDailySnapshotsForUser(
         portfolio,
         contributions ?? [],
         transactions ?? [],
-        marketPrices
+        marketPrices,
+        agEraById.get(portfolio.id) ?? undefined
       );
 
     return {
