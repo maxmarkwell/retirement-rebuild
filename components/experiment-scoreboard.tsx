@@ -1,7 +1,7 @@
 type ScoreboardRow = {
   name: string;
-  currentValue: number;
-  returnPct: number;
+  currentValue: number | null;
+  returnPct: number | null;
   excessReturnPct: number | null;
 };
 
@@ -36,7 +36,7 @@ export default function ExperimentScoreboard({
         </h2>
 
         <p className="mt-1 text-sm text-gray-500">
-          Compare active portfolio returns with the VOO benchmark.
+          Portfolio values and returns reflect the latest recorded snapshots. Benchmark-relative returns will appear once matching periods are available.
         </p>
       </div>
 
@@ -70,19 +70,19 @@ export default function ExperimentScoreboard({
                 </td>
 
                 <td className="px-6 py-4 text-right text-gray-700">
-                  {formatCurrency(row.currentValue)}
+                  {row.currentValue == null ? "—" : formatCurrency(row.currentValue)}
                 </td>
 
                 <td
                   className={`px-6 py-4 text-right font-medium ${
-                    row.returnPct > 0
+                    row.returnPct != null && row.returnPct > 0
                       ? "text-green-700"
-                      : row.returnPct < 0
+                      : row.returnPct != null && row.returnPct < 0
                         ? "text-red-700"
                         : "text-gray-900"
                   }`}
                 >
-                  {formatPercent(row.returnPct)}
+                  {row.returnPct == null ? "—" : formatPercent(row.returnPct)}
                 </td>
 
                 <td
