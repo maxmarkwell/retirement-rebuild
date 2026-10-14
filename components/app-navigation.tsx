@@ -7,8 +7,12 @@ import {
 
 const navigation = [
   {
-    name: "Dashboard",
+    name: "Mission Control",
     href: "/",
+  },
+  {
+    name: "Accelerated Growth",
+    href: "/accelerated-growth",
   },
   {
     name: "Performance",
@@ -43,14 +47,14 @@ export default function AppNavigation() {
 
 
   const activeItem =
-    navigation.find(
+    (pathname.startsWith("/portfolios/") ? navigation[0] : navigation.find(
       (item) =>
         item.href === "/"
           ? pathname === "/"
           : pathname.startsWith(
               item.href
             )
-    ) ??
+    )) ??
     navigation[0];
 
   if (pathname === "/login") return null;
@@ -85,7 +89,6 @@ export default function AppNavigation() {
           <summary className="cursor-pointer px-4 py-2 text-xs text-cyan-300">More sections</summary>
           <div className="grid min-w-40 gap-1 p-2">
             {navigation.slice(5).map((item) => <Link key={item.href} href={item.href} className="rounded px-3 py-2 text-sm hover:bg-slate-800">{item.name}</Link>)}
-            <Link href="/accelerated-growth" className="rounded px-3 py-2 text-sm hover:bg-slate-800">Accelerated Growth</Link>
           </div>
         </details>
       </nav>
