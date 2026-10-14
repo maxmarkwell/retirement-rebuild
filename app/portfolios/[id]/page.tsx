@@ -50,7 +50,7 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
   if (snapshotError) throw new Error("Unable to load portfolio performance history.");
   // Exclude historical AI Active snapshots using a different capital base.
   const chartSnapshots = (snapshotRows ?? []).filter((row) =>
-    !era || (row.snapshot_date >= "2026-10-14" && row.snapshot_date >= era.inception_at.slice(0, 10))
+    portfolio.type !== "paper_active" || (row.snapshot_date >= "2026-10-14" && (!era || row.snapshot_date >= era.inception_at.slice(0, 10)))
   );
   const chartPoints = chartSnapshots.map((row) => ({ date: row.snapshot_date, totalValue: Number(row.total_value) }));
   const latestSnapshot = chartSnapshots.at(-1);
@@ -59,7 +59,7 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
   const gain = accounting.permanentCapital - base;
   const pct = base > 0 ? gain / base * 100 : null;
   const asOf = accounting.holdings.map((h) => fetched[h.ticker]).filter(Boolean).sort()[0];
-  const portfolioName = portfolio.type === "paper_active" && era ? "Accelerated Growth" : portfolio.name;
+  const portfolioName = portfolio.type === "paper_active" ? "Accelerated Growth" : portfolio.name;
   const activityQuery = activitySearch.trim().slice(0, 40).toUpperCase();
   const activityKind = ["buy", "sell"].includes(activityType) ? activityType : "all";
   const activityRecords = (transactions ?? []).filter((t) =>
