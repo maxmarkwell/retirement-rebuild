@@ -6,7 +6,6 @@ import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
 import ContributionForm from "@/components/contribution-form";
-import { getMarketQuotes } from "@/lib/market-data/twelve-data";
 import SnapshotButton from "@/components/snapshot-button";
 import { getAgOperationalState } from "@/lib/discovery/accelerated-growth/operational-state";
 
@@ -79,12 +78,21 @@ export default async function Home() {
     .filter(([ticker, quantity]) => quantity > 0.00000001 && ticker !== "TEST" && ticker !== "TEST2")
     .map(([ticker]) => ticker);
 
+  // Dashboard reads persistent quote cache. Page views must not consume
+  // provider credits needed by the daily portfolio snapshot cron.
   const marketPrices: Record<string, number> = {};
-  try {
-    const quotes = await getMarketQuotes(heldTickers);
-    for (const [ticker, quote] of Object.entries(quotes)) marketPrices[ticker] = quote.price;
-  } catch (error) {
-    console.error("Unable to load market quotes:", error);
+  if (heldTickers.length > 0) {
+    const { data: cachedQuotes, error: quoteError } = await supabase
+      .from("market_quote_cache")
+      .select("ticker, price")
+      .in("ticker", heldTickers);
+    if (quoteError) {
+      console.error("Unable to read cached dashboard prices:", quoteError);
+    } else {
+      for (const quote of cachedQuotes ?? []) {
+        if (Number(quote.price) > 0) marketPrices[quote.ticker.trim().toUpperCase()] = Number(quote.price);
+      }
+    }
   }
 
   let agOperationalState: Awaited<ReturnType<typeof getAgOperationalState>> | null = null;
@@ -170,7 +178,7 @@ export default async function Home() {
                         <div key={holding.ticker}>
                           <div className="flex justify-between text-sm"><span className="font-semibold text-gray-900">{holding.ticker}</span><span className="text-gray-700">{holding.quantity.toLocaleString("en-US", { maximumFractionDigits: 8 })} shares</span></div>
                           <div className="mt-1 flex justify-between text-xs text-gray-500"><span>Average Cost</span><span>${holding.averageCost.toFixed(2)}</span></div>
-                          <div className="flex justify-between text-xs text-gray-500"><span>Market Price{holding.marketPrice != null && <span className="ml-1 text-green-700">• Live</span>}</span><span>{holding.marketPrice != null ? `$${holding.marketPrice.toFixed(2)}` : "—"}</span></div>
+                          <div className="flex justify-between text-xs text-gray-500"><span>Market Price{holding.marketPrice != null && <span className="ml-1 text-green-700">• Cached</span>}</span><span>{holding.marketPrice != null ? `$${holding.marketPrice.toFixed(2)}` : "—"}</span></div>
                           <div className="flex justify-between text-xs text-gray-500"><span>Market Value</span><span>${holding.marketValue.toFixed(2)}</span></div>
                         </div>
                       ))}
