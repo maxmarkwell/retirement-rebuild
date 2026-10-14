@@ -1,3 +1,4 @@
+import PerformanceChart from "@/components/performance-chart";
 import HoldingsExplorer from "@/components/holdings-explorer";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
@@ -43,6 +44,16 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
     }
   }
   const accounting = calculatePortfolioAccounting(portfolio, contributions ?? [], [...(transactions ?? [])].reverse(), prices, era);
+  const { data: snapshotRows, error: snapshotError } = await supabase.from("portfolio_snapshots")
+    .select("snapshot_date, total_value, investment_growth, cumulative_contributions, cumulative_withdrawals")
+    .eq("portfolio_id", id).order("snapshot_date", { ascending: true });
+  if (snapshotError) throw new Error("Unable to load portfolio performance history.");
+  // Exclude historical AI Active snapshots using a different capital base.
+  const chartSnapshots = (snapshotRows ?? []).filter((row) =>
+    !era || (row.snapshot_date >= "2026-10-14" && row.snapshot_date >= era.inception_at.slice(0, 10))
+  );
+  const chartPoints = chartSnapshots.map((row) => ({ date: row.snapshot_date, totalValue: Number(row.total_value) }));
+  const latestSnapshot = chartSnapshots.at(-1);
   const missing = accounting.holdings.some((h) => h.marketPrice == null);
   const base = Number(era?.reference_total_capital ?? portfolio.starting_capital) + accounting.contributionsTotal;
   const gain = accounting.permanentCapital - base;
@@ -71,7 +82,18 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
         <div className="rounded-xl bg-white p-6"><h2 className="text-lg font-semibold">Position summary</h2><p className="mt-4 text-3xl font-bold">{accounting.holdings.length}</p><p className="text-sm text-slate-500">Open holdings</p><Link href={`/portfolios/${id}?tab=holdings`} className="mt-4 inline-block text-sm font-semibold text-cyan-800">Explore holdings →</Link></div>
       </section>}
       {currentTab === "holdings" && <HoldingsExplorer holdings={accounting.holdings} />}
-      {currentTab === "performance" && <section className="mt-6 rounded-xl bg-white p-6"><h2 className="text-lg font-semibold">Performance analysis</h2><p className="mt-2 text-sm text-slate-600">Portfolio-level historical performance and benchmark comparison are available in the existing performance workspace.</p><Link href="/performance" className="mt-5 inline-block rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white">Open performance →</Link></section>}
+      {currentTab === "performance" && <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><h2 className="text-lg font-semibold text-slate-900">Portfolio value over time</h2><p className="mt-1 text-sm text-slate-500">Historical daily snapshots, including cash and holdings. Contributions are not investment gains.</p></div>
+          <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">{chartPoints.length} snapshots</span>
+        </div>
+        <div className="mt-6"><PerformanceChart data={chartPoints} /></div>
+        {latestSnapshot && <div className="mt-5 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2">
+          <div><p className="text-xs uppercase text-slate-500">Latest recorded value</p><p className="mt-1 text-xl font-bold">{money(Number(latestSnapshot.total_value))}</p></div>
+          <div><p className="text-xs uppercase text-slate-500">Latest snapshot date</p><p className="mt-1 text-xl font-bold">{latestSnapshot.snapshot_date}</p></div>
+        </div>}
+        <Link href="/performance" className="mt-6 inline-block text-sm font-semibold text-cyan-800">Compare all portfolios →</Link>
+      </section>}
       {currentTab === "activity" && <section className="mt-6 rounded-xl bg-white p-5"><h2 className="text-lg font-semibold">Recorded transactions</h2><div className="mt-4 divide-y divide-slate-100">{(transactions ?? []).slice(0, 25).map((t) => <div key={t.id} className="flex flex-wrap justify-between gap-2 py-4 text-sm"><span className="font-semibold">{t.transaction_type.toUpperCase()} {t.ticker ?? ""}</span><span className="text-slate-600">{t.transaction_date} · {t.quantity ?? "—"} shares · {money(Number(t.gross_amount ?? 0))}</span></div>)}</div>{(transactions ?? []).length > 25 && <p className="text-xs text-slate-500">Showing the latest 25 transactions.</p>}</section>}
     </div>
   </main>;
