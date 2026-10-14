@@ -61,7 +61,7 @@ export default async function Home() {
   }
 
   const realPortfolioIds = new Set(
-    (portfolios ?? []).filter((portfolio) => portfolio.is_real_money).map((portfolio) => portfolio.id)
+    (portfolios ?? []).map((portfolio) => portfolio.id)
   );
   const shareBalances = new Map<string, number>();
 
@@ -123,6 +123,13 @@ export default async function Home() {
             );
             const activeHoldings = accounting.holdings;
             const agState = agOperationalState?.portfolioId === portfolio.id ? agOperationalState : null;
+            const capitalBase = Number(agState?.accounting.referenceTotalCapital ?? agEra?.reference_total_capital ?? portfolio.starting_capital) + accounting.contributionsTotal;
+            const currentEquity = agState ? agState.valuation.currentEquity : accounting.permanentCapital;
+            const gainLoss = currentEquity - capitalBase;
+            const gainLossPct = capitalBase > 0 ? 100 * gainLoss / capitalBase : null;
+            const missingQuotes = !agState && activeHoldings.some((holding) => holding.marketPrice == null);
+            const direction = Math.abs(gainLoss) < 0.005 ? "even" : gainLoss > 0 ? "up" : "down";
+            const statusStyle = missingQuotes ? "border-amber-200 bg-amber-50 text-amber-800" : direction === "up" ? "border-green-200 bg-green-50 text-green-800" : direction === "down" ? "border-red-200 bg-red-50 text-red-800" : "border-gray-200 bg-gray-50 text-gray-700";
 
             return (
               <div key={portfolio.id} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -138,6 +145,16 @@ export default async function Home() {
                   ${(agState ? agState.valuation.currentEquity : accounting.permanentCapital).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="mt-1 text-sm text-gray-500">{agState ? "AG Sleeve Equity" : "Permanent Capital"}</p>
+                <div className={`mt-4 rounded-lg border px-4 py-3 ${statusStyle}`} aria-label="Portfolio gain or loss">
+                  {missingQuotes ? <p className="text-sm font-semibold">Gain/loss unavailable — missing market quotes</p> : <>
+                    <p className="text-xs font-semibold uppercase tracking-wide">{direction === "up" ? "▲ Up" : direction === "down" ? "▼ Down" : "● Even"} since inception</p>
+                    <p className="mt-1 text-xl font-bold tabular-nums">
+                      {gainLoss > 0.005 ? "+" : gainLoss < -0.005 ? "−" : ""}${Math.abs(gainLoss).toFixed(2)}
+                      <span className="ml-2 text-base">({gainLossPct == null ? "N/A" : `${gainLossPct > 0.005 ? "+" : gainLossPct < -0.005 ? "−" : ""}${Math.abs(gainLossPct).toFixed(2)}%`})</span>
+                    </p>
+                    <p className="mt-1 text-xs opacity-80">Investment return excluding contributions · cached quotes</p>
+                  </>}
+                </div>
 
                 <div className="mt-6 space-y-2 border-t border-gray-100 pt-4">
                   <div className="flex justify-between text-sm">
