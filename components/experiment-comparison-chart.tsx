@@ -126,7 +126,7 @@ export default function ExperimentComparisonChart({
             dot={visibleData.length <= 12 ? { r: 3 } : false}
             activeDot={{ r: 6 }}
             connectNulls
-          />}}}
+          />}
 
           {shown.acceleratedGrowth && <Line
             type="monotone"
@@ -134,10 +134,10 @@ export default function ExperimentComparisonChart({
             name="Accelerated Growth"
             stroke="#16a34a"
             strokeWidth={3}
-            dot={{ r: 3 }}
+            dot={visibleData.length <= 12 ? { r: 3 } : false}
             activeDot={{ r: 6 }}
             connectNulls
-          />
+          />}
 
           {shown.benchmark && <Line
             type="monotone"
@@ -149,7 +149,7 @@ export default function ExperimentComparisonChart({
             dot={{ r: 3 }}
             activeDot={{ r: 6 }}
             connectNulls
-          />
+          />}
         </LineChart>
       </ResponsiveContainer></div>
     </div>
