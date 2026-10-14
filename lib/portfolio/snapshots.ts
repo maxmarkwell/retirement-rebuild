@@ -18,7 +18,7 @@ type QuoteRefreshResult = {
   missingTickers: string[];
 };
 
-const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6;
+const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6; // Per request, not per daily run.
 const DENVER_TIME_ZONE = "America/Denver";
 
 // ---------------------------------------------------------
@@ -201,17 +201,18 @@ export async function refreshSnapshotQuotesForUser(
       (ticker) => !freshTickerSet.has(ticker)
     );
 
-  const tickersToFetch =
-    tickersNeedingRefresh.slice(
-      0,
-      SNAPSHOT_PROVIDER_FETCH_LIMIT
-    );
-
   const refreshedTickers: string[] = [];
 
-  if (tickersToFetch.length > 0) {
-    const quotes =
-      await getMarketQuotes(tickersToFetch);
+  // Fetch every held symbol in provider-sized batches.
+  for (let offset = 0; offset < tickersNeedingRefresh.length; offset += SNAPSHOT_PROVIDER_FETCH_LIMIT) {
+    const tickersToFetch = tickersNeedingRefresh.slice(offset, offset + SNAPSHOT_PROVIDER_FETCH_LIMIT);
+    let quotes: Awaited<ReturnType<typeof getMarketQuotes>>;
+    try {
+      quotes = await getMarketQuotes(tickersToFetch);
+    } catch (error) {
+      console.error("Snapshot quote batch failed:", tickersToFetch, error);
+      continue;
+    }
 
     const fetchedAt =
       new Date().toISOString();
@@ -354,11 +355,7 @@ export async function captureDailySnapshotsForUser(
     );
 
   if (quoteRefresh.missingTickers.length > 0) {
-    throw new Error(
-      `Snapshot is waiting for market prices for: ${quoteRefresh.missingTickers.join(
-        ", "
-      )}. No snapshot was written.`
-    );
+    console.warn("Snapshot missing quotes:", quoteRefresh.missingTickers);
   }
 
   const marketPrices: Record<string, number> = {};
@@ -407,18 +404,37 @@ export async function captureDailySnapshotsForUser(
     );
 
   if (missingPrices.length > 0) {
-    throw new Error(
-      `Snapshot is missing validated market prices for: ${missingPrices.join(
-        ", "
-      )}. No snapshot was written.`
-    );
+    console.warn("Snapshot missing validated prices:", missingPrices);
   }
 
   // ---------------------------------------------------------
   // Build snapshot rows
   // ---------------------------------------------------------
 
-  const rows = portfolios.map((portfolio) => {
+  // A missing quote must never be silently valued at cost basis.
+  // Identify net holdings so fully sold tickers do not block snapshots.
+  const balances = new Map<string, Map<string, number>>();
+  for (const transaction of transactions ?? []) {
+    if (!transaction.portfolio_id || !transaction.ticker || transaction.quantity == null ||
+        (transaction.transaction_type !== "buy" && transaction.transaction_type !== "sell")) continue;
+    const ticker = transaction.ticker.trim().toUpperCase();
+    if (ticker === "TEST" || ticker === "TEST2") continue;
+    const portfolioBalances = balances.get(transaction.portfolio_id) ?? new Map<string, number>();
+    const change = Number(transaction.quantity) * (transaction.transaction_type === "buy" ? 1 : -1);
+    portfolioBalances.set(ticker, (portfolioBalances.get(ticker) ?? 0) + change);
+    balances.set(transaction.portfolio_id, portfolioBalances);
+  }
+  const eligiblePortfolios = portfolios.filter((portfolio) =>
+    !Array.from(balances.get(portfolio.id) ?? []).some(([ticker, quantity]) =>
+      quantity > 0.00000001 && marketPrices[ticker] == null
+    )
+  );
+  if (eligiblePortfolios.length === 0) {
+    throw new Error("No portfolios have complete market prices; snapshot skipped.");
+  }
+  const skipped = portfolios.filter((portfolio) => !eligiblePortfolios.includes(portfolio));
+  if (skipped.length > 0) console.warn("Skipped portfolio snapshots due to missing quotes:", skipped.map((p) => p.name));
+  const rows = eligiblePortfolios.map((portfolio) => {
     const accounting =
       calculatePortfolioAccounting(
         portfolio,
