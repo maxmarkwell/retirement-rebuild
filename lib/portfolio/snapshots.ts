@@ -55,11 +55,21 @@ async function getHeldTickersForUser(
   userId: string,
   supabase: SupabaseClient
 ): Promise<string[]> {
+  // Only current strategies consume quote credits. Retired paper tests are excluded.
+  const { data: activePortfolios, error: portfolioError } = await supabase
+    .from("portfolios").select("id, type").eq("user_id", userId).neq("type", "paper_long_term");
+  if (portfolioError) throw new Error(`Unable to load active portfolios: ${portfolioError.message}`);
+  const activeIds = new Set((activePortfolios ?? []).map((p) => p.id));
+  const { data: eras, error: eraError } = await supabase.from("portfolio_strategy_eras")
+    .select("portfolio_id, inception_at").eq("user_id", userId)
+    .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null);
+  if (eraError) throw new Error(`Unable to load AG era for quote refresh: ${eraError.message}`);
+  const inceptionByPortfolio = new Map((eras ?? []).map((era) => [era.portfolio_id, era.inception_at]));
   const { data: transactions, error } =
     await supabase
       .from("transactions")
       .select(
-        "portfolio_id, transaction_type, ticker, quantity"
+        "portfolio_id, transaction_type, ticker, quantity, created_at"
       )
       .eq("user_id", userId)
       .order("transaction_date", { ascending: true })
@@ -91,6 +101,9 @@ async function getHeldTickersForUser(
     }
 
     const portfolioId = transaction.portfolio_id;
+    if (!activeIds.has(portfolioId)) continue;
+    const inception = inceptionByPortfolio.get(portfolioId);
+    if (inception && (!transaction.created_at || Date.parse(transaction.created_at) < Date.parse(inception))) continue;
     const ticker = transaction.ticker
       .trim()
       .toUpperCase();
@@ -434,7 +447,7 @@ export async function captureDailySnapshotsForUser(
     portfolioBalances.set(ticker, (portfolioBalances.get(ticker) ?? 0) + change);
     balances.set(transaction.portfolio_id, portfolioBalances);
   }
-  const eligiblePortfolios = portfolios.filter((portfolio) =>
+  const eligiblePortfolios = portfolios.filter((portfolio) => portfolio.type !== "paper_long_term" &&
     !Array.from(balances.get(portfolio.id) ?? []).some(([ticker, quantity]) =>
       quantity > 0.00000001 && marketPrices[ticker] == null
     )
@@ -442,7 +455,7 @@ export async function captureDailySnapshotsForUser(
   if (eligiblePortfolios.length === 0) {
     throw new Error("No portfolios have complete market prices; snapshot skipped.");
   }
-  const skipped = portfolios.filter((portfolio) => !eligiblePortfolios.includes(portfolio));
+  const skipped = portfolios.filter((portfolio) => portfolio.type !== "paper_long_term" && !eligiblePortfolios.includes(portfolio));
   if (skipped.length > 0) console.warn("Skipped portfolio snapshots due to missing quotes:", skipped.map((p) => p.name));
   const rows = eligiblePortfolios.map((portfolio) => {
     const accounting =
