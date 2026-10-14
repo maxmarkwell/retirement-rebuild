@@ -101,7 +101,7 @@ export default async function PerformancePage({
 
   const performanceSeries =
     buildPerformanceSeries(
-      (snapshots ?? []) as PortfolioSnapshotRecord[]
+      (snapshots ?? []).filter((snapshot) => selectedPortfolio?.type !== "paper_active" || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[]
     );
 
   const latestPoint =
@@ -222,7 +222,7 @@ export default async function PerformancePage({
   // ---------------------------------------------------------
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <main className="min-h-screen bg-gray-50 px-4 py-7 sm:px-8">
       <div className="mx-auto max-w-7xl">
         <div>
           <p className="text-sm font-medium text-gray-500">
@@ -241,10 +241,10 @@ export default async function PerformancePage({
         {/* Portfolio Selector */}
 
         <div className="mt-8">
-          <form>
+          <form className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end">
             <label
               htmlFor="portfolio"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700 sm:self-center"
             >
               Portfolio
             </label>
@@ -255,7 +255,7 @@ export default async function PerformancePage({
               defaultValue={
                 selectedPortfolio?.id ?? ""
               }
-              className="w-full max-w-sm rounded border border-gray-300 bg-white px-3 py-2"
+              className="min-w-0 w-full rounded border border-gray-300 bg-white px-3 py-3 sm:max-w-sm"
             >
               {portfolios?.filter((portfolio) => portfolio.type !== "paper_long_term").map(
                 (portfolio) => (
@@ -263,7 +263,7 @@ export default async function PerformancePage({
                     key={portfolio.id}
                     value={portfolio.id}
                   >
-                    {portfolio.name}
+                    {portfolio.type === "paper_active" ? "Accelerated Growth" : portfolio.name}
                   </option>
                 )
               )}
@@ -271,7 +271,7 @@ export default async function PerformancePage({
 
             <button
               type="submit"
-              className="ml-3 rounded bg-black px-4 py-2 text-white"
+              className="rounded bg-black px-4 py-3 text-white"
             >
               View
             </button>
@@ -284,7 +284,7 @@ export default async function PerformancePage({
           rows={scoreboardRows}
         />
 
-        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mt-8 min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
               Real Portfolio vs Accelerated Growth vs VOO
@@ -306,7 +306,7 @@ export default async function PerformancePage({
 
         <PerformanceSummary
           portfolioName={
-            selectedPortfolio?.name ??
+            (selectedPortfolio?.type === "paper_active" ? "Accelerated Growth" : selectedPortfolio?.name) ??
             "No portfolio"
           }
           latestValue={
@@ -323,7 +323,7 @@ export default async function PerformancePage({
 
         {/* Performance Chart */}
 
-        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mt-6 min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900">
             Portfolio Value Over Time
           </h2>
