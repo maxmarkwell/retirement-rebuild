@@ -89,7 +89,7 @@ export type ExperimentPortfolio = {
 export type ExperimentComparisonPoint = {
   date: string;
   realPortfolio: number | null;
-  paperLongTerm: number | null;
+  acceleratedGrowth: number | null;
   benchmark: number | null;
 };
 
@@ -140,7 +140,7 @@ export function buildExperimentComparisonSeries(
     if (
       !portfolio ||
       (portfolio.type !== "real" &&
-        portfolio.type !== "paper_long_term" &&
+        portfolio.type !== "paper_active" &&
         portfolio.type !== "benchmark")
     ) {
       continue;
@@ -160,7 +160,7 @@ export function buildExperimentComparisonSeries(
       pointsByDate.get(snapshot.snapshot_date) ?? {
         date: snapshot.snapshot_date,
         realPortfolio: null,
-        paperLongTerm: null,
+        acceleratedGrowth: null,
         benchmark: null,
       };
 
@@ -168,8 +168,8 @@ export function buildExperimentComparisonSeries(
       point.realPortfolio = returnPct;
     }
 
-    if (portfolio.type === "paper_long_term") {
-      point.paperLongTerm = returnPct;
+    if (portfolio.type === "paper_active") {
+      point.acceleratedGrowth = returnPct;
     }
 
     if (portfolio.type === "benchmark") {

@@ -15,7 +15,7 @@ import {
 type ComparisonPoint = {
   date: string;
   realPortfolio: number | null;
-  paperLongTerm: number | null;
+  acceleratedGrowth: number | null;
   benchmark: number | null;
 };
 
@@ -115,8 +115,8 @@ export default function ExperimentComparisonChart({
 
           <Line
             type="monotone"
-            dataKey="paperLongTerm"
-            name="Paper Long-Term"
+            dataKey="acceleratedGrowth"
+            name="Accelerated Growth"
             stroke="#16a34a"
             strokeWidth={3}
             dot={{ r: 3 }}

@@ -18,6 +18,17 @@ type PerformancePageProps = {
   }>;
 };
 
+// Earlier AI Active snapshots were recorded using the legacy $10,000 accounting base.
+// Do not display them as $200 AG-era returns.
+const FIRST_AG_ERA_ACCOUNTED_SNAPSHOT = "2026-10-14";
+
+function seriesReturnForPortfolio(snapshots: PortfolioSnapshotRecord[], portfolio: { id: string; starting_capital: number | string }) {
+  const latest = snapshots.filter((s) => s.portfolio_id === portfolio.id).at(-1);
+  if (!latest) return 0;
+  const base = Number(portfolio.starting_capital) + Number(latest.cumulative_contributions ?? 0) - Number(latest.cumulative_withdrawals ?? 0);
+  return base > 0 ? Number(latest.investment_growth) / base * 100 : 0;
+}
+
 export default async function PerformancePage({
   searchParams,
 }: PerformancePageProps) {
@@ -118,16 +129,21 @@ export default async function PerformancePage({
     );
   }
 
-  // Keep the Phase 1 scoreboard intact for historical comparison.
+  const { data: agEras, error: agErasError } = await supabase.from("portfolio_strategy_eras")
+    .select("portfolio_id, inception_at, reference_total_capital")
+    .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null);
+  if (agErasError) throw new Error(`Unable to load AG era: ${agErasError.message}`);
+  const agEraById = new Map((agEras ?? []).map((era) => [era.portfolio_id, era]));
+  // Display the current comparison cohort without deleting historical portfolios.
   const experimentTypes = new Set([
+    "real",
     "paper_active",
-    "paper_long_term",
     "benchmark",
   ]);
 
   const experimentPortfolios =
     (portfolios ?? []).filter((portfolio) =>
-      experimentTypes.has(portfolio.type)
+      experimentTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || agEraById.has(portfolio.id))
     );
 
   const summaries =
@@ -164,35 +180,41 @@ export default async function PerformancePage({
     )?.summary ?? null;
 
   const scoreboardRows =
-    summaries.map(
+    summaries.filter(({ portfolio }) => !agEraById.has(portfolio.id) || (allSnapshots ?? []).some((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT)).map(
       ({ portfolio, summary }) => ({
-        name: portfolio.name,
-        currentValue: summary.currentValue,
-        returnPct: summary.returnPct,
+        name: agEraById.has(portfolio.id) ? "Accelerated Growth" : portfolio.name,
+        currentValue: agEraById.has(portfolio.id) ? Number((allSnapshots ?? []).filter((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT).at(-1)?.total_value ?? 0) : summary.currentValue,
+        returnPct: seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }),
         excessReturnPct:
           portfolio.type === "benchmark" ||
           !benchmarkSummary
             ? null
-            : summary.returnPct -
-              benchmarkSummary.returnPct,
+            : seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }) -
+              seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], summaries.find(({ portfolio: p }) => p.type === "benchmark")!.portfolio),
       })
     );
 
   const comparisonTypes = new Set([
     "real",
-    "paper_long_term",
+    "paper_active",
     "benchmark",
   ]);
 
   const comparisonPortfolios =
     (portfolios ?? []).filter((portfolio) =>
-      comparisonTypes.has(portfolio.type)
+      comparisonTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || agEraById.has(portfolio.id))
     );
 
   const comparisonSeries =
     buildExperimentComparisonSeries(
-      (allSnapshots ?? []) as PortfolioSnapshotRecord[],
-      comparisonPortfolios
+      (allSnapshots ?? []).filter((snapshot) => {
+        const era = agEraById.get(snapshot.portfolio_id);
+        return !era || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT;
+      }) as PortfolioSnapshotRecord[],
+      comparisonPortfolios.map((portfolio) => ({
+        ...portfolio,
+        starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital,
+      }))
     );
 
   // ---------------------------------------------------------
@@ -265,7 +287,7 @@ export default async function PerformancePage({
         <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
-              Real Portfolio vs Paper Long-Term vs VOO
+              Real Portfolio vs Accelerated Growth vs VOO
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
