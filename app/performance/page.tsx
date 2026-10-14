@@ -6,7 +6,6 @@ import ExperimentScoreboard from "@/components/experiment-scoreboard";
 import {
   buildExperimentComparisonSeries,
   buildPerformanceSeries,
-  calculatePerformanceSummary,
   type PortfolioSnapshotRecord,
 } from "@/lib/portfolio/performance";
 
@@ -144,33 +143,6 @@ export default async function PerformancePage({
   const experimentPortfolios =
     (portfolios ?? []).filter((portfolio) =>
       experimentTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || agEraById.has(portfolio.id))
-    );
-
-  const summaries =
-    experimentPortfolios.map(
-      (portfolio) => {
-        const portfolioSnapshots =
-          (allSnapshots ?? []).filter(
-            (snapshot) =>
-              snapshot.portfolio_id === portfolio.id
-          );
-
-        const series =
-          buildPerformanceSeries(
-            portfolioSnapshots as PortfolioSnapshotRecord[]
-          );
-
-        const summary =
-          calculatePerformanceSummary(
-            series,
-            Number(portfolio.starting_capital)
-          );
-
-        return {
-          portfolio,
-          summary,
-        };
-      }
     );
 
   // Only display returns supported by a recorded snapshot in the current strategy era.
