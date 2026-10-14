@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import AppNavigation from "@/components/app-navigation";
 import AppShell from "@/components/app-shell";
 import ReassessmentNotificationCenter from "@/components/reassessment-notification-center";
 
