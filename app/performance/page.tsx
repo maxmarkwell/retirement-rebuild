@@ -18,6 +18,13 @@ type PerformancePageProps = {
   }>;
 };
 
+function seriesReturnForPortfolio(snapshots: PortfolioSnapshotRecord[], portfolio: { id: string; starting_capital: number | string }) {
+  const latest = snapshots.filter((s) => s.portfolio_id === portfolio.id).at(-1);
+  if (!latest) return 0;
+  const base = Number(portfolio.starting_capital) + Number(latest.cumulative_contributions ?? 0) - Number(latest.cumulative_withdrawals ?? 0);
+  return base > 0 ? Number(latest.investment_growth) / base * 100 : 0;
+}
+
 export default async function PerformancePage({
   searchParams,
 }: PerformancePageProps) {
@@ -118,16 +125,16 @@ export default async function PerformancePage({
     );
   }
 
-  // Keep the Phase 1 scoreboard intact for historical comparison.
+  // Display the current comparison cohort without deleting historical portfolios.
   const experimentTypes = new Set([
     "paper_active",
-    "paper_long_term",
+    "paper_active",
     "benchmark",
   ]);
 
   const experimentPortfolios =
     (portfolios ?? []).filter((portfolio) =>
-      experimentTypes.has(portfolio.type)
+      experimentTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || /accelerated growth|\bAG\b/i.test(portfolio.name))
     );
 
   const summaries =
@@ -168,7 +175,7 @@ export default async function PerformancePage({
       ({ portfolio, summary }) => ({
         name: portfolio.name,
         currentValue: summary.currentValue,
-        returnPct: summary.returnPct,
+        returnPct: seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], portfolio),
         excessReturnPct:
           portfolio.type === "benchmark" ||
           !benchmarkSummary
@@ -180,13 +187,13 @@ export default async function PerformancePage({
 
   const comparisonTypes = new Set([
     "real",
-    "paper_long_term",
+    "paper_active",
     "benchmark",
   ]);
 
   const comparisonPortfolios =
     (portfolios ?? []).filter((portfolio) =>
-      comparisonTypes.has(portfolio.type)
+      comparisonTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || /accelerated growth|\bAG\b/i.test(portfolio.name))
     );
 
   const comparisonSeries =
@@ -265,7 +272,7 @@ export default async function PerformancePage({
         <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
-              Real Portfolio vs Paper Long-Term vs VOO
+              Real Portfolio vs Accelerated Growth vs VOO
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
