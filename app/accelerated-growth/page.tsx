@@ -7,7 +7,9 @@ import AgDailyCycleControl from "@/components/ag-daily-cycle-control";
 
 export const dynamic = "force-dynamic";
 
-export default async function AcceleratedGrowthPage() {
+export default async function AcceleratedGrowthPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab = "overview" } = await searchParams;
+  const currentTab = ["overview", "positions", "committee", "research"].includes(tab) ? tab : "overview";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -18,8 +20,8 @@ export default async function AcceleratedGrowthPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-slate-100 px-4 py-7 sm:px-8">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-gray-500">RETIREMENT REBUILD</p>
@@ -29,8 +31,11 @@ export default async function AcceleratedGrowthPage() {
           <Link href="/" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm">Dashboard</Link>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <nav aria-label="Accelerated Growth sections" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-300 pb-2">
+          {(["overview", "positions", "committee", "research"] as const).map((item) => <Link key={item} href={`/accelerated-growth?tab=${item}`} aria-current={currentTab === item ? "page" : undefined} className={`whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold capitalize ${currentTab === item ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"}`}>{item}</Link>)}
+        </nav>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {currentTab === "overview" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">AG Sleeve</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">${state.valuation.currentEquity.toFixed(2)}</p>
             <div className="mt-5 space-y-2 border-t border-gray-100 pt-4 text-sm">
@@ -42,9 +47,9 @@ export default async function AcceleratedGrowthPage() {
               <div className="flex justify-between"><span className="text-gray-500">Circuit Breaker</span><span className={state.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>{state.valuation.circuitBreakerActive ? "PAUSED" : "READY"}</span></div>
             </div>
             <AgDailyCycleControl initialStatus={cycleStatus} />
-          </section>
+          </section>}
 
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          {currentTab === "positions" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Current Holdings</p>
             {state.holdings.length === 0 ? <p className="mt-4 text-sm text-gray-500">No AG positions currently held.</p> : (
               <div className="mt-4 space-y-3">
@@ -57,9 +62,9 @@ export default async function AcceleratedGrowthPage() {
                 ))}
               </div>
             )}
-          </section>
+          </section>}
 
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          {currentTab === "committee" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Active Committee</p>
             {state.activeDecisions.length === 0 ? <p className="mt-4 text-sm text-gray-500">No active Committee decisions.</p> : (
               <div className="mt-4 space-y-2">
@@ -68,9 +73,9 @@ export default async function AcceleratedGrowthPage() {
                 ))}
               </div>
             )}
-          </section>
+          </section>}
 
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          {currentTab === "research" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Research Watchlist</p>
             {state.researchWatchlist.length === 0 ? <p className="mt-4 text-sm text-gray-500">No active Deep Research watches.</p> : (
               <div className="mt-4 space-y-3">
@@ -82,7 +87,7 @@ export default async function AcceleratedGrowthPage() {
                 ))}
               </div>
             )}
-          </section>
+          </section>}
         </div>
       </div>
     </main>
