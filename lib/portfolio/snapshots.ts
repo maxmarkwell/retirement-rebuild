@@ -18,7 +18,7 @@ type QuoteRefreshResult = {
   missingTickers: string[];
 };
 
-const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6; // Per request, not per daily run.
+const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6; // Twelve Data free plan: 8 credits/minute.\nconst SNAPSHOT_REFRESH_CREDITS_PER_RUN = 6; // Leave headroom for other traffic.
 const DENVER_TIME_ZONE = "America/Denver";
 
 // ---------------------------------------------------------
@@ -204,7 +204,7 @@ export async function refreshSnapshotQuotesForUser(
   const refreshedTickers: string[] = [];
 
   // Fetch every held symbol in provider-sized batches.
-  for (let offset = 0; offset < tickersNeedingRefresh.length; offset += SNAPSHOT_PROVIDER_FETCH_LIMIT) {
+  for (let offset = 0; offset < Math.min(tickersNeedingRefresh.length, SNAPSHOT_REFRESH_CREDITS_PER_RUN); offset += SNAPSHOT_PROVIDER_FETCH_LIMIT) {
     const tickersToFetch = tickersNeedingRefresh.slice(offset, offset + SNAPSHOT_PROVIDER_FETCH_LIMIT);
     let quotes: Awaited<ReturnType<typeof getMarketQuotes>>;
     try {
@@ -425,7 +425,7 @@ export async function captureDailySnapshotsForUser(
     if (!transaction.portfolio_id || !transaction.ticker || transaction.quantity == null ||
         (transaction.transaction_type !== "buy" && transaction.transaction_type !== "sell")) continue;
     const ticker = transaction.ticker.trim().toUpperCase();
-    if (ticker === "TEST" || ticker === "TEST2") continue;
+    if (ticker === "TEST" || ticker === "TEST2") continue;\n    const era = agEraById.get(transaction.portfolio_id);\n    if (era && (!transaction.created_at || new Date(transaction.created_at).getTime() < new Date(era.inception_at).getTime())) continue;
     const portfolioBalances = balances.get(transaction.portfolio_id) ?? new Map<string, number>();
     const change = Number(transaction.quantity) * (transaction.transaction_type === "buy" ? 1 : -1);
     portfolioBalances.set(ticker, (portfolioBalances.get(ticker) ?? 0) + change);
