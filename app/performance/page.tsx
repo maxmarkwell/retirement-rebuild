@@ -18,6 +18,10 @@ type PerformancePageProps = {
   }>;
 };
 
+// Earlier AI Active snapshots were recorded using the legacy $10,000 accounting base.
+// Do not display them as $200 AG-era returns.
+const FIRST_AG_ERA_ACCOUNTED_SNAPSHOT = "2026-10-14";
+
 function seriesReturnForPortfolio(snapshots: PortfolioSnapshotRecord[], portfolio: { id: string; starting_capital: number | string }) {
   const latest = snapshots.filter((s) => s.portfolio_id === portfolio.id).at(-1);
   if (!latest) return 0;
@@ -176,16 +180,16 @@ export default async function PerformancePage({
     )?.summary ?? null;
 
   const scoreboardRows =
-    summaries.map(
+    summaries.filter(({ portfolio }) => !agEraById.has(portfolio.id) || (allSnapshots ?? []).some((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT)).map(
       ({ portfolio, summary }) => ({
         name: agEraById.has(portfolio.id) ? "Accelerated Growth" : portfolio.name,
-        currentValue: agEraById.has(portfolio.id) ? Number((allSnapshots ?? []).filter((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= "2026-10-14").at(-1)?.total_value ?? 0) : summary.currentValue,
-        returnPct: seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= "2026-10-14") as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }),
+        currentValue: agEraById.has(portfolio.id) ? Number((allSnapshots ?? []).filter((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT).at(-1)?.total_value ?? 0) : summary.currentValue,
+        returnPct: seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }),
         excessReturnPct:
           portfolio.type === "benchmark" ||
           !benchmarkSummary
             ? null
-            : seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], portfolio) -
+            : seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }) -
               seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], summaries.find(({ portfolio: p }) => p.type === "benchmark")!.portfolio),
       })
     );
@@ -205,7 +209,7 @@ export default async function PerformancePage({
     buildExperimentComparisonSeries(
       (allSnapshots ?? []).filter((snapshot) => {
         const era = agEraById.get(snapshot.portfolio_id);
-        return !era || snapshot.snapshot_date >= "2026-10-14";
+        return !era || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT;
       }) as PortfolioSnapshotRecord[],
       comparisonPortfolios.map((portfolio) => ({
         ...portfolio,
