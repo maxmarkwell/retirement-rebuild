@@ -425,7 +425,9 @@ export async function captureDailySnapshotsForUser(
     if (!transaction.portfolio_id || !transaction.ticker || transaction.quantity == null ||
         (transaction.transaction_type !== "buy" && transaction.transaction_type !== "sell")) continue;
     const ticker = transaction.ticker.trim().toUpperCase();
-    if (ticker === "TEST" || ticker === "TEST2") continue;\n    const era = agEraById.get(transaction.portfolio_id);\n    if (era && (!transaction.created_at || new Date(transaction.created_at).getTime() < new Date(era.inception_at).getTime())) continue;
+    if (ticker === "TEST" || ticker === "TEST2") continue;
+    const era = agEraById.get(transaction.portfolio_id);
+    if (era && (!transaction.created_at || new Date(transaction.created_at).getTime() < new Date(era.inception_at).getTime())) continue;
     const portfolioBalances = balances.get(transaction.portfolio_id) ?? new Map<string, number>();
     const change = Number(transaction.quantity) * (transaction.transaction_type === "buy" ? 1 : -1);
     portfolioBalances.set(ticker, (portfolioBalances.get(ticker) ?? 0) + change);
