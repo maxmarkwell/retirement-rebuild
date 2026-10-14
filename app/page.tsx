@@ -152,7 +152,7 @@ export default async function Home() {
 
             return (
               <div key={portfolio.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm text-gray-500">{agState ? "paper strategy" : portfolio.type.replaceAll("_", " ")}</p>
+                <p className="text-sm text-gray-500">{agState ? "Strategy portfolio" : portfolio.type === "real" ? "Real-money portfolio" : portfolio.type === "benchmark" ? "Benchmark portfolio" : portfolio.type.replaceAll("_", " ")}</p>
                 <div className="mt-1 flex items-start justify-between gap-3">
                   <h2 className="text-lg font-semibold text-gray-900">
                     {agEra?.strategy_key === "accelerated_growth" ? "Accelerated Growth" : portfolio.name}

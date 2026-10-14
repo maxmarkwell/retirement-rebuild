@@ -32,11 +32,11 @@ export default function ExperimentScoreboard({
     <div className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900">
-          Phase 1 Experiment Scoreboard
+          Portfolio Performance Scoreboard
         </h2>
 
         <p className="mt-1 text-sm text-gray-500">
-          Compare the AI portfolios against the passive VOO benchmark.
+          Compare active portfolio returns with the VOO benchmark.
         </p>
       </div>
 
