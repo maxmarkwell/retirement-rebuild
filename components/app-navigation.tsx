@@ -9,22 +9,27 @@ import {
 const navigation = [
   {
     name: "Mission Control",
+    mobileName: "Home",
     href: "/",
   },
   {
     name: "Accelerated Growth",
+    mobileName: "Growth",
     href: "/accelerated-growth",
   },
   {
     name: "Performance",
+    mobileName: "Results",
     href: "/performance",
   },
   {
     name: "Discovery",
+    mobileName: "Discover",
     href: "/discovery",
   },
   {
     name: "Research",
+    mobileName: "Research",
     href: "/research",
   },
   {
@@ -81,9 +86,9 @@ export default function AppNavigation() {
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950 pb-[env(safe-area-inset-bottom)] text-slate-100 lg:hidden" aria-label="Mobile navigation">
         <div className="grid grid-cols-5">
           {[navigation[0], navigation[1], navigation[2], navigation[3], navigation[4]].map((item) => (
-            <Link key={item.href} href={item.href} aria-current={activeItem.href === item.href ? "page" : undefined}
+            <Link key={item.href} href={item.href} aria-label={item.name} title={item.name} aria-current={activeItem.href === item.href ? "page" : undefined}
               className={`flex min-h-16 items-center justify-center px-1 text-center text-xs font-medium ${activeItem.href === item.href ? "border-t-2 border-cyan-400 bg-cyan-400/10 text-cyan-300" : "text-slate-400"}`}>
-              {item.name}
+              {item.mobileName ?? item.name}
             </Link>
           ))}
         </div>
