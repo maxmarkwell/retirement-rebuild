@@ -29,11 +29,21 @@ export async function runAgResearchDailyCycle(options?: {
     retryFailed: options?.retryFailed ?? false,
     retrySafety: "may_write",
     work: async (context) => {
+      const heartbeatClient = await createClient();
+      const checkpoint = async (stage: string) => {
+        const { data, error } = await heartbeatClient.from("ag_daily_cycles")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", context.cycleId).eq("portfolio_id", context.portfolioId)
+          .eq("strategy_era_id", context.strategyEraId).eq("status", "running").select("id");
+        if (error || data?.length !== 1) throw new Error(`AG_RESEARCH_CHECKPOINT_FAILED:${stage}: ${error?.message ?? "cycle not running"}`);
+      };
+      await checkpoint("holding_review_start");
       const holdingReviews = await runAgHoldingReviewPipeline();
       if (holdingReviews.errors.length > 0 || holdingReviews.failedCount > 0) {
         throw new Error("Holding reassessment did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
+      await checkpoint("committee_research_start");
       const pipeline = await runAgCommitteePipeline({ maxCandidates });
       if (pipeline.errors.length > 0 || pipeline.failedCount > 0) {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
@@ -61,6 +71,7 @@ export async function runAgResearchDailyCycle(options?: {
         persistedDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
       });
 
+      await checkpoint("research_validated");
       const supabase = await createClient();
       const markStage = async (stage: string) => {
         const { data, error } = await supabase.from("ag_daily_cycles").update({
