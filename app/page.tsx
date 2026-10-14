@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import TransactionHistory from "@/components/transaction-history";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import BuyForm from "@/components/buy-form";
@@ -83,7 +84,9 @@ export default async function Home() {
   const marketPrices: Record<string, number> = {};
   const quoteFetchedAt: Record<string, string> = {};
   if (heldTickers.length > 0) {
-    const { data: cachedQuotes, error: quoteError } = await supabase
+    // Quote cache has no authenticated SELECT policy; server-only service role reads it.
+    // Never expose the service-role key or use this client for user-owned portfolio rows.
+    const { data: cachedQuotes, error: quoteError } = await createAdminClient()
       .from("market_quote_cache")
       .select("ticker, price, fetched_at")
       .in("ticker", heldTickers);
@@ -128,16 +131,17 @@ export default async function Home() {
             );
             const activeHoldings = accounting.holdings;
             const agState = agOperationalState?.portfolioId === portfolio.id ? agOperationalState : null;
-            const capitalBase = Number(agState?.accounting.referenceTotalCapital ?? agEra?.reference_total_capital ?? portfolio.starting_capital) + accounting.contributionsTotal;
-            const currentEquity = agState ? agState.valuation.currentEquity : accounting.permanentCapital;
+            const capitalBase = Number(agEra?.reference_total_capital ?? portfolio.starting_capital) + accounting.contributionsTotal;
+            // AG sleeve equity ($40 risk allocation) is not the $200 total strategy equity.
+            const currentEquity = accounting.permanentCapital;
             const gainLoss = currentEquity - capitalBase;
             const gainLossPct = capitalBase > 0 ? 100 * gainLoss / capitalBase : null;
-            const missingQuotes = !agState && activeHoldings.some((holding) => holding.marketPrice == null);
-            const staleQuotes = !agState && activeHoldings.some((holding) => {
+            const missingQuotes = activeHoldings.some((holding) => holding.marketPrice == null);
+            const staleQuotes = activeHoldings.some((holding) => {
               const fetched = quoteFetchedAt[holding.ticker];
               return !fetched || !Number.isFinite(Date.parse(fetched)) || Date.now() - Date.parse(fetched) > 36 * 60 * 60 * 1000;
             });
-            const unavailable = missingQuotes || staleQuotes || Boolean(agEra && !agState);
+            const unavailable = missingQuotes || staleQuotes;
             const direction = Math.abs(gainLoss) < 0.005 ? "even" : gainLoss > 0 ? "up" : "down";
             const statusStyle = unavailable ? "border-amber-200 bg-amber-50 text-amber-800" : direction === "up" ? "border-green-200 bg-green-50 text-green-800" : direction === "down" ? "border-red-200 bg-red-50 text-red-800" : "border-gray-200 bg-gray-50 text-gray-700";
 
@@ -152,11 +156,11 @@ export default async function Home() {
                 </div>
 
                 <p className="mt-6 text-3xl font-bold text-gray-900">
-                  ${(agState ? agState.valuation.currentEquity : accounting.permanentCapital).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${accounting.permanentCapital.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
-                <p className="mt-1 text-sm text-gray-500">{agState ? "AG Sleeve Equity" : "Permanent Capital"}</p>
+                <p className="mt-1 text-sm text-gray-500">{agEra ? "Total AG Strategy Equity" : "Permanent Capital"}</p>
                 <div className={`mt-4 rounded-lg border px-4 py-3 ${statusStyle}`} aria-label="Portfolio gain or loss">
-                  {unavailable ? <p className="text-sm font-semibold">{agEra && !agState ? "AG valuation unavailable" : missingQuotes ? "Gain/loss unavailable — missing market quotes" : "Gain/loss unavailable — market quotes are stale"}</p> : <>
+                  {unavailable ? <p className="text-sm font-semibold">{missingQuotes ? "Gain/loss unavailable — missing market quotes" : "Gain/loss unavailable — market quotes are stale"}</p> : <>
                     <p className="text-xs font-semibold uppercase tracking-wide">{direction === "up" ? "▲ Up" : direction === "down" ? "▼ Down" : "● Even"} since inception</p>
                     <p className="mt-1 text-xl font-bold tabular-nums">
                       {gainLoss > 0.005 ? "+" : gainLoss < -0.005 ? "−" : ""}${Math.abs(gainLoss).toFixed(2)}
