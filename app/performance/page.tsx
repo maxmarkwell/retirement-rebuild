@@ -127,7 +127,7 @@ export default async function PerformancePage({
 
   // Display the current comparison cohort without deleting historical portfolios.
   const experimentTypes = new Set([
-    "paper_active",
+    "real",
     "paper_active",
     "benchmark",
   ]);
@@ -180,8 +180,8 @@ export default async function PerformancePage({
           portfolio.type === "benchmark" ||
           !benchmarkSummary
             ? null
-            : summary.returnPct -
-              benchmarkSummary.returnPct,
+            : seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], portfolio) -
+              seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], summaries.find(({ portfolio: p }) => p.type === "benchmark")!.portfolio),
       })
     );
 
