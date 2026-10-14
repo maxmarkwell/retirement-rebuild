@@ -25,9 +25,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full">
         <AppNavigation />
-        {children}
+        <div className="min-h-screen pb-20 lg:pl-60 lg:pb-0">{children}</div>
         <ReassessmentNotificationCenter />
       </body>
     </html>
