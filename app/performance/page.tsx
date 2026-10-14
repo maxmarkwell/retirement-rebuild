@@ -66,7 +66,7 @@ export default async function PerformancePage({
       (portfolio) =>
         portfolio.id === selectedPortfolioId
     ) ??
-    portfolios?.[0] ??
+    portfolios?.find((portfolio) => portfolio.type === "real") ?? portfolios?.find((portfolio) => portfolio.type !== "paper_long_term") ??
     null;
 
   // ---------------------------------------------------------
@@ -125,7 +125,7 @@ export default async function PerformancePage({
 
   if (allSnapshotsError) {
     throw new Error(
-      `Unable to load experiment snapshots: ${allSnapshotsError.message}`
+      `Unable to load portfolio snapshots: ${allSnapshotsError.message}`
     );
   }
 
@@ -257,7 +257,7 @@ export default async function PerformancePage({
               }
               className="w-full max-w-sm rounded border border-gray-300 bg-white px-3 py-2"
             >
-              {portfolios?.map(
+              {portfolios?.filter((portfolio) => portfolio.type !== "paper_long_term").map(
                 (portfolio) => (
                   <option
                     key={portfolio.id}
@@ -278,7 +278,7 @@ export default async function PerformancePage({
           </form>
         </div>
 
-        {/* Experiment Scoreboard */}
+        {/* Portfolio performance scoreboard */}
 
         <ExperimentScoreboard
           rows={scoreboardRows}
