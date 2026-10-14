@@ -107,24 +107,24 @@ export default async function PortfolioWorkspace({ params, searchParams }: PageP
       {currentTab === "activity" && <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">Transaction activity</h2>
         <p className="mt-1 text-xs text-slate-500">{activityRecords.length} matching transactions</p>
-        <form className="mt-4 flex flex-wrap items-end gap-2">
+        <form className="mt-4 grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap">
           <input type="hidden" name="tab" value="activity" />
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">Ticker
-            <input name="activitySearch" defaultValue={activityQuery} placeholder="Search ticker" maxLength={40} className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900" />
+          <label className="col-span-2 flex min-w-0 flex-col gap-1 text-xs font-semibold text-slate-600 sm:col-span-1">Ticker
+            <input name="activitySearch" defaultValue={activityQuery} placeholder="Search ticker" maxLength={40} className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 sm:w-40" />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">Type
-            <select name="activityType" defaultValue={activityKind} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900"><option value="all">All transactions</option><option value="buy">Buys</option><option value="sell">Sells</option></select>
+          <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-slate-600">Type
+            <select name="activityType" defaultValue={activityKind} className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900"><option value="all">All transactions</option><option value="buy">Buys</option><option value="sell">Sells</option></select>
           </label>
           <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Apply</button>
-          <Link href={`/portfolios/${id}?tab=activity`} className="px-2 py-2 text-sm font-semibold text-cyan-800">Reset</Link>
+          <Link href={`/portfolios/${id}?tab=activity`} className="col-span-2 px-2 py-2 text-center text-sm font-semibold text-cyan-800 sm:col-span-1">Reset</Link>
         </form>
         <div className="mt-4 divide-y divide-slate-100">
           {visibleActivity.map((t) => <details key={t.id} className="py-3">
-            <summary className="flex cursor-pointer items-center justify-between gap-3 rounded-lg p-2 text-sm hover:bg-slate-50">
+            <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-lg p-2 text-sm hover:bg-slate-50">
               <span><strong className="uppercase text-cyan-800">{t.transaction_type}</strong> <strong className="ml-1">{t.ticker ?? "—"}</strong><span className="mt-1 block text-xs text-slate-500">{t.transaction_date ?? t.created_at?.slice(0, 10) ?? "Date unavailable"}</span></span>
-              <span className="text-right"><strong className="block tabular-nums">{money(Number(t.gross_amount ?? 0))}</strong><span className="text-xs text-slate-500">{t.quantity == null ? "—" : Number(t.quantity).toLocaleString("en-US", { maximumFractionDigits: 8 }) + " shares"} ▾</span></span>
+              <span className="min-w-0 text-right"><strong className="block tabular-nums">{money(Number(t.gross_amount ?? 0))}</strong><span className="text-xs text-slate-500">{t.quantity == null ? "—" : Number(t.quantity).toLocaleString("en-US", { maximumFractionDigits: 8 }) + " shares"} ▾</span></span>
             </summary>
-            <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm"><div><span className="text-slate-500">Gross amount</span><strong className="block">{money(Number(t.gross_amount ?? 0))}</strong></div><div><span className="text-slate-500">Fees</span><strong className="block">{money(Number(t.fees ?? 0))}</strong></div></div>
+            <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm [overflow-wrap:anywhere]"><div><span className="text-slate-500">Gross amount</span><strong className="block">{money(Number(t.gross_amount ?? 0))}</strong></div><div><span className="text-slate-500">Fees</span><strong className="block">{money(Number(t.fees ?? 0))}</strong></div></div>
           </details>)}
         </div>
         {!visibleActivity.length && <p className="py-8 text-center text-sm text-slate-500">No transactions match these filters.</p>}
