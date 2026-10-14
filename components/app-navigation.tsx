@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   usePathname,
 } from "next/navigation";
@@ -43,6 +44,7 @@ const navigation = [
 export default function AppNavigation() {
   const pathname =
     usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
 
 
 
@@ -85,12 +87,13 @@ export default function AppNavigation() {
             </Link>
           ))}
         </div>
-        <details className="absolute bottom-full right-2 mb-2 rounded-lg border border-slate-700 bg-slate-950 shadow-xl">
-          <summary className="cursor-pointer px-4 py-2 text-xs text-cyan-300">More sections</summary>
-          <div className="grid min-w-40 gap-1 p-2">
-            {navigation.slice(5).map((item) => <Link key={item.href} href={item.href} className="rounded px-3 py-2 text-sm hover:bg-slate-800">{item.name}</Link>)}
+        {moreOpen && <div className="absolute inset-x-0 bottom-full border-t border-slate-700 bg-slate-950 p-3 shadow-2xl">
+          <div className="mb-2 flex items-center justify-between px-2"><span className="text-xs font-bold uppercase tracking-wide text-slate-400">More sections</span><button type="button" onClick={() => setMoreOpen(false)} className="rounded-lg px-3 py-2 text-sm text-white">Close ✕</button></div>
+          <div className="grid grid-cols-2 gap-2">
+            {navigation.slice(5).map((item) => <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)} className={`rounded-lg px-3 py-3 text-center text-sm ${activeItem.href === item.href ? "bg-cyan-400/15 text-cyan-300" : "bg-slate-900 text-slate-200"}`}>{item.name}</Link>)}
           </div>
-        </details>
+        </div>}
+        <button type="button" aria-expanded={moreOpen} aria-label="More navigation sections" onClick={() => setMoreOpen((open) => !open)} className="absolute bottom-full right-2 mb-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-semibold text-cyan-300 shadow-lg">{moreOpen ? "Close ✕" : "More sections"}</button>
       </nav>
     </>
   );
