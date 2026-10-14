@@ -18,7 +18,8 @@ type QuoteRefreshResult = {
   missingTickers: string[];
 };
 
-const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6; // Twelve Data free plan: 8 credits/minute.\nconst SNAPSHOT_REFRESH_CREDITS_PER_RUN = 6; // Leave headroom for other traffic.
+const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6; // Twelve Data free plan: 8 credits/minute.
+const SNAPSHOT_REFRESH_CREDITS_PER_RUN = 6; // Leave headroom for other traffic.
 const DENVER_TIME_ZONE = "America/Denver";
 
 // ---------------------------------------------------------
