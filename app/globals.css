@@ -24,3 +24,30 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Consistent, readable form fields across the command center. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  color: #0f172a;
+  background-color: #ffffff;
+  border-color: #94a3b8;
+  color-scheme: light;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #475569;
+  opacity: 1;
+}
+
+label {
+  color: #334155;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-color: #2563eb;
+  outline-offset: 2px;
+}
