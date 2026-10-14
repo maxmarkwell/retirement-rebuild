@@ -157,7 +157,7 @@ export default async function Home() {
                   <h2 className="text-lg font-semibold text-gray-900">
                     {agEra?.strategy_key === "accelerated_growth" ? "Accelerated Growth" : portfolio.name}
                   </h2>
-                  {agState && <Link href="/accelerated-growth" className="text-xs font-semibold text-gray-600 underline underline-offset-2">Open</Link>}
+                  <Link href={`/portfolios/${portfolio.id}`} className="text-xs font-semibold text-cyan-800 underline underline-offset-2">Open workspace →</Link>
                 </div>
 
                 <p className="mt-6 text-3xl font-bold text-gray-900">
