@@ -125,6 +125,11 @@ export default async function PerformancePage({
     );
   }
 
+  const { data: agEras, error: agErasError } = await supabase.from("portfolio_strategy_eras")
+    .select("portfolio_id, inception_at, reference_total_capital")
+    .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper").is("ended_at", null);
+  if (agErasError) throw new Error(`Unable to load AG era: ${agErasError.message}`);
+  const agEraById = new Map((agEras ?? []).map((era) => [era.portfolio_id, era]));
   // Display the current comparison cohort without deleting historical portfolios.
   const experimentTypes = new Set([
     "real",
@@ -134,7 +139,7 @@ export default async function PerformancePage({
 
   const experimentPortfolios =
     (portfolios ?? []).filter((portfolio) =>
-      experimentTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || /accelerated growth|\bAG\b/i.test(portfolio.name))
+      experimentTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || agEraById.has(portfolio.id))
     );
 
   const summaries =
@@ -173,7 +178,7 @@ export default async function PerformancePage({
   const scoreboardRows =
     summaries.map(
       ({ portfolio, summary }) => ({
-        name: portfolio.name,
+        name: agEraById.has(portfolio.id) ? "Accelerated Growth" : portfolio.name,
         currentValue: summary.currentValue,
         returnPct: seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], portfolio),
         excessReturnPct:
@@ -193,12 +198,15 @@ export default async function PerformancePage({
 
   const comparisonPortfolios =
     (portfolios ?? []).filter((portfolio) =>
-      comparisonTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || /accelerated growth|\bAG\b/i.test(portfolio.name))
+      comparisonTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || agEraById.has(portfolio.id))
     );
 
   const comparisonSeries =
     buildExperimentComparisonSeries(
-      (allSnapshots ?? []) as PortfolioSnapshotRecord[],
+      (allSnapshots ?? []).filter((snapshot) => {
+        const era = agEraById.get(snapshot.portfolio_id);
+        return !era || snapshot.snapshot_date >= era.inception_at.slice(0, 10);
+      }) as PortfolioSnapshotRecord[],
       comparisonPortfolios
     );
 
