@@ -120,7 +120,7 @@ export default async function Home() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {portfolios?.map((portfolio) => {
+          {portfolios?.filter((portfolio) => portfolio.type !== "paper_long_term").map((portfolio) => {
             const agEra = portfolio.type === "paper_active" ? agEraByPortfolioId.get(portfolio.id) : undefined;
             const accounting = calculatePortfolioAccounting(
               portfolio,
@@ -141,7 +141,12 @@ export default async function Home() {
               const fetched = quoteFetchedAt[holding.ticker];
               return !fetched || !Number.isFinite(Date.parse(fetched)) || Date.now() - Date.parse(fetched) > 36 * 60 * 60 * 1000;
             });
-            const unavailable = missingQuotes || staleQuotes;
+            const unavailable = missingQuotes;
+            const quoteDates = activeHoldings.map((holding) => quoteFetchedAt[holding.ticker]).filter((date): date is string => Boolean(date));
+            const oldestQuoteDate = quoteDates.length ? new Date(Math.min(...quoteDates.map((date) => Date.parse(date)))) : null;
+            const quoteAsOf = oldestQuoteDate && Number.isFinite(oldestQuoteDate.getTime())
+              ? oldestQuoteDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Denver" })
+              : null;
             const direction = Math.abs(gainLoss) < 0.005 ? "even" : gainLoss > 0 ? "up" : "down";
             const statusStyle = unavailable ? "border-amber-200 bg-amber-50 text-amber-800" : direction === "up" ? "border-green-200 bg-green-50 text-green-800" : direction === "down" ? "border-red-200 bg-red-50 text-red-800" : "border-gray-200 bg-gray-50 text-gray-700";
 
@@ -166,7 +171,10 @@ export default async function Home() {
                       {gainLoss > 0.005 ? "+" : gainLoss < -0.005 ? "−" : ""}${Math.abs(gainLoss).toFixed(2)}
                       <span className="ml-2 text-base">({gainLossPct == null ? "N/A" : `${gainLossPct > 0.005 ? "+" : gainLossPct < -0.005 ? "−" : ""}${Math.abs(gainLossPct).toFixed(2)}%`})</span>
                     </p>
-                    <p className="mt-1 text-xs opacity-80">Investment return excluding contributions · cached quotes</p>
+                    <p className="mt-1 text-xs opacity-80">
+                      Investment return excluding contributions
+                      {quoteAsOf ? ` · Prices as of ${quoteAsOf}${staleQuotes ? " (older quotes)" : ""}` : " · No open positions"}
+                    </p>
                   </>}
                 </div>
 
