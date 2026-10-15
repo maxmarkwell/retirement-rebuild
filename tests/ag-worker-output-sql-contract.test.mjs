@@ -13,6 +13,7 @@ test("database checks version, cycle, stage and nonempty payload", () => {
 });
 test("completion requires valid claim and running cycle", () => {
   assert.match(sql, /claim_token=p_token/);
+  assert.ok(sql.includes("status=\u0027running\u0027 for update"));
   assert.match(sql, /lease_expires_at>now\(\)/);
   assert.match(sql, /where id=p_cycle_id and status='running'/);
 });
