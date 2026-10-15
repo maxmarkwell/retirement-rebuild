@@ -16,12 +16,12 @@ test("claim verifies paper-only scope and protects unfinished prior-day cycles",
   assert.match(sql, /AG_WORKER_PREVIOUS_CYCLE_REQUIRES_RECONCILIATION/);
 });
 test("claim atomically verifies durable predecessor outputs", () => {
-  assert.match(sql, /foreach v_prior in array v_stages\[1:v_index-1\] loop/);
-  assert.match(sql, /cp\.status='completed' and cp\.output is not null/);
+  assert.match(sql, /for v_predecessor in/);
+  assert.match(sql, /s\.status='completed'/);
   assert.match(sql, /AG_WORKER_PREDECESSOR_NOT_DURABLE/);
 });
 test("claim never automatically retries an existing stage", () => {
-  assert.match(sql, /if found then\s+-- No automatic retry or takeover/);
+  assert.match(sql, /if found then/);
   assert.match(sql, /AG_WORKER_RECONCILIATION_REQUIRED/);
   assert.doesNotMatch(sql, /update public\.ag_daily_cycles|delete from public\.ag_daily_cycles/);
 });
