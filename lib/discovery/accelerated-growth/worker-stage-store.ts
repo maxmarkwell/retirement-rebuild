@@ -51,6 +51,7 @@ export async function claimAgWorkerStage(input: {
   });
   assertAgWorkerStageEligible({
     stage: input.stage,
+    cycleId: cycle.id,
     checkpoints: rows as AgWorkerStageCheckpoint[],
   });
 
