@@ -1,3 +1,9 @@
+# Retirement Rebuild
+
+For project continuity, read the [vision and governing principles](docs/RETIREMENT_REBUILD_VISION.md) and the [operational status and cross-session handoff](docs/RETIREMENT_REBUILD_OPERATIONAL_STATUS.md) before modifying the investment research or execution workflows.
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
