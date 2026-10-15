@@ -19,6 +19,9 @@ declare
   v_output jsonb;
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
+  if p_cycle_id = '583809c1-7157-4ad4-b343-56acc332a145'::uuid then
+    raise exception 'AG_WORKER_PROTECTED_CYCLE';
+  end if;
   if p_lease_seconds < 30 or p_lease_seconds > 300 then raise exception 'AG_WORKER_INVALID_LEASE'; end if;
   v_position := array_position(v_predecessors,p_stage);
   if v_position is null then raise exception 'AG_WORKER_INVALID_STAGE'; end if;
