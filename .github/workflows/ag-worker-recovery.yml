@@ -1,0 +1,29 @@
+name: AG worker recovery policy validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/worker-recovery-policy*.ts'
+      - '.github/workflows/ag-worker-recovery.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/discovery/accelerated-growth/worker-recovery-policy*.ts'
+      - '.github/workflows/ag-worker-recovery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  policy-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/worker-recovery-policy.test.ts
+      - run: npx tsc --noEmit --incremental false
