@@ -31,6 +31,45 @@ export async function getAgDailyCycleStatus() {
   if (unfinishedError) throw new Error(`Unable to inspect earlier AG cycles: ${unfinishedError.message}`);
   const previousUnfinishedCycle = unfinishedCycles?.[0] ?? null;
 
+  // Read-only inventory for an earlier unfinished cycle. Never infer safe retry
+  // from zero rows: legacy persistence may not have emitted ledger entries.
+  let previousCycleReconciliation: {
+    stageCheckpoints: number; symbolCheckpoints: number;
+    watchWriteRecords: number; decisionWriteRecords: number;
+    attributedDecisionCount: number; decisionInventoryTruncated: boolean;
+  } | null = null;
+  if (previousUnfinishedCycle) {
+    const cycleId = previousUnfinishedCycle.id;
+    const tables = [
+      "ag_cycle_stage_checkpoints",
+      "ag_cycle_symbol_checkpoints",
+      "ag_cycle_watch_writes",
+      "ag_cycle_decision_writes",
+    ] as const;
+    const counts: number[] = [];
+    for (const table of tables) {
+      const { count, error: countError } = await supabase.from(table)
+        .select("id", { count: "exact", head: true }).eq("cycle_id", cycleId);
+      if (countError) throw new Error(`Unable to inspect ${table}: ${countError.message}`);
+      counts.push(count ?? 0);
+    }
+    const { data: previousDecisions, error: previousDecisionError } = await supabase
+      .from("investment_decisions").select("id, notes")
+      .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
+      .eq("source", "ai_committee")
+      .like("notes", `%"agCycleId":"${cycleId}"%`).limit(201);
+    if (previousDecisionError) throw new Error(`Unable to inspect earlier cycle decisions: ${previousDecisionError.message}`);
+    previousCycleReconciliation = {
+      stageCheckpoints: counts[0], symbolCheckpoints: counts[1],
+      watchWriteRecords: counts[2], decisionWriteRecords: counts[3],
+      attributedDecisionCount: (previousDecisions ?? []).filter((row) => {
+        try { return JSON.parse(row.notes ?? "{}").agCycleId === cycleId; }
+        catch { return false; }
+      }).length,
+      decisionInventoryTruncated: (previousDecisions?.length ?? 0) > 200,
+    };
+  }
+
   const stageMarker = cycle?.failure_message?.match(/^AG_PERSISTENCE_IN_PROGRESS:([a-z_]+)$/)?.[1] ?? null;
   const failedStage = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:([a-z_]+):/)?.[1] ?? null;
   const persistenceStage = stageMarker ?? failedStage;
@@ -103,6 +142,7 @@ export async function getAgDailyCycleStatus() {
   return {
     cycleDate,
     previousUnfinishedCycle,
+    previousCycleReconciliation,
     stalled,
     lastActivityAt,
     hasCycleToday: Boolean(cycle),
