@@ -12,6 +12,9 @@ on:
       - 'lib/discovery/accelerated-growth/daily-cycle-status.ts'
       - 'lib/discovery/accelerated-growth/daily-cycle-work.ts'
       - 'app/api/accelerated-growth/daily-cycle/route.ts'
+      - 'lib/discovery/accelerated-growth/worker-*.ts'
+      - 'supabase/migrations/*ag_worker*.sql'
+      - 'tests/ag-worker-*.test.mjs'
       - '.github/workflows/ag-paper-buy-safety.yml'
   push:
     branches: [main]
@@ -25,6 +28,9 @@ on:
       - 'lib/discovery/accelerated-growth/daily-cycle-status.ts'
       - 'lib/discovery/accelerated-growth/daily-cycle-work.ts'
       - 'app/api/accelerated-growth/daily-cycle/route.ts'
+      - 'lib/discovery/accelerated-growth/worker-*.ts'
+      - 'supabase/migrations/*ag_worker*.sql'
+      - 'tests/ag-worker-*.test.mjs'
       - '.github/workflows/ag-paper-buy-safety.yml'
 
 permissions:
@@ -40,7 +46,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node --test tests/ag-paper-buy-migration-contract.test.mjs tests/ag-production-discovery-contract.test.mjs
+      - run: node --test tests/ag-paper-buy-migration-contract.test.mjs tests/ag-production-discovery-contract.test.mjs tests/ag-worker-*.test.mjs
       - run: npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/buy-activation-policy.test.ts
       - run: npx next typegen
       - run: npx tsc --noEmit --incremental false
