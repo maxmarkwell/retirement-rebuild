@@ -6,7 +6,6 @@ import ExperimentScoreboard from "@/components/experiment-scoreboard";
 import {
   buildExperimentComparisonSeries,
   buildPerformanceSeries,
-  calculatePerformanceSummary,
   type PortfolioSnapshotRecord,
 } from "@/lib/portfolio/performance";
 
@@ -146,53 +145,23 @@ export default async function PerformancePage({
       experimentTypes.has(portfolio.type) && (portfolio.type !== "paper_active" || agEraById.has(portfolio.id))
     );
 
-  const summaries =
-    experimentPortfolios.map(
-      (portfolio) => {
-        const portfolioSnapshots =
-          (allSnapshots ?? []).filter(
-            (snapshot) =>
-              snapshot.portfolio_id === portfolio.id
-          );
-
-        const series =
-          buildPerformanceSeries(
-            portfolioSnapshots as PortfolioSnapshotRecord[]
-          );
-
-        const summary =
-          calculatePerformanceSummary(
-            series,
-            Number(portfolio.starting_capital)
-          );
-
-        return {
-          portfolio,
-          summary,
-        };
-      }
+  // Only display returns supported by a recorded snapshot in the current strategy era.
+  // Benchmark-relative returns remain unavailable until aligned-period methodology is implemented.
+  const scoreboardRows = experimentPortfolios.map((portfolio) => {
+    const era = agEraById.get(portfolio.id);
+    const history = (allSnapshots ?? []).filter((snapshot) =>
+      snapshot.portfolio_id === portfolio.id &&
+      (!era || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT)
     );
-
-  const benchmarkSummary =
-    summaries.find(
-      ({ portfolio }) =>
-        portfolio.type === "benchmark"
-    )?.summary ?? null;
-
-  const scoreboardRows =
-    summaries.filter(({ portfolio }) => !agEraById.has(portfolio.id) || (allSnapshots ?? []).some((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT)).map(
-      ({ portfolio, summary }) => ({
-        name: agEraById.has(portfolio.id) ? "Accelerated Growth" : portfolio.name,
-        currentValue: agEraById.has(portfolio.id) ? Number((allSnapshots ?? []).filter((snapshot) => snapshot.portfolio_id === portfolio.id && snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT).at(-1)?.total_value ?? 0) : summary.currentValue,
-        returnPct: seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }),
-        excessReturnPct:
-          portfolio.type === "benchmark" ||
-          !benchmarkSummary
-            ? null
-            : seriesReturnForPortfolio((allSnapshots ?? []).filter((snapshot) => !agEraById.has(snapshot.portfolio_id) || snapshot.snapshot_date >= FIRST_AG_ERA_ACCOUNTED_SNAPSHOT) as PortfolioSnapshotRecord[], { ...portfolio, starting_capital: agEraById.get(portfolio.id)?.reference_total_capital ?? portfolio.starting_capital }) -
-              seriesReturnForPortfolio((allSnapshots ?? []) as PortfolioSnapshotRecord[], summaries.find(({ portfolio: p }) => p.type === "benchmark")!.portfolio),
-      })
-    );
+    const latest = history.at(-1);
+    const base = Number(era?.reference_total_capital ?? portfolio.starting_capital);
+    return {
+      name: era ? "Accelerated Growth" : portfolio.type === "benchmark" ? "VOO Benchmark" : portfolio.name,
+      currentValue: latest ? Number(latest.total_value) : null,
+      returnPct: latest ? seriesReturnForPortfolio(history as PortfolioSnapshotRecord[], { id: portfolio.id, starting_capital: base }) : null,
+      excessReturnPct: null,
+    };
+  });
 
   const comparisonTypes = new Set([
     "real",
