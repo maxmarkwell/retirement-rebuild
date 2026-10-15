@@ -23,6 +23,14 @@ export async function getAgDailyCycleStatus() {
     .maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
+  const { data: unfinishedCycles, error: unfinishedError } = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date, updated_at")
+    .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
+    .eq("strategy_era_id", era.id).eq("status", "running")
+    .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
+  if (unfinishedError) throw new Error(`Unable to inspect earlier AG cycles: ${unfinishedError.message}`);
+  const previousUnfinishedCycle = unfinishedCycles?.[0] ?? null;
+
   const stageMarker = cycle?.failure_message?.match(/^AG_PERSISTENCE_IN_PROGRESS:([a-z_]+)$/)?.[1] ?? null;
   const failedStage = cycle?.failure_message?.match(/^AG_PERSISTENCE_STAGE_FAILED:([a-z_]+):/)?.[1] ?? null;
   const persistenceStage = stageMarker ?? failedStage;
@@ -94,6 +102,7 @@ export async function getAgDailyCycleStatus() {
 
   return {
     cycleDate,
+    previousUnfinishedCycle,
     stalled,
     lastActivityAt,
     hasCycleToday: Boolean(cycle),

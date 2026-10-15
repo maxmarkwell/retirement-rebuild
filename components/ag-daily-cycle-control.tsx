@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 type CycleStatus = {
   cycleDate: string;
   hasCycleToday: boolean;
+  previousUnfinishedCycle: { cycle_date: string; updated_at: string } | null;
   stalled: boolean;
   lastActivityAt: string | null;
   status: string;
@@ -70,7 +71,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
   const completed = status.status === "completed";
   const failed = status.status === "failed";
-  const label = running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
+  const label = status.previousUnfinishedCycle ? "Previous Cycle Needs Review" : running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
@@ -82,7 +83,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         <button
           type="button"
           onClick={runCycle}
-          disabled={running || completed || failed || status.status === "running"}
+          disabled={running || completed || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)}
           className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {label}
@@ -90,6 +91,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       </div>
 
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
+      {status.previousUnfinishedCycle && <p role="alert" className="mt-2 text-xs font-semibold text-amber-800">The {status.previousUnfinishedCycle.cycle_date} research cycle is unfinished. New research is paused until it is reconciled.</p>}
       {status.status === "running" && <p role="status" className="mt-2 text-xs text-amber-800">{status.stalled ? "No recorded activity for at least seven minutes. This cycle needs review before another attempt." : "Cycle is recorded as running. This does not guarantee the server request is still active."}</p>}
       {status.lastActivityAt && <p className="mt-1 text-xs text-gray-500">Last recorded activity: {new Date(status.lastActivityAt).toLocaleString()}</p>}
       <button type="button" onClick={() => void refreshStatus()} className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800">Refresh Cycle Status</button>
