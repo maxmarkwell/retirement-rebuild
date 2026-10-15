@@ -7,14 +7,14 @@ language plpgsql security definer set search_path = public, pg_temp
 as $$
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
-  if p_output is null or jsonb_typeof(p_output) <> 'object'
-     or p_output->>'schemaVersion' <> '1'
-     or p_output->>'cycleId' <> p_cycle_id::text
-     or p_output->>'stage' <> p_stage
-     or jsonb_typeof(p_output->'payload') <> 'object'
-     or p_output->'payload' = '{}'::jsonb
-     or jsonb_typeof(p_output->'producedAt') <> 'string'
-     or length(p_output->>'producedAt') = 0
+  if p_output is null or jsonb_typeof(p_output) is distinct from 'object'
+     or p_output->>'schemaVersion' is distinct from '1'
+     or p_output->>'cycleId' is distinct from p_cycle_id::text
+     or p_output->>'stage' is distinct from p_stage
+     or jsonb_typeof(p_output->'payload') is distinct from 'object'
+     or p_output->'payload' is not distinct from '{}'::jsonb
+     or jsonb_typeof(p_output->'producedAt') is distinct from 'string'
+     or coalesce(length(p_output->>'producedAt'), 0) = 0
   then raise exception 'AG_WORKER_OUTPUT_INVALID'; end if;
 
   update public.ag_cycle_stage_checkpoints
