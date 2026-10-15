@@ -47,6 +47,24 @@ begin
   if not public.ag_worker_renew_stage(v_cycle,'holding_review',v_token,60) then
     raise exception 'TEST_FAILED: valid renewal refused';
   end if;
+  begin
+    perform public.ag_worker_complete_stage(v_cycle,'holding_review',v_token,
+      jsonb_build_object('schemaVersion',1,'cycleId',gen_random_uuid(),
+        'stage','holding_review','producedAt',now()::text,'payload',jsonb_build_object('ok',true)));
+    raise exception 'TEST_FAILED: wrong output cycle accepted';
+  exception when others then
+    if sqlerrm = 'TEST_FAILED: wrong output cycle accepted' then raise; end if;
+    if position('AG_WORKER_OUTPUT_INVALID' in sqlerrm)=0 then raise; end if;
+  end;
+  begin
+    perform public.ag_worker_complete_stage(v_cycle,'holding_review',v_token,
+      jsonb_build_object('schemaVersion',1,'cycleId',v_cycle,
+        'stage','discovery','producedAt',now()::text,'payload',jsonb_build_object('ok',true)));
+    raise exception 'TEST_FAILED: wrong output stage accepted';
+  exception when others then
+    if sqlerrm = 'TEST_FAILED: wrong output stage accepted' then raise; end if;
+    if position('AG_WORKER_OUTPUT_INVALID' in sqlerrm)=0 then raise; end if;
+  end;
   if public.ag_worker_complete_stage(v_cycle,'holding_review',gen_random_uuid(),
     jsonb_build_object('schemaVersion',1,'cycleId',v_cycle,'stage','holding_review',
       'producedAt',now()::text,'payload',jsonb_build_object('checked',true))) then
