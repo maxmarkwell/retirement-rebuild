@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Two independent database sessions contend for the same synthetic stage.
-# Requires PGHOST/PGPORT/PGUSER/PGDATABASE/PGPASSWORD pointing ONLY to disposable DB.
-: "${PGHOST:?isolated PGHOST required}"
-: "${PGPORT:?isolated PGPORT required}"
-: "${PGUSER:?isolated PGUSER required}"
-: "${PGDATABASE:?isolated PGDATABASE required}"
+: "${1:?disposable Docker container name required}"
+container="$1"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 cat > "$tmp/claim.sql" <<'SQL'
@@ -13,9 +10,9 @@ cat > "$tmp/claim.sql" <<'SQL'
 select set_config('request.jwt.claim.role','service_role',false);
 select public.ag_worker_claim_stage('44444444-4444-4444-8444-444444444444'::uuid,'holding_review',60);
 SQL
-psql -X -A -t -f "$tmp/claim.sql" > "$tmp/one.out" 2> "$tmp/one.err" &
+docker exec -i "$container" psql -X -A -t -U postgres -d ag_worker_test < "$tmp/claim.sql" > "$tmp/one.out" 2> "$tmp/one.err" &
 one=$!
-psql -X -A -t -f "$tmp/claim.sql" > "$tmp/two.out" 2> "$tmp/two.err" &
+docker exec -i "$container" psql -X -A -t -U postgres -d ag_worker_test < "$tmp/claim.sql" > "$tmp/two.out" 2> "$tmp/two.err" &
 two=$!
 status_one=0; wait "$one" || status_one=$?
 status_two=0; wait "$two" || status_two=$?
