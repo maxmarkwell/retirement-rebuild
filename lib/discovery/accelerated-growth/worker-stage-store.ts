@@ -1,4 +1,5 @@
 import "server-only";
+import { validateAgWorkerStageOutput } from "./worker-stage-output";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   assertAgWorkerCycleScope,
@@ -78,12 +79,13 @@ export async function completeAgWorkerStage(input: {
   if (!input.claimToken || !input.output || Array.isArray(input.output)) {
     throw new Error("AG_WORKER_COMPLETION_INVALID");
   }
+  const validatedOutput = validateAgWorkerStageOutput(input.output, { cycleId: input.cycleId, stage: input.stage });
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("ag_worker_complete_stage", {
     p_cycle_id: input.cycleId,
     p_stage: input.stage,
     p_token: input.claimToken,
-    p_output: input.output,
+    p_output: validatedOutput,
   });
   if (error || data !== true) throw new Error("AG_WORKER_COMPLETION_REJECTED:" + (error?.message ?? "lease invalid"));
 }
