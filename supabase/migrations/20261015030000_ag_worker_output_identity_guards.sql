@@ -4,7 +4,7 @@ create or replace function public.ag_worker_complete_stage(
   p_cycle_id uuid, p_stage text, p_token uuid, p_output jsonb
 ) returns boolean
 language plpgsql security definer set search_path = public, pg_temp
-as $
+as $$
 declare
   v_cycle_id uuid;
 begin
