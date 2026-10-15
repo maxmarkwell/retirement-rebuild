@@ -26,4 +26,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/worker-recovery-policy.test.ts
+      - run: npx next typegen
       - run: npx tsc --noEmit --incremental false
