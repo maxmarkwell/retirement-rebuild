@@ -57,10 +57,10 @@ begin
         and s.strategy_era_id=v_cycle.strategy_era_id
         and s.status='completed';
     if not found or v_output is null or jsonb_typeof(v_output)<>'object'
-      or v_output->>'schemaVersion'<>'1'
-      or v_output->>'cycleId'<>p_cycle_id::text
-      or v_output->>'stage'<>v_predecessor
-      or jsonb_typeof(v_output->'payload')<>'object'
+      or v_output->>'schemaVersion' is distinct from '1'
+      or v_output->>'cycleId' is distinct from p_cycle_id::text
+      or v_output->>'stage' is distinct from v_predecessor
+      or jsonb_typeof(v_output->'payload') is distinct from 'object'
       or v_output->'payload'='{}'::jsonb
     then raise exception 'AG_WORKER_PREDECESSOR_NOT_DURABLE: %',v_predecessor; end if;
   end loop;
