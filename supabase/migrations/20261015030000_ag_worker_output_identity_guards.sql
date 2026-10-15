@@ -9,6 +9,9 @@ declare
   v_cycle_id uuid;
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
+  if p_cycle_id = '583809c1-7157-4ad4-b343-56acc332a145'::uuid then
+    raise exception 'AG_WORKER_PROTECTED_CYCLE';
+  end if;
   if p_output is null or jsonb_typeof(p_output) is distinct from 'object'
      or p_output->>'schemaVersion' is distinct from '1'
      or p_output->>'cycleId' is distinct from p_cycle_id::text
