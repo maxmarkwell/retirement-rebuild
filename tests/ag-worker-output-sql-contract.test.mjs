@@ -17,7 +17,7 @@ test("completion requires valid claim and running cycle", () => {
   assert.match(sql, /where id=p_cycle_id and status='running'/);
 });
 test("completion is service-role-only and does not modify cycle state", () => {
-  assert.match(sql, /auth\.role\(\) is distinct from 'service_role'/);
+  assert.match(sql, /auth\.role\(\) <> 'service_role'/);
   assert.match(sql, /grant execute on function public\.ag_worker_complete_stage\([^;]+to service_role;/s);
   assert.doesNotMatch(sql, /update public\.ag_daily_cycles|delete from public\.ag_daily_cycles/);
 });
