@@ -64,6 +64,8 @@ export function assertAgWorkerStageEligible(input: {
         (output as Record<string, unknown>).schemaVersion !== 1 ||
         (output as Record<string, unknown>).cycleId !== input.cycleId ||
         (output as Record<string, unknown>).stage !== predecessor ||
+        typeof (output as Record<string, unknown>).producedAt !== "string" ||
+        !Number.isFinite(Date.parse((output as Record<string, unknown>).producedAt as string)) ||
         typeof (output as Record<string, unknown>).payload !== "object" ||
         (output as Record<string, unknown>).payload === null ||
         Array.isArray((output as Record<string, unknown>).payload) ||
