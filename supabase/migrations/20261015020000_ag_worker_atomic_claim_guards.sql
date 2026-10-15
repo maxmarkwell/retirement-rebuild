@@ -56,12 +56,14 @@ begin
         and s.portfolio_id=v_cycle.portfolio_id
         and s.strategy_era_id=v_cycle.strategy_era_id
         and s.status='completed';
-    if not found or v_output is null or jsonb_typeof(v_output)<>'object'
+    if not found or v_output is null or jsonb_typeof(v_output) is distinct from 'object'
       or v_output->>'schemaVersion' is distinct from '1'
       or v_output->>'cycleId' is distinct from p_cycle_id::text
       or v_output->>'stage' is distinct from v_predecessor
+      or jsonb_typeof(v_output->'producedAt') is distinct from 'string'
+      or coalesce(length(v_output->>'producedAt'),0)=0
       or jsonb_typeof(v_output->'payload') is distinct from 'object'
-      or v_output->'payload'='{}'::jsonb
+      or v_output->'payload' is not distinct from '{}'::jsonb
     then raise exception 'AG_WORKER_PREDECESSOR_NOT_DURABLE: %',v_predecessor; end if;
   end loop;
 
