@@ -5,6 +5,9 @@ create table if not exists public.ag_worker_stage_artifacts (
   stage text not null,
   artifact_key text not null,
   payload jsonb not null,
+  user_id uuid not null,
+  portfolio_id uuid not null,
+  strategy_era_id uuid not null,
   created_at timestamptz not null default now(),
   primary key (cycle_id,stage,artifact_key),
   constraint ag_worker_stage_artifacts_payload_object
@@ -59,8 +62,10 @@ begin
     or v_stage.lease_expires_at is null
   then return false; end if;
   -- Immutable insert: replay cannot silently replace a previous artifact.
-  insert into public.ag_worker_stage_artifacts(cycle_id,stage,artifact_key,payload)
-    values (p_cycle_id,p_stage,p_artifact_key,p_payload)
+  insert into public.ag_worker_stage_artifacts
+    (cycle_id,stage,artifact_key,payload,user_id,portfolio_id,strategy_era_id)
+    values (p_cycle_id,p_stage,p_artifact_key,p_payload,
+      v_cycle.user_id,v_cycle.portfolio_id,v_cycle.strategy_era_id)
     on conflict do nothing;
   return found;
 end;
