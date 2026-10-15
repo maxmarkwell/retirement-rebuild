@@ -11,6 +11,9 @@ declare
   v_stage public.ag_cycle_stage_checkpoints%rowtype;
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
+  if p_cycle_id = '583809c1-7157-4ad4-b343-56acc332a145'::uuid then
+    raise exception 'AG_WORKER_PROTECTED_CYCLE';
+  end if;
   if p_lease_seconds < 30 or p_lease_seconds > 300 then raise exception 'AG_WORKER_INVALID_LEASE'; end if;
   if p_stage not in ('holding_review','discovery','catalyst_deep_research','committee','persistence','finalized')
     then raise exception 'AG_WORKER_INVALID_STAGE'; end if;
@@ -49,6 +52,9 @@ language plpgsql security definer set search_path = public, pg_temp
 as $$
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
+  if p_cycle_id = '583809c1-7157-4ad4-b343-56acc332a145'::uuid then
+    raise exception 'AG_WORKER_PROTECTED_CYCLE';
+  end if;
   if p_lease_seconds < 30 or p_lease_seconds > 300 then raise exception 'AG_WORKER_INVALID_LEASE'; end if;
   update public.ag_cycle_stage_checkpoints
     set lease_expires_at=now()+make_interval(secs=>p_lease_seconds),updated_at=now()
@@ -66,6 +72,9 @@ language plpgsql security definer set search_path = public, pg_temp
 as $$
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
+  if p_cycle_id = '583809c1-7157-4ad4-b343-56acc332a145'::uuid then
+    raise exception 'AG_WORKER_PROTECTED_CYCLE';
+  end if;
   if p_output is null then raise exception 'AG_WORKER_OUTPUT_REQUIRED'; end if;
   update public.ag_cycle_stage_checkpoints
     set status='completed',output=p_output,completed_at=now(),updated_at=now(),
