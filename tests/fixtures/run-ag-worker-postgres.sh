@@ -25,6 +25,7 @@ run_sql < supabase/migrations/20261015010000_ag_worker_stage_leases.sql
 run_sql < supabase/migrations/20261015020000_ag_worker_atomic_claim_guards.sql
 run_sql < supabase/migrations/20261015030000_ag_worker_output_identity_guards.sql
 run_sql < supabase/migrations/20261015040000_ag_worker_fenced_stage_artifacts.sql
+run_sql < supabase/migrations/20261015050000_ag_worker_fenced_artifact_reads.sql
 # Race two independent connections before the sequential assertions claim the stage.
 bash tests/fixtures/ag-worker-concurrent-claims.sh "$name"
 # Clear only synthetic checkpoints in this disposable test database.
