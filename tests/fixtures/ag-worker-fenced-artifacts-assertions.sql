@@ -18,6 +18,10 @@ begin
       and portfolio_id='11111111-1111-4111-8111-111111111111'::uuid
       and strategy_era_id='33333333-3333-4333-8333-333333333333'::uuid
   ) then raise exception 'TEST_FAILED: artifact scope not persisted'; end if;
+  if (select count(*) from public.ag_worker_read_stage_artifacts(v_cycle,'holding_review',v_token)) <> 1
+  then raise exception 'TEST_FAILED: fenced artifact read failed'; end if;
+  if exists (select 1 from public.ag_worker_read_stage_artifacts(v_cycle,'holding_review',gen_random_uuid()))
+  then raise exception 'TEST_FAILED: wrong token read artifacts'; end if;
   if public.ag_worker_put_stage_artifact(v_cycle,'holding_review',v_token,'first',v_payload)
   then raise exception 'TEST_FAILED: duplicate artifact accepted'; end if;
   if public.ag_worker_put_stage_artifact(v_cycle,'holding_review',gen_random_uuid(),'wrong_token',v_payload)
@@ -25,6 +29,8 @@ begin
   update public.ag_cycle_stage_checkpoints
     set lease_expires_at=now()-interval '1 second'
     where cycle_id=v_cycle and stage='holding_review';
+  if exists (select 1 from public.ag_worker_read_stage_artifacts(v_cycle,'holding_review',v_token))
+  then raise exception 'TEST_FAILED: expired token read artifacts'; end if;
   if public.ag_worker_put_stage_artifact(v_cycle,'holding_review',v_token,'expired',v_payload)
   then raise exception 'TEST_FAILED: expired token accepted'; end if;
   if exists (select 1 from public.ag_worker_stage_artifacts where cycle_id=v_cycle and artifact_key='expired')
@@ -33,6 +39,8 @@ begin
     set lease_expires_at=now()+interval '1 minute'
     where cycle_id=v_cycle and stage='holding_review';
   update public.ag_daily_cycles set status='completed' where id=v_cycle;
+  if exists (select 1 from public.ag_worker_read_stage_artifacts(v_cycle,'holding_review',v_token))
+  then raise exception 'TEST_FAILED: finalized cycle read artifacts'; end if;
   if public.ag_worker_put_stage_artifact(v_cycle,'holding_review',v_token,'finalized',v_payload)
   then raise exception 'TEST_FAILED: finalized cycle accepted'; end if;
   if exists (select 1 from public.ag_worker_stage_artifacts where cycle_id=v_cycle and artifact_key='finalized')
