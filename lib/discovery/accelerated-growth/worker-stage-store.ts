@@ -1,4 +1,5 @@
 import "server-only";
+import { assertAgWorkerCycleNotProtected } from "./worker-protected-cycle";
 import { validateAgWorkerStageOutput } from "./worker-stage-output";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -16,6 +17,7 @@ export async function claimAgWorkerStage(input: {
   stage: AgWorkerStage;
   leaseSeconds?: number;
 }): Promise<{ claimToken: string; cycleId: string; stage: AgWorkerStage }> {
+  assertAgWorkerCycleNotProtected(input.cycleId);
   const admin = createAdminClient();
   const { data: cycle, error: cycleError } = await admin.from("ag_daily_cycles")
     .select("id,user_id,portfolio_id,strategy_era_id,cycle_date,status")
@@ -77,6 +79,7 @@ export async function completeAgWorkerStage(input: {
   claimToken: string;
   output: Record<string, unknown>;
 }): Promise<void> {
+  assertAgWorkerCycleNotProtected(input.cycleId);
   if (!input.claimToken || !input.output || Array.isArray(input.output)) {
     throw new Error("AG_WORKER_COMPLETION_INVALID");
   }
