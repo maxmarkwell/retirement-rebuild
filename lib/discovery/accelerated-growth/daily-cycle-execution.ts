@@ -1,6 +1,7 @@
 import "server-only";
 import { executeAgPaperBuy } from "./paper-execution";
 import { executeAgPaperSell } from "./paper-sell-execution";
+import { assertAgPaperBuyAuthorized, type AgExecutionAuthorization } from "./buy-activation-policy";
 import type { PersistedAgCommitteeDecision } from "./committee-pipeline";
 import type { PersistedAgHoldingReviewDecision } from "./holding-review-pipeline";
 
@@ -33,6 +34,10 @@ export async function executeAgDailyCycleTransactions(input: {
       sells: [],
     };
   }
+
+  // Legacy combined execution is intentionally blocked: AG SELL is not activated.
+  // Use the separately authorized BUY-only path after validation.
+  throw new Error("AG_COMBINED_EXECUTION_DISABLED");
 
   // SELL first. The BUY executor then re-reads accounting, valuation, cash,
   // position/theme exposure and guardrails from the post-SELL state.
@@ -71,5 +76,29 @@ export async function executeAgDailyCycleSells(input: {
     sellDecisionCount: result.sellDecisionCount,
     executedSellCount: result.executedSellCount,
     sells: result.sells,
+  };
+}
+
+/** Explicit, paper-only BUY path. Never executes SELL decisions.
+ * Approval and reconciliation must be independently established by the caller.
+ */
+export async function executeAgAuthorizedPaperBuys(input: {
+  authorization: AgExecutionAuthorization;
+  buyDecisions: PersistedAgCommitteeDecision[];
+}): Promise<AgDailyCycleExecutionResult> {
+  assertAgPaperBuyAuthorized(input.authorization);
+  const buyDecisions = input.buyDecisions.filter((decision) => decision.decision === "BUY");
+  const buys: AgDailyCycleExecutionResult["buys"] = [];
+  for (const decision of buyDecisions) {
+    buys.push(await executeAgPaperBuy({ decisionId: decision.decisionId }));
+  }
+  return {
+    enabled: true,
+    buyDecisionCount: buyDecisions.length,
+    sellDecisionCount: 0,
+    executedBuyCount: buys.length,
+    executedSellCount: 0,
+    buys,
+    sells: [],
   };
 }
