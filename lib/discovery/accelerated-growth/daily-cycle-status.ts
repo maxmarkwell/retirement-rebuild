@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { denverAgCycleDate } from "./daily-cycle";
 
 export async function getAgDailyCycleStatus() {
@@ -40,6 +41,10 @@ export async function getAgDailyCycleStatus() {
   } | null = null;
   if (previousUnfinishedCycle) {
     const cycleId = previousUnfinishedCycle.id;
+    // This ID was obtained through the authenticated, portfolio-scoped query above.
+    // Audit ledgers have RLS enabled with no user SELECT policy; query only this
+    // verified cycle through the server-only admin client to avoid false zero counts.
+    const auditClient = createAdminClient();
     const tables = [
       "ag_cycle_stage_checkpoints",
       "ag_cycle_symbol_checkpoints",
@@ -48,7 +53,7 @@ export async function getAgDailyCycleStatus() {
     ] as const;
     const counts: number[] = [];
     for (const table of tables) {
-      const { count, error: countError } = await supabase.from(table)
+      const { count, error: countError } = await auditClient.from(table)
         .select("id", { count: "exact", head: true }).eq("cycle_id", cycleId);
       if (countError) throw new Error(`Unable to inspect ${table}: ${countError.message}`);
       counts.push(count ?? 0);
