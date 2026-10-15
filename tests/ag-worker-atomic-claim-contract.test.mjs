@@ -22,7 +22,7 @@ test("claim atomically verifies durable predecessor outputs", () => {
 });
 test("claim never automatically retries an existing stage", () => {
   assert.match(sql, /if found then\s+-- No automatic retry or takeover/);
-  assert.match(sql, /AG_WORKER_EXISTING_STAGE_REQUIRES_RECONCILIATION/);
+  assert.match(sql, /AG_WORKER_RECONCILIATION_REQUIRED/);
   assert.doesNotMatch(sql, /update public\.ag_daily_cycles|delete from public\.ag_daily_cycles/);
 });
 test("claim RPC remains service-role-only", () => {
