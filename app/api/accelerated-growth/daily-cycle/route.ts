@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
     if (!cycle.executed) {
       return NextResponse.json({
         cycleId: cycle.cycleId,
+        reason: cycle.reason === "previous_cycle_requires_reconciliation"
+          ? "An earlier Accelerated Growth cycle is unfinished. Review and reconcile it before launching new research."
+          : undefined,
         cycleDate: cycle.cycleDate,
         cycleStatus: cycle.status,
         reusedDailyCycle: true,
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
           : undefined,
         executionEnabled: false,
         transactionsWritten: false,
-      });
+      }, { status: cycle.reason === "previous_cycle_requires_reconciliation" ? 409 : 200 });
     }
 
     return NextResponse.json({
