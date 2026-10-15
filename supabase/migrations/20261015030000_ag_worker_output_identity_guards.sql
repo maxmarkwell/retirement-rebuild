@@ -4,7 +4,9 @@ create or replace function public.ag_worker_complete_stage(
   p_cycle_id uuid, p_stage text, p_token uuid, p_output jsonb
 ) returns boolean
 language plpgsql security definer set search_path = public, pg_temp
-as $$
+as $
+declare
+  v_cycle_id uuid;
 begin
   if auth.role() <> 'service_role' then raise exception 'AG_WORKER_UNAUTHORIZED'; end if;
   if p_output is null or jsonb_typeof(p_output) is distinct from 'object'
@@ -16,6 +18,11 @@ begin
      or jsonb_typeof(p_output->'producedAt') is distinct from 'string'
      or coalesce(length(p_output->>'producedAt'), 0) = 0
   then raise exception 'AG_WORKER_OUTPUT_INVALID'; end if;
+
+  -- Serialize completion against cycle state transitions and competing claims.
+  select id into v_cycle_id from public.ag_daily_cycles
+    where id=p_cycle_id and status='running' for update;
+  if not found then return false; end if;
 
   update public.ag_cycle_stage_checkpoints
     set status='completed',output=p_output,completed_at=now(),updated_at=now(),
