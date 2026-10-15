@@ -7,6 +7,7 @@ type CycleStatus = {
   cycleDate: string;
   hasCycleToday: boolean;
   previousUnfinishedCycle: { cycle_date: string; updated_at: string } | null;
+  previousCycleReconciliation: { stageCheckpoints: number; symbolCheckpoints: number; watchWriteRecords: number; decisionWriteRecords: number; attributedDecisionCount: number; decisionInventoryTruncated: boolean } | null;
   stalled: boolean;
   lastActivityAt: string | null;
   status: string;
@@ -92,6 +93,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
       <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
       {status.previousUnfinishedCycle && <p role="alert" className="mt-2 text-xs font-semibold text-amber-800">The {status.previousUnfinishedCycle.cycle_date} research cycle is unfinished. New research is paused until it is reconciled.</p>}
+      {status.previousCycleReconciliation && <p className="mt-2 text-xs text-slate-700">Recorded prior-cycle evidence: {status.previousCycleReconciliation.stageCheckpoints} stage checkpoints, {status.previousCycleReconciliation.symbolCheckpoints} symbol checkpoints, {status.previousCycleReconciliation.watchWriteRecords} watch writes, {status.previousCycleReconciliation.decisionWriteRecords} decision writes, {status.previousCycleReconciliation.attributedDecisionCount} attributed decisions. {status.previousCycleReconciliation.decisionInventoryTruncated ? "Decision inventory truncated; manual review required." : "Zero records do not establish that retrying is safe."}</p>}
       {status.status === "running" && <p role="status" className="mt-2 text-xs text-amber-800">{status.stalled ? "No recorded activity for at least seven minutes. This cycle needs review before another attempt." : "Cycle is recorded as running. This does not guarantee the server request is still active."}</p>}
       {status.lastActivityAt && <p className="mt-1 text-xs text-gray-500">Last recorded activity: {new Date(status.lastActivityAt).toLocaleString()}</p>}
       <button type="button" onClick={() => void refreshStatus()} className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800">Refresh Cycle Status</button>
