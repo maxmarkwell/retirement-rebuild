@@ -13,7 +13,7 @@ trap cleanup EXIT
 docker run -d --name "$name" -e POSTGRES_PASSWORD=local_only -e POSTGRES_DB=ag_worker_test postgres:16-alpine >/dev/null
 ready=0
 for attempt in $(seq 1 45); do
-  if docker exec "$name" pg_isready -U postgres -d ag_worker_test >/dev/null 2>&1; then ready=1; break; fi
+  if docker exec "$name" psql -X -U postgres -d ag_worker_test -Atqc "select 1" >/dev/null 2>&1; then ready=1; break; fi
   sleep 1
 done
 if [[ "$ready" != 1 ]]; then echo "PostgreSQL did not start" >&2; exit 1; fi
