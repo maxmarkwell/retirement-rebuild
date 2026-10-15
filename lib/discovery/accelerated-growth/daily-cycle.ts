@@ -69,6 +69,24 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     .maybeSingle();
   if (existing.error) throw new Error(`Unable to inspect AG daily cycle: ${existing.error.message}`);
 
+  // An interrupted cycle must not be bypassed simply because the Denver date rolled over.
+  // This is a conservative guard until durable worker reconciliation is implemented.
+  const priorRunning = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date")
+    .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
+    .eq("strategy_era_id", era.id).eq("status", "running")
+    .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
+  if (priorRunning.error) throw new Error(`Unable to inspect unfinished AG cycles: ${priorRunning.error.message}`);
+  if ((priorRunning.data?.length ?? 0) > 0) {
+    return {
+      executed: false as const,
+      cycleId: priorRunning.data![0].id,
+      cycleDate: priorRunning.data![0].cycle_date,
+      status: "running",
+      reason: "previous_cycle_requires_reconciliation" as const,
+    };
+  }
+
   let cycleId: string;
   let attempt: "created" | "retried";
 
