@@ -24,10 +24,12 @@ run_sql < tests/fixtures/ag-worker-postgres-schema.sql
 run_sql < supabase/migrations/20261015010000_ag_worker_stage_leases.sql
 run_sql < supabase/migrations/20261015020000_ag_worker_atomic_claim_guards.sql
 run_sql < supabase/migrations/20261015030000_ag_worker_output_identity_guards.sql
+run_sql < supabase/migrations/20261015040000_ag_worker_fenced_stage_artifacts.sql
 # Race two independent connections before the sequential assertions claim the stage.
 bash tests/fixtures/ag-worker-concurrent-claims.sh "$name"
 # Clear only synthetic checkpoints in this disposable test database.
 echo "truncate public.ag_cycle_stage_checkpoints;" | run_sql
 # Session-local JWT role mock must be set in the SAME session as assertions.
 { echo "select set_config('request.jwt.claim.role','service_role',false);"; cat tests/fixtures/ag-worker-postgres-assertions.sql; } | run_sql
+{ echo "select set_config('request.jwt.claim.role','service_role',false);"; cat tests/fixtures/ag-worker-fenced-artifacts-assertions.sql; } | run_sql
 echo "AG worker isolated PostgreSQL assertions passed"
