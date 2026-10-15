@@ -1,4 +1,5 @@
 import "server-only";
+import { assertAgWorkerCycleNotProtected } from "./worker-protected-cycle";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   assertAgWorkerCycleScope,
@@ -14,6 +15,7 @@ export async function inspectAgWorkerStage(input: {
   cycleId: string;
   stage: AgWorkerStage;
 }) {
+  assertAgWorkerCycleNotProtected(input.cycleId);
   const db = createAdminClient();
   const { data: cycle, error: cycleError } = await db.from("ag_daily_cycles")
     .select("id,user_id,portfolio_id,strategy_era_id,cycle_date,status")
