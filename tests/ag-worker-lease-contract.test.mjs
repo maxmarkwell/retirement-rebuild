@@ -26,7 +26,7 @@ test("claim refuses automatic recovery of expired or failed work", () => {
 test("renewal and completion fence writes with token and live lease", () => {
   assert.equal((migration.match(/claim_token=p_token/g) ?? []).length, 2);
   assert.equal((migration.match(/lease_expires_at>now\(\)/g) ?? []).length, 2);
-  assert.equal((migration.match(/status='running'\);/g) ?? []).length >= 2, true);
+  assert.ok((migration.match(/and status='running' and lease_expires_at>now\(\)/g) ?? []).length >= 2);
 });
 
 test("existing synchronous research route remains disabled pending durable orchestration", () => {
