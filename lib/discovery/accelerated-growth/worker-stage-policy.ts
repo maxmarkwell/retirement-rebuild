@@ -41,6 +41,7 @@ export function assertAgWorkerCycleScope(scope: AgWorkerCycleScope): void {
  */
 export function assertAgWorkerStageEligible(input: {
   stage: AgWorkerStage;
+  cycleId: string;
   checkpoints: readonly AgWorkerStageCheckpoint[];
 }): void {
   const index = AG_WORKER_STAGES.indexOf(input.stage);
@@ -57,6 +58,17 @@ export function assertAgWorkerStageEligible(input: {
     if (!checkpoint || checkpoint.status !== "completed" || checkpoint.output === null ||
         checkpoint.output === undefined) {
       throw new Error("AG_WORKER_PREDECESSOR_NOT_DURABLE:" + predecessor);
+    }
+    const output = checkpoint.output;
+    if (typeof output !== "object" || Array.isArray(output) ||
+        (output as Record<string, unknown>).schemaVersion !== 1 ||
+        (output as Record<string, unknown>).cycleId !== input.cycleId ||
+        (output as Record<string, unknown>).stage !== predecessor ||
+        typeof (output as Record<string, unknown>).payload !== "object" ||
+        (output as Record<string, unknown>).payload === null ||
+        Array.isArray((output as Record<string, unknown>).payload) ||
+        Object.keys((output as Record<string, unknown>).payload as object).length === 0) {
+      throw new Error("AG_WORKER_PREDECESSOR_OUTPUT_INVALID:" + predecessor);
     }
   }
 }
