@@ -11,6 +11,13 @@ begin
   v_token := public.ag_worker_claim_stage(v_cycle,'holding_review',60);
   if not public.ag_worker_put_stage_artifact(v_cycle,'holding_review',v_token,'first',v_payload)
   then raise exception 'TEST_FAILED: valid artifact rejected'; end if;
+  if not exists (
+    select 1 from public.ag_worker_stage_artifacts
+    where cycle_id=v_cycle and stage='holding_review' and artifact_key='first'
+      and user_id='22222222-2222-4222-8222-222222222222'::uuid
+      and portfolio_id='11111111-1111-4111-8111-111111111111'::uuid
+      and strategy_era_id='33333333-3333-4333-8333-333333333333'::uuid
+  ) then raise exception 'TEST_FAILED: artifact scope not persisted'; end if;
   if public.ag_worker_put_stage_artifact(v_cycle,'holding_review',v_token,'first',v_payload)
   then raise exception 'TEST_FAILED: duplicate artifact accepted'; end if;
   if public.ag_worker_put_stage_artifact(v_cycle,'holding_review',gen_random_uuid(),'wrong_token',v_payload)
