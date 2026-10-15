@@ -8,7 +8,7 @@ test("database checks version, cycle, stage and nonempty payload", () => {
   assert.match(sql, /p_output->>'schemaVersion' is distinct from '1'/);
   assert.match(sql, /p_output->>'cycleId' is distinct from p_cycle_id::text/);
   assert.match(sql, /p_output->>'stage' is distinct from p_stage/);
-  assert.match(sql, /p_output->'payload' = '\{\}'::jsonb/);
+  assert.ok(sql.includes("p_output->'payload' is not distinct from '{}'::jsonb"));
   assert.match(sql, /AG_WORKER_OUTPUT_INVALID/);
 });
 test("completion requires valid claim and running cycle", () => {
