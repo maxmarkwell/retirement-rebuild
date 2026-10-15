@@ -54,7 +54,7 @@ export async function inspectAgWorkerStage(input: {
     .eq("strategy_era_id", cycle.strategy_era_id);
   if (stageError) throw new Error("AG_WORKER_CHECKPOINT_READ_FAILED");
   const checkpoints = (rows ?? []) as AgWorkerStageCheckpoint[];
-  assertAgWorkerStageEligible({ stage: input.stage, checkpoints });
+  assertAgWorkerStageEligible({ stage: input.stage, cycleId: cycle.id, checkpoints });
 
   return { cycleId: cycle.id, stage: input.stage, eligibleForAtomicClaim: true as const };
 }
