@@ -6,6 +6,30 @@ declare
   v_token uuid;
   v_output jsonb;
 begin
+  -- Protected cycle is rejected before any cycle lookup or checkpoint write.
+  begin
+    perform public.ag_worker_claim_stage('583809c1-7157-4ad4-b343-56acc332a145','holding_review',60);
+    raise exception 'TEST_FAILED: protected claim accepted';
+  exception when others then
+    if sqlerrm = 'TEST_FAILED: protected claim accepted' then raise; end if;
+    if position('AG_WORKER_PROTECTED_CYCLE' in sqlerrm)=0 then raise; end if;
+  end;
+  begin
+    perform public.ag_worker_renew_stage('583809c1-7157-4ad4-b343-56acc332a145','holding_review',gen_random_uuid(),60);
+    raise exception 'TEST_FAILED: protected renewal accepted';
+  exception when others then
+    if sqlerrm = 'TEST_FAILED: protected renewal accepted' then raise; end if;
+    if position('AG_WORKER_PROTECTED_CYCLE' in sqlerrm)=0 then raise; end if;
+  end;
+  begin
+    perform public.ag_worker_complete_stage('583809c1-7157-4ad4-b343-56acc332a145','holding_review',gen_random_uuid(),
+      jsonb_build_object('schemaVersion',1,'cycleId','583809c1-7157-4ad4-b343-56acc332a145',
+        'stage','holding_review','producedAt',now()::text,'payload',jsonb_build_object('ok',true)));
+    raise exception 'TEST_FAILED: protected completion accepted';
+  exception when others then
+    if sqlerrm = 'TEST_FAILED: protected completion accepted' then raise; end if;
+    if position('AG_WORKER_PROTECTED_CYCLE' in sqlerrm)=0 then raise; end if;
+  end;
   -- A later stage cannot bypass a missing predecessor.
   begin
     perform public.ag_worker_claim_stage(v_cycle,'discovery',60);
