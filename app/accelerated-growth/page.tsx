@@ -71,7 +71,7 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
             {state.activeDecisions.length === 0 ? <p className="mt-4 text-sm text-gray-500">No active Committee decisions.</p> : (
               <div className="mt-4 space-y-2">
                 {state.activeDecisions.map((decision) => (
-                  <div key={decision.id} className="rounded-md border border-gray-100 bg-gray-50 p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{decision.ticker}</span><span className="font-medium uppercase text-gray-700">{decision.decision_type === "avoid" ? "REJECT" : decision.decision_type}</span></div><p className="mt-1 text-xs text-gray-500">Decision recorded {new Date(decision.created_at).toLocaleString("en-US", { timeZone: "America/Denver", dateStyle: "medium", timeStyle: "short" })} MT</p>{decision.thesis && <p className="mt-2 break-words text-sm text-gray-700">{decision.thesis}</p>}</div>
+                  <div key={decision.id} className="rounded-md border border-gray-100 bg-gray-50 p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-bold text-slate-900">{decision.ticker}</span><span className="font-medium uppercase text-gray-700">{decision.decision_type === "avoid" ? "REJECT" : decision.decision_type}</span></div><p className="mt-1 text-xs text-gray-500">Decision recorded {new Date(decision.created_at).toLocaleString("en-US", { timeZone: "America/Denver", dateStyle: "medium", timeStyle: "short" })} MT</p>{decision.thesis && <p className="mt-2 break-words text-sm text-gray-700">{decision.thesis}</p>}</div>
                 ))}
               </div>
             )}
@@ -83,7 +83,7 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
               <div className="mt-4 space-y-3">
                 {state.researchWatchlist.slice(0, 5).map((watch) => (
                   <div key={watch.id} className="rounded-md border border-gray-100 bg-gray-50 p-3">
-                    <div className="flex justify-between text-sm"><span className="font-semibold">{watch.ticker}</span><span>WATCH · {(Number(watch.confidence) * 100).toFixed(0)}%</span></div>
+                    <div className="flex justify-between text-sm"><span className="font-bold text-slate-900">{watch.ticker}</span><span className="font-semibold text-slate-700">WATCH · {(Number(watch.confidence) * 100).toFixed(0)}%</span></div>
                     <p className="mt-2 break-words text-xs text-gray-700">{watch.thesis}</p>
                   </div>
                 ))}
