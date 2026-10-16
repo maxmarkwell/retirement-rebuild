@@ -1,5 +1,6 @@
 import { runAgDeepResearchPipeline } from "./deep-research-pipeline";
 import { runAgCommittee, type AgCommitteeDecision } from "./committee";
+import { getAgValuationSnapshot } from "./valuation-snapshot";
 import { createClient } from "@/lib/supabase/server";
 import { deriveAgExecutionEvidence } from "./execution-evidence";
 import { getDynamicDiscoveryUniverse } from "../dynamic-universe";
@@ -93,7 +94,8 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
 
   for (const research of proceed) {
     try {
-      decisions.push(await runAgCommittee(research));
+      const valuation = await getAgValuationSnapshot(research.symbol);
+      decisions.push(await runAgCommittee(research, valuation));
     } catch (error) {
       errors.push({ symbol: research.symbol, stage: "COMMITTEE", error: error instanceof Error ? error.message : "Unknown AG Committee error." });
     }
