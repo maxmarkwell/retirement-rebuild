@@ -100,6 +100,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   // Reassess existing WATCH states first, deduped by ticker, then use remaining
   // scarce research slots for today's strongest new candidates. The five-call
   // ceiling is unchanged.
+  // During paper portfolio-building, reserve at least one slot for a new
+  // candidate when both new and previously watched ADVANCE stocks exist.
+  const watchSlotLimit = newAdvance.length > 0 ? Math.max(0, maxCandidates - 1) : maxCandidates;
   const selected = [
     ...watchedAdvance.sort((a, b) => {
       const aWatch = priorWatchByTicker.get(a.symbol.toUpperCase());
@@ -110,7 +113,7 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
       return b.score.total - a.score.total;
     }),
     ...newAdvance.sort((a, b) => b.score.total - a.score.total),
-  ].slice(0, maxCandidates);
+  ].filter((candidate, index) => !reassessTickers.has(candidate.symbol.toUpperCase()) || index < watchSlotLimit).slice(0, maxCandidates);
 
   const results: AgDeepResearch[] = [];
   const errors: AgDeepResearchPipelineResult["errors"] = [];
