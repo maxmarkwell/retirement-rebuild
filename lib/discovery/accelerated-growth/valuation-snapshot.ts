@@ -13,7 +13,7 @@ export type AgValuationSnapshot = {
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmFreeCashFlow: number | null;
-  cashConversionDiagnostic: { ttmFcfToNetIncome: number | null; ttmWorkingCapitalChange: number | null; workingCapitalCoverage: "COMPLETE" | "INCOMPLETE"; fcfExcludingWorkingCapitalChange: number | null; interpretation: string };
+  cashConversionDiagnostic: { ttmFcfToNetIncome: number | null; ttmWorkingCapitalChange: number | null; workingCapitalCoverage: "COMPLETE" | "INCOMPLETE"; workingCapitalComponentCoverage: "COMPLETE" | "INCOMPLETE"; fcfExcludingWorkingCapitalChange: number | null; interpretation: string };
   cashFlowBreakdown: { quarterEnd: string; operatingCashFlow: number | null; capitalExpenditure: number | null; freeCashFlow: number | null; workingCapitalChange: number | null; deferredRevenueChange: number | null; otherWorkingCapital: number | null; fcfReconciliationDifference: number | null }[];
   ttmQuarterEnds: string[];
   symbol: string;
@@ -162,14 +162,16 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     error: "Cash-flow quarters do not match income-statement TTM quarters",
   };
   const workingCapitalCoverage = cashFlowBreakdown.length === 4 && cashFlowBreakdown.every(row => row.workingCapitalChange != null) ? "COMPLETE" as const : "INCOMPLETE" as const;
+  const workingCapitalComponentCoverage = cashFlowBreakdown.length === 4 && cashFlowBreakdown.every(row => row.deferredRevenueChange != null && row.otherWorkingCapital != null) ? "COMPLETE" as const : "INCOMPLETE" as const;
   const ttmWorkingCapitalChange = workingCapitalCoverage === "COMPLETE"
     ? cashFlowBreakdown.reduce((sum,row) => sum + (row.workingCapitalChange as number), 0) : null;
   const cashConversionDiagnostic = {
     ttmFcfToNetIncome: multiple(ttmFcf.value, ttm.netIncome),
     ttmWorkingCapitalChange,
     workingCapitalCoverage,
+    workingCapitalComponentCoverage,
     fcfExcludingWorkingCapitalChange: ttmFcf.value != null && ttmWorkingCapitalChange != null ? ttmFcf.value - ttmWorkingCapitalChange : null,
-    interpretation: "FCF excluding reported change in working capital is a mechanical sensitivity only, NOT normalized owner earnings or a verified cash adjustment. Vendor field signs, classification, customer advances and unpaid supplier obligations require filing-level reconciliation. Do not substitute this diagnostic for reported TTM FCF or use it alone for a valuation decision.",
+    interpretation: "FCF excluding reported change in working capital is a mechanical sensitivity only, NOT normalized owner earnings or a verified cash adjustment. Working-capital coverage indicates only aggregate quarterly field availability; component coverage separately indicates availability of deferred revenue and other working-capital fields, NOT accounting reconciliation. Vendor field signs, classification, customer advances and unpaid supplier obligations require filing-level reconciliation. Do not substitute this diagnostic for reported TTM FCF or use it alone for a valuation decision.",
   };
   const marketCap = valid(f.marketCap);
   const enterpriseValue = valid(f.enterpriseValue);
