@@ -34,6 +34,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [running, setRunning] = useState(false);
+  const [maxCandidates, setMaxCandidates] = useState(1);
   const [message, setMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
@@ -49,8 +50,9 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
     setRunning(true);
     setMessage(null);
     try {
-      const retry = status.retryAvailable ? "?retryFailed=true" : "";
-      const response = await fetch(`/api/accelerated-growth/daily-cycle${retry}`, { method: "POST" });
+      const params = new URLSearchParams({ max: String(maxCandidates) });
+      if (status.retryAvailable) params.set("retryFailed", "true");
+      const response = await fetch(`/api/accelerated-growth/daily-cycle?${params.toString()}`, { method: "POST" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.reason ?? body.error ?? "Research request ended unexpectedly. Refresh status before taking another action.");
       setMessage(body.reusedDailyCycle ? "Today's cycle already exists; no duplicate work was created." : "Today's Accelerated Growth research cycle completed.");
@@ -76,11 +78,16 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Daily Research Cycle</p>
           <p className="mt-1 text-xs text-gray-500">{status.cycleDate} · {status.status.replaceAll("_", " ").toUpperCase()}</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="ag-max-candidates" className="text-xs font-medium text-gray-700">Candidates</label>
+          <select id="ag-max-candidates" value={maxCandidates} onChange={(event) => setMaxCandidates(Number(event.target.value))} disabled={running || completed || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-gray-900" aria-label="Maximum discovery candidates">
+            {[1, 2, 3, 4, 5].map((count) => <option key={count} value={count}>{count}</option>)}
+          </select>
         <button
           type="button"
           onClick={runCycle}
@@ -89,9 +96,10 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         >
           {label}
         </button>
+        </div>
       </div>
 
-      <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off.</p>
+      <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off. Start with 1 candidate to test the live pipeline.</p>
       {status.previousUnfinishedCycle && <p role="alert" className="mt-2 text-xs font-semibold text-amber-800">The {status.previousUnfinishedCycle.cycle_date} research cycle is unfinished. New research is paused until it is reconciled.</p>}
       {status.previousCycleReconciliation && <p className="mt-2 text-xs text-slate-700">Recorded prior-cycle evidence: {status.previousCycleReconciliation.stageCheckpoints} stage checkpoints, {status.previousCycleReconciliation.symbolCheckpoints} symbol checkpoints, {status.previousCycleReconciliation.watchWriteRecords} watch writes, {status.previousCycleReconciliation.decisionWriteRecords} decision writes, {status.previousCycleReconciliation.attributedDecisionCount} attributed decisions. {status.previousCycleReconciliation.decisionInventoryTruncated ? "Decision inventory truncated; manual review required." : "Zero records do not establish that retrying is safe."}</p>}
       {status.status === "running" && <p role="status" className="mt-2 text-xs text-amber-800">{status.stalled ? "No recorded activity for at least seven minutes. This cycle needs review before another attempt." : "Cycle is recorded as running. This does not guarantee the server request is still active."}</p>}
