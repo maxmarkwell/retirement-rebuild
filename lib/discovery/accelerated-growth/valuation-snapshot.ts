@@ -13,6 +13,7 @@ export type AgValuationSnapshot = {
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmFreeCashFlow: number | null;
+  cashConversionDiagnostic: { ttmFcfToNetIncome: number | null; ttmWorkingCapitalChange: number | null; workingCapitalCoverage: "COMPLETE" | "INCOMPLETE"; fcfExcludingWorkingCapitalChange: number | null; interpretation: string };
   cashFlowBreakdown: { quarterEnd: string; operatingCashFlow: number | null; capitalExpenditure: number | null; freeCashFlow: number | null; workingCapitalChange: number | null; deferredRevenueChange: number | null; otherWorkingCapital: number | null; fcfReconciliationDifference: number | null }[];
   ttmQuarterEnds: string[];
   symbol: string;
@@ -160,6 +161,16 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     value: null,
     error: "Cash-flow quarters do not match income-statement TTM quarters",
   };
+  const workingCapitalCoverage = cashFlowBreakdown.length === 4 && cashFlowBreakdown.every(row => row.workingCapitalChange != null) ? "COMPLETE" as const : "INCOMPLETE" as const;
+  const ttmWorkingCapitalChange = workingCapitalCoverage === "COMPLETE"
+    ? cashFlowBreakdown.reduce((sum,row) => sum + (row.workingCapitalChange as number), 0) : null;
+  const cashConversionDiagnostic = {
+    ttmFcfToNetIncome: multiple(ttmFcf.value, ttm.netIncome),
+    ttmWorkingCapitalChange,
+    workingCapitalCoverage,
+    fcfExcludingWorkingCapitalChange: ttmFcf.value != null && ttmWorkingCapitalChange != null ? ttmFcf.value - ttmWorkingCapitalChange : null,
+    interpretation: "FCF excluding reported change in working capital is a mechanical sensitivity only, NOT normalized owner earnings or a verified cash adjustment. Vendor field signs, classification, customer advances and unpaid supplier obligations require filing-level reconciliation. Do not substitute this diagnostic for reported TTM FCF or use it alone for a valuation decision.",
+  };
   const marketCap = valid(f.marketCap);
   const enterpriseValue = valid(f.enterpriseValue);
   const annualRevenue = valid(f.revenue);
@@ -263,7 +274,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmFreeCashFlow: ttmFcf.value, cashFlowBreakdown, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmFreeCashFlow: ttmFcf.value, cashConversionDiagnostic, cashFlowBreakdown, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
