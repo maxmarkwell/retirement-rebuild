@@ -57,6 +57,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   async function runCycle() {
     setRunning(true);
     setMessage(null);
+    const startingAttempt = status.cycle?.attempt_number ?? 0;
     try {
       const params = new URLSearchParams({ max: String(maxCandidates) });
       if (status.retryAvailable) params.set("retryFailed", "true");
@@ -71,9 +72,11 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       const failureMessage = error instanceof Error ? error.message : "Research request failed.";
       try {
         const latest = await refreshStatus();
-        if (latest?.status === "completed") {
+        if (latest?.status === "completed" && (latest.cycle?.attempt_number ?? 0) > startingAttempt || latest?.status === "completed" && startingAttempt === 0) {
           setMessage("Research completed successfully. The browser lost the original response, but the saved cycle status confirms completion.");
           router.refresh();
+        } else if (latest?.status === "completed") {
+          setMessage(`The prior attempt is still complete, but the new test response was interrupted: ${failureMessage}. Refresh status before starting another test.`);
         } else if (latest?.status === "running") {
           setMessage("The browser lost the response, but research is still recorded as running. Use Refresh Cycle Status; do not start another run.");
         } else if (latest?.status === "failed") {
@@ -97,7 +100,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
   const completed = status.status === "completed";
   const failed = status.status === "failed";
-  const label = status.previousUnfinishedCycle ? "Previous Cycle Needs Review" : running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
+  const label = status.previousUnfinishedCycle ? "Previous Cycle Needs Review" : running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Run Another Paper Test" : "Run Today's AG Research";
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
@@ -114,7 +117,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         <button
           type="button"
           onClick={runCycle}
-          disabled={running || completed || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)}
+          disabled={running || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)}
           className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {label}
