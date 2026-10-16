@@ -136,7 +136,16 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
       .then(rows => ({ rows, error: null as string | null }))
       .catch(e => ({ rows: [] as CashFlowQuarter[], error: String(e) })),
   ]);
-  const ttmFcf = computeTtmFreeCashFlow(cashFlowResult.rows);
+  const cashFlowTtm = computeTtmFreeCashFlow(cashFlowResult.rows);
+  // Do not combine a current market value with cash-flow quarters that differ
+  // from the income-statement TTM period used elsewhere in this snapshot.
+  const matchingTtmPeriods = cashFlowTtm.dates.length === 4 &&
+    cashFlowTtm.dates.every((date, index) => date === ttm.dates[index]);
+  const ttmFcf = matchingTtmPeriods ? cashFlowTtm : {
+    ...cashFlowTtm,
+    value: null,
+    error: "Cash-flow quarters do not match income-statement TTM quarters",
+  };
   const marketCap = valid(f.marketCap);
   const enterpriseValue = valid(f.enterpriseValue);
   const annualRevenue = valid(f.revenue);
