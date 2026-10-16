@@ -15,6 +15,12 @@ type CycleStatus = {
   retryBlockedReason?: string | null;
   executionEnabled: boolean;
   transactionsWrittenByCycle: boolean;
+  reconciliation: {
+    attributedDecisionCount: number;
+    attributionCountGap: number | null;
+    attributedDecisions: Array<{ id: string; ticker: string; decisionType: string; status: string; createdAt: string }>;
+    reusedDecisionAttributionAvailable: boolean;
+  };
   cycle: {
     universe_count: number | null;
     preselected_count: number | null;
@@ -129,6 +135,28 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
           <span>Deep Research: {status.cycle.deep_research_completed_count ?? "Not recorded"}</span>
           <span>Committee: {status.cycle.committee_decision_count ?? "Not recorded"}</span>
         </div>
+      )}
+
+      {completed && status.cycle && (
+        <section aria-label="Latest research cycle results" className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <h3 className="text-sm font-semibold text-slate-900">Latest Research Cycle Results</h3>
+          <p className="mt-1 text-xs text-slate-600">Committee outcomes counted: {status.cycle.committee_decision_count ?? "Unknown"}. Decisions accepted or reused: {status.cycle.persisted_decision_count ?? "Unknown"}.</p>
+          <p className="mt-1 text-xs text-slate-600">New decisions linked to this cycle: {status.reconciliation.attributedDecisionCount}.</p>
+          {status.reconciliation.attributedDecisions.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {status.reconciliation.attributedDecisions.map((decision) => (
+                <div key={decision.id} className="rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-800">
+                  <span className="font-semibold text-slate-900">{decision.ticker}</span> · {decision.decisionType === "avoid" ? "REJECT" : decision.decisionType.toUpperCase()} · {decision.status}
+                  <span className="block text-slate-500">Recorded {new Date(decision.createdAt).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {(status.reconciliation.attributionCountGap ?? 0) > 0 && (
+            <p className="mt-2 text-xs text-amber-800">{status.reconciliation.attributionCountGap} counted decision(s) have no new cycle-linked record. They may be reused decisions, but the original ticker and outcome cannot be confirmed from the stored cycle summary.</p>
+          )}
+          {status.reconciliation.attributedDecisions.length === 0 && <p className="mt-2 text-xs text-slate-600">No newly attributed decision records to display. The Committee tab lists active recommendations, which may predate this cycle.</p>}
+        </section>
       )}
 
       {failed && <p className="mt-2 text-xs text-amber-700">{status.retryBlockedReason ?? "Review this failed cycle before running again; prior writes may have succeeded."}</p>}
