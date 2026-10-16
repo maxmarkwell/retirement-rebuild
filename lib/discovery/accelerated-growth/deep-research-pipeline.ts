@@ -97,11 +97,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const watchedAdvance = advance.filter((candidate) => reassessTickers.has(candidate.symbol.toUpperCase()));
   const newAdvance = advance.filter((candidate) => !reassessTickers.has(candidate.symbol.toUpperCase()));
 
-  // Reassess existing WATCH states first, deduped by ticker, then use remaining
-  // scarce research slots for today's strongest new candidates. The five-call
-  // ceiling is unchanged.
-  // During paper portfolio-building, reserve at least one slot for a new
-  // candidate when both new and previously watched ADVANCE stocks exist.
+  // During paper portfolio-building, reserve one deep-research slot for a
+  // new ADVANCE candidate when available. Reassess existing WATCH states in
+  // the remaining slots; keep the five-candidate ceiling unchanged.
   const watchSlotLimit = newAdvance.length > 0 ? Math.max(0, maxCandidates - 1) : maxCandidates;
   const selected = [
     ...watchedAdvance.sort((a, b) => {
