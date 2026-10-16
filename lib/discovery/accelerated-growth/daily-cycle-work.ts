@@ -28,6 +28,7 @@ export async function runAgResearchDailyCycle(options?: {
   return runAgDailyCycle({
     maxCandidates,
     retryFailed: options?.retryFailed ?? false,
+    newTestRun: options?.newTestRun ?? false,
     retrySafety: "may_write",
     work: async (context) => {
       const heartbeatClient = await createClient();
