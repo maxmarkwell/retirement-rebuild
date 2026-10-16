@@ -5,7 +5,7 @@ import { AgResearchOutputError, withAgResearchRetry } from "./research-reliabili
 import { normalizeAgConfidence } from "./confidence";
 
 const AG_COMMITTEE_MODEL = "gpt-5.6-terra";
-export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v7";
+export const AG_COMMITTEE_PROMPT_VERSION = "ag-committee-v8";
 
 export type AgCommitteeDecision = {
   symbol: string;
@@ -68,7 +68,7 @@ HARD RULES:
 - The deterministic snapshot's dataQuality describes input completeness and is not automatically the same classification as your valuationDataQuality. Explain any difference explicitly in valuationEvidence. In particular, if the snapshot is PARTIAL, do not label your assessment QUANTIFIED without explaining exactly why its missing or unreconciled inputs are immaterial to the ownership decision.
 - Distinguish FMP balance-sheet share verification from SEC share reconciliation; do not repeat a generic "share-count consistency unavailable" limitation as though SEC reconciliation also failed when SEC shares were successfully compared.
 - Distinguish TTM revenue, TTM net income, and TTM free cash flow. TTM free cash flow is available only when four valid quarterly cash-flow periods match the income-statement periods; if absent, identify it as missing. Never substitute annual free cash flow for TTM free cash flow.
-- When valuation evidence is disputed, assess both vendor and SEC diagnostic multiples and identify that neither is a verified contemporaneous market cap.
+- If cashConversionDiagnostic or cashFlowBreakdown is provided, explicitly examine FCF/net-income divergence, the availability of four-quarter working-capital components, and any FCF_COMPONENT_MISMATCH, FCF_COMPONENT_INCOMPLETE, WORKING_CAPITAL_DETAIL_INCOMPLETE, or CASH_CONVERSION_REVIEW warnings. A mechanical FCF-minus-working-capital sensitivity is NOT normalized owner earnings; do not treat it as a verified valuation denominator. If the underlying data is missing or inconsistent, state what cannot be concluded and request filing-level reconciliation before relying on P/FCF. Do not presume customer advances explain a discrepancy without filing evidence.\n- When valuation evidence is disputed, assess both vendor and SEC diagnostic multiples and identify that neither is a verified contemporaneous market cap.
 - Do not claim the current valuation already prices in success, is expensive, cheap, or supports a favorable risk/reward without a quantitative basis. When data is PARTIAL or UNAVAILABLE, state that the valuation conclusion is provisional and explain how this limitation affects the decision. Do not turn missing data into an automatic WATCH or BUY.
 - Preserve observable thesis clocks and invalidation conditions.
 - Explicitly weigh the strongest evidence AGAINST ownership.
