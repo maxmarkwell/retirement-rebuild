@@ -77,13 +77,18 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     .select("id, cycle_date")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
     .eq("strategy_era_id", era.id).eq("status", "running")
-    .lte("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
+    .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
   if (priorRunning.error) throw new Error(`Unable to inspect unfinished AG cycles: ${priorRunning.error.message}`);
-  if ((priorRunning.data?.length ?? 0) > 0) {
+  const sameDayRunning = await supabase.from("ag_daily_cycles")
+    .select("id, cycle_date").eq("user_id", user.id).eq("portfolio_id", portfolio.id)
+    .eq("strategy_era_id", era.id).eq("status", "running").eq("cycle_date", cycleDate).limit(1);
+  if (sameDayRunning.error) throw new Error(`Unable to inspect active AG attempts: ${sameDayRunning.error.message}`);
+  const blockingCycle = sameDayRunning.data?.[0] ?? priorRunning.data?.[0];
+  if (blockingCycle) {
     return {
       executed: false as const,
-      cycleId: priorRunning.data![0].id,
-      cycleDate: priorRunning.data![0].cycle_date,
+      cycleId: blockingCycle.id,
+      cycleDate: blockingCycle.cycle_date,
       status: "running",
       reason: "previous_cycle_requires_reconciliation" as const,
     };
