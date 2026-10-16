@@ -13,6 +13,7 @@ export type AgValuationSnapshot = {
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmFreeCashFlow: number | null;
+  cashFlowBreakdown: { quarterEnd: string; operatingCashFlow: number | null; capitalExpenditure: number | null; freeCashFlow: number | null; workingCapitalChange: number | null; deferredRevenueChange: number | null; otherWorkingCapital: number | null }[];
   ttmQuarterEnds: string[];
   symbol: string;
   fetchedAt: string;
@@ -63,7 +64,7 @@ async function getQuarterly(symbol: string): Promise<Quarter[]> {
   return json as Quarter[];
 }
 
-type CashFlowQuarter = { date?: string; freeCashFlow?: number; operatingCashFlow?: number; capitalExpenditure?: number; capitalExpenditures?: number };
+type CashFlowQuarter = { date?: string; freeCashFlow?: number; operatingCashFlow?: number; capitalExpenditure?: number; capitalExpenditures?: number; changeInWorkingCapital?: number; deferredRevenue?: number; otherWorkingCapital?: number };
 export function computeTtmFreeCashFlow(rows: CashFlowQuarter[]) {
   const normalized = rows.map(row => ({ date: row.date, revenue: row.freeCashFlow ?? (
     typeof row.operatingCashFlow === "number" && Number.isFinite(row.operatingCashFlow) &&
@@ -137,6 +138,17 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
       .catch(e => ({ rows: [] as CashFlowQuarter[], error: String(e) })),
   ]);
   const cashFlowTtm = computeTtmFreeCashFlow(cashFlowResult.rows);
+  const cashFlowBreakdown = cashFlowResult.rows.filter(row => ttm.dates.includes(row.date ?? ""))
+    .sort((a,b) => (b.date ?? "").localeCompare(a.date ?? ""))
+    .map(row => ({
+      quarterEnd: row.date ?? "",
+      operatingCashFlow: valid(row.operatingCashFlow ?? null),
+      capitalExpenditure: valid(row.capitalExpenditure ?? row.capitalExpenditures ?? null),
+      freeCashFlow: valid(row.freeCashFlow ?? null),
+      workingCapitalChange: valid(row.changeInWorkingCapital ?? null),
+      deferredRevenueChange: valid(row.deferredRevenue ?? null),
+      otherWorkingCapital: valid(row.otherWorkingCapital ?? null),
+    }));
   // Do not combine a current market value with cash-flow quarters that differ
   // from the income-statement TTM period used elsewhere in this snapshot.
   const matchingTtmPeriods = cashFlowTtm.dates.length === 4 &&
@@ -246,7 +258,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmFreeCashFlow: ttmFcf.value, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmFreeCashFlow: ttmFcf.value, cashFlowBreakdown, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
