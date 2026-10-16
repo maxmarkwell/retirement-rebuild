@@ -38,12 +38,13 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   const [message, setMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
-  async function refreshStatus() {
+  async function refreshStatus(): Promise<CycleStatus | null> {
     const response = await fetch("/api/accelerated-growth/daily-cycle/status", { cache: "no-store" });
-    if (!response.ok) { setStatusError("Could not refresh cycle status. Please try again."); return; }
+    if (!response.ok) { setStatusError("Could not refresh cycle status. Please try again."); return null; }
     const body = await response.json();
     setStatus(body);
     setStatusError(null);
+    return body as CycleStatus;
   }
 
   async function runCycle() {
@@ -59,8 +60,22 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       await refreshStatus();
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Research request failed. Check cycle status.");
-      await refreshStatus();
+      const failureMessage = error instanceof Error ? error.message : "Research request failed.";
+      try {
+        const latest = await refreshStatus();
+        if (latest?.status === "completed") {
+          setMessage("Research completed successfully. The browser lost the original response, but the saved cycle status confirms completion.");
+          router.refresh();
+        } else if (latest?.status === "running") {
+          setMessage("The browser lost the response, but research is still recorded as running. Use Refresh Cycle Status; do not start another run.");
+        } else if (latest?.status === "failed") {
+          setMessage(`Research failed: ${latest.cycle?.failure_message ?? failureMessage}`);
+        } else {
+          setMessage(`Could not confirm research completion: ${failureMessage}. Refresh cycle status before taking another action.`);
+        }
+      } catch {
+        setMessage(`Connection interrupted: ${failureMessage}. Refresh cycle status before taking another action.`);
+      }
     } finally {
       setRunning(false);
     }
