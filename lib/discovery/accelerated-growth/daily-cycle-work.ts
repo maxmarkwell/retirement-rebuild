@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
   retryFailed?: boolean;
+  newTestRun?: boolean;
   executeTransactions?: boolean;
 }) {
   const maxCandidates = options?.maxCandidates ?? 5;
@@ -27,6 +28,7 @@ export async function runAgResearchDailyCycle(options?: {
   return runAgDailyCycle({
     maxCandidates,
     retryFailed: options?.retryFailed ?? false,
+    newTestRun: options?.newTestRun ?? false,
     retrySafety: "may_write",
     work: async (context) => {
       const heartbeatClient = await createClient();

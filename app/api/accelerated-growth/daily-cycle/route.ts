@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
     const requested = Number(request.nextUrl.searchParams.get("max") ?? "5");
     const maxCandidates = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 5)) : 5;
     const retryFailed = request.nextUrl.searchParams.get("retryFailed") === "true";
+    const newTestRun = request.nextUrl.searchParams.get("newTestRun") === "true";
 
     // V1 production entry point intentionally cannot execute transactions.
     // Enabling paper execution will be a separate server-side change after the
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
     const cycle = await runAgResearchDailyCycle({
       maxCandidates,
       retryFailed,
+      newTestRun,
       executeTransactions: false,
     });
 

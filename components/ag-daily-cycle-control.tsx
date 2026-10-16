@@ -22,6 +22,7 @@ type CycleStatus = {
     reusedDecisionAttributionAvailable: boolean;
   };
   cycle: {
+    attempt_number: number;
     universe_count: number | null;
     preselected_count: number | null;
     evaluated_count: number | null;
@@ -56,9 +57,11 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   async function runCycle() {
     setRunning(true);
     setMessage(null);
+    const startingAttempt = status.cycle?.attempt_number ?? 0;
     try {
       const params = new URLSearchParams({ max: String(maxCandidates) });
       if (status.retryAvailable) params.set("retryFailed", "true");
+      if (status.status === "completed") params.set("newTestRun", "true");
       const response = await fetch(`/api/accelerated-growth/daily-cycle?${params.toString()}`, { method: "POST" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.reason ?? body.error ?? "Research request ended unexpectedly. Refresh status before taking another action.");
@@ -69,9 +72,11 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       const failureMessage = error instanceof Error ? error.message : "Research request failed.";
       try {
         const latest = await refreshStatus();
-        if (latest?.status === "completed") {
+        if (latest?.status === "completed" && (latest.cycle?.attempt_number ?? 0) > startingAttempt || latest?.status === "completed" && startingAttempt === 0) {
           setMessage("Research completed successfully. The browser lost the original response, but the saved cycle status confirms completion.");
           router.refresh();
+        } else if (latest?.status === "completed") {
+          setMessage(`The prior attempt is still complete, but the new test response was interrupted: ${failureMessage}. Refresh status before starting another test.`);
         } else if (latest?.status === "running") {
           setMessage("The browser lost the response, but research is still recorded as running. Use Refresh Cycle Status; do not start another run.");
         } else if (latest?.status === "failed") {
@@ -95,24 +100,24 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
 
   const completed = status.status === "completed";
   const failed = status.status === "failed";
-  const label = status.previousUnfinishedCycle ? "Previous Cycle Needs Review" : running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Today's Cycle Complete" : "Run Today's AG Research";
+  const label = status.previousUnfinishedCycle ? "Previous Cycle Needs Review" : running ? "Running Research…" : status.stalled ? "Review Stalled Cycle" : status.status === "running" ? "Research In Progress" : failed ? "Cycle Failed — Review Required" : completed ? "Run Another Paper Test" : "Run Today's AG Research";
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Daily Research Cycle</p>
-          <p className="mt-1 text-xs text-gray-500">{status.cycleDate} · {status.status.replaceAll("_", " ").toUpperCase()}</p>
+          <p className="mt-1 text-xs text-gray-500">{status.cycleDate} · Attempt {status.cycle?.attempt_number ?? 1} · {status.status.replaceAll("_", " ").toUpperCase()}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="ag-max-candidates" className="text-xs font-medium text-gray-700">Candidates</label>
-          <select id="ag-max-candidates" value={maxCandidates} onChange={(event) => setMaxCandidates(Number(event.target.value))} disabled={running || completed || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-gray-900" aria-label="Maximum discovery candidates">
+          <select id="ag-max-candidates" value={maxCandidates} onChange={(event) => setMaxCandidates(Number(event.target.value))} disabled={running || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-gray-900" aria-label="Maximum discovery candidates">
             {[1, 2, 3, 4, 5].map((count) => <option key={count} value={count}>{count}</option>)}
           </select>
         <button
           type="button"
           onClick={runCycle}
-          disabled={running || completed || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)}
+          disabled={running || failed || status.status === "running" || Boolean(status.previousUnfinishedCycle)}
           className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {label}
@@ -120,7 +125,7 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-gray-500">Research and Committee persistence only. Transaction execution is locked off. Start with 1 candidate to test the live pipeline.</p>
+      <p className="mt-2 text-xs text-gray-500">Paper research test mode: completed cycles may be followed by a new numbered attempt today. No trades are executed. Start with 2 candidates for the next test.</p>
       {status.previousUnfinishedCycle && <p role="alert" className="mt-2 text-xs font-semibold text-amber-800">The {status.previousUnfinishedCycle.cycle_date} research cycle is unfinished. New research is paused until it is reconciled.</p>}
       {status.previousCycleReconciliation && <p className="mt-2 text-xs text-slate-700">Recorded prior-cycle evidence: {status.previousCycleReconciliation.stageCheckpoints} stage checkpoints, {status.previousCycleReconciliation.symbolCheckpoints} symbol checkpoints, {status.previousCycleReconciliation.watchWriteRecords} watch writes, {status.previousCycleReconciliation.decisionWriteRecords} decision writes, {status.previousCycleReconciliation.attributedDecisionCount} attributed decisions. {status.previousCycleReconciliation.decisionInventoryTruncated ? "Decision inventory truncated; manual review required." : "Zero records do not establish that retrying is safe."}</p>}
       {status.status === "running" && <p role="status" className="mt-2 text-xs text-amber-800">{status.stalled ? "No recorded activity for at least seven minutes. This cycle needs review before another attempt." : "Cycle is recorded as running. This does not guarantee the server request is still active."}</p>}

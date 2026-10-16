@@ -16,6 +16,8 @@ export type RunAgDailyCycleInput<T> = {
   maxCandidates?: number;
   cycleDate?: string;
   retryFailed?: boolean;
+  /** Explicitly create a new same-day paper research attempt after a completed cycle. */
+  newTestRun?: boolean;
   /** Refuse retries after non-atomic persistence may have started. */
   retrySafety?: "read_only" | "may_write";
   work: (context: AgDailyCycleContext) => Promise<{ result: T; counts?: AgDailyCycleCounts }>;
@@ -64,9 +66,9 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   const now = new Date().toISOString();
 
   const existing = await supabase.from("ag_daily_cycles")
-    .select("id, status")
+    .select("id, status, attempt_number")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
-    .maybeSingle();
+    .order("attempt_number", { ascending: false }).limit(1).maybeSingle();
   if (existing.error) throw new Error(`Unable to inspect AG daily cycle: ${existing.error.message}`);
 
   // An interrupted cycle must not be bypassed simply because the Denver date rolled over.
@@ -75,7 +77,7 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
     .select("id, cycle_date")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
     .eq("strategy_era_id", era.id).eq("status", "running")
-    .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
+    .lte("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
   if (priorRunning.error) throw new Error(`Unable to inspect unfinished AG cycles: ${priorRunning.error.message}`);
   if ((priorRunning.data?.length ?? 0) > 0) {
     return {
@@ -90,16 +92,16 @@ export async function runAgDailyCycle<T>(input: RunAgDailyCycleInput<T>) {
   let cycleId: string;
   let attempt: "created" | "retried";
 
-  if (!existing.data) {
+  if (!existing.data || (input.newTestRun && existing.data.status === "completed")) {
     const created = await supabase.from("ag_daily_cycles").insert({
       user_id: user.id, portfolio_id: portfolio.id, strategy_era_id: era.id,
-      cycle_date: cycleDate, status: "running", max_candidates: maxCandidates,
+      cycle_date: cycleDate, attempt_number: existing.data ? existing.data.attempt_number + 1 : 1, status: "running", max_candidates: maxCandidates,
       started_at: now, updated_at: now,
     }).select("id").single();
     if (created.error || !created.data) throw new Error(`Unable to create AG daily cycle: ${created.error?.message ?? "unknown error"}`);
     cycleId = created.data.id;
     attempt = "created";
-  } else if (existing.data.status === "failed" && input.retryFailed && input.retrySafety !== "may_write") {
+  } else if (existing.data.status === "failed" && !input.newTestRun && input.retryFailed && input.retrySafety !== "may_write") {
     const retried = await supabase.from("ag_daily_cycles").update({
       status: "running", max_candidates: maxCandidates, started_at: now, completed_at: null, failure_message: null,
       universe_count: null, preselected_count: null, evaluated_count: null, discovery_advance_count: null,
