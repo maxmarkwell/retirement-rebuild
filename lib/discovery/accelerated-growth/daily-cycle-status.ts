@@ -28,7 +28,7 @@ export async function getAgDailyCycleStatus() {
     .select("id, cycle_date, updated_at")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
     .eq("strategy_era_id", era.id).eq("status", "running")
-    .lte("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
+    .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
   if (unfinishedError) throw new Error(`Unable to inspect earlier AG cycles: ${unfinishedError.message}`);
   const previousUnfinishedCycle = unfinishedCycles?.[0] ?? null;
 
