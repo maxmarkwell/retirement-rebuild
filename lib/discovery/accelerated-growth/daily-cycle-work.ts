@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function runAgResearchDailyCycle(options?: {
   maxCandidates?: number;
   retryFailed?: boolean;
+  newTestRun?: boolean;
   executeTransactions?: boolean;
 }) {
   const maxCandidates = options?.maxCandidates ?? 5;
