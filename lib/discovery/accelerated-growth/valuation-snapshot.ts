@@ -13,7 +13,7 @@ export type AgValuationSnapshot = {
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
   ttmFreeCashFlow: number | null;
-  cashFlowBreakdown: { quarterEnd: string; operatingCashFlow: number | null; capitalExpenditure: number | null; freeCashFlow: number | null; workingCapitalChange: number | null; deferredRevenueChange: number | null; otherWorkingCapital: number | null }[];
+  cashFlowBreakdown: { quarterEnd: string; operatingCashFlow: number | null; capitalExpenditure: number | null; freeCashFlow: number | null; workingCapitalChange: number | null; deferredRevenueChange: number | null; otherWorkingCapital: number | null; fcfReconciliationDifference: number | null }[];
   ttmQuarterEnds: string[];
   symbol: string;
   fetchedAt: string;
@@ -148,6 +148,8 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
       workingCapitalChange: valid(row.changeInWorkingCapital ?? null),
       deferredRevenueChange: valid(row.deferredRevenue ?? null),
       otherWorkingCapital: valid(row.otherWorkingCapital ?? null),
+      fcfReconciliationDifference: valid(row.freeCashFlow ?? null) != null && valid(row.operatingCashFlow ?? null) != null && valid(row.capitalExpenditure ?? row.capitalExpenditures ?? null) != null
+        ? (row.freeCashFlow as number) - ((row.operatingCashFlow as number) - Math.abs((row.capitalExpenditure ?? row.capitalExpenditures) as number)) : null,
     }));
   // Do not combine a current market value with cash-flow quarters that differ
   // from the income-statement TTM period used elsewhere in this snapshot.
@@ -250,6 +252,9 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (quarterResult.error) limitations.push("Quarterly fetch: "+quarterResult.error);
   if (cashFlowResult.error) limitations.push("Quarterly cash flow fetch: "+cashFlowResult.error);
   if (ttmFcf.error) limitations.push("TTM free cash flow validation: "+ttmFcf.error);
+  if (cashFlowBreakdown.some(row => row.fcfReconciliationDifference != null && Math.abs(row.fcfReconciliationDifference) > 1)) limitations.push("FCF_COMPONENT_MISMATCH: Vendor quarterly free cash flow does not reconcile to operating cash flow less absolute capital expenditure in at least one quarter; inspect source fields before using P/FCF.");
+  if (cashFlowBreakdown.length !== 4 || cashFlowBreakdown.some(row => row.operatingCashFlow == null || row.capitalExpenditure == null)) limitations.push("FCF_COMPONENT_INCOMPLETE: Four-quarter operating cash flow and capital expenditure breakdown is incomplete; TTM FCF may be vendor-reported but cannot be independently reconstructed from components.");
+  if (cashFlowBreakdown.some(row => row.workingCapitalChange == null)) limitations.push("WORKING_CAPITAL_DETAIL_INCOMPLETE: Vendor does not provide working-capital change for every TTM quarter; cannot attribute cash-flow divergence to customer advances from this snapshot alone.");
   if (ttmFcf.value != null && ttm.netIncome != null && ttm.netIncome > 0 && ttmFcf.value > 3 * ttm.netIncome) {
     limitations.push("CASH_CONVERSION_REVIEW: TTM free cash flow exceeds 3x positive TTM net income. Investigate working-capital movements, customer advances, deferred revenue, and cash-flow statement components before interpreting price-to-free-cash-flow as normalized valuation. This is a diagnostic, not proof of an accounting issue.");
   }
