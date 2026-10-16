@@ -19,16 +19,16 @@ export async function getAgDailyCycleStatus() {
 
   const cycleDate = denverAgCycleDate();
   const { data: cycle, error } = await supabase.from("ag_daily_cycles")
-    .select("id, cycle_date, status, started_at, updated_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count")
+    .select("id, cycle_date, attempt_number, status, started_at, updated_at, completed_at, failure_message, universe_count, preselected_count, evaluated_count, discovery_advance_count, catalyst_supported_count, deep_research_completed_count, deep_research_failed_count, proceed_count, committee_decision_count, persisted_decision_count")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id).eq("strategy_era_id", era.id).eq("cycle_date", cycleDate)
-    .maybeSingle();
+    .order("attempt_number", { ascending: false }).limit(1).maybeSingle();
   if (error) throw new Error(`Unable to load AG daily cycle status: ${error.message}`);
 
   const { data: unfinishedCycles, error: unfinishedError } = await supabase.from("ag_daily_cycles")
     .select("id, cycle_date, updated_at")
     .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
     .eq("strategy_era_id", era.id).eq("status", "running")
-    .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
+    .lte("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
   if (unfinishedError) throw new Error(`Unable to inspect earlier AG cycles: ${unfinishedError.message}`);
   const previousUnfinishedCycle = unfinishedCycles?.[0] ?? null;
 
