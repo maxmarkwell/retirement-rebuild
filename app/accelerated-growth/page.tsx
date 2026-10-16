@@ -47,6 +47,7 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
               <div className="flex justify-between"><span className="text-gray-500">Circuit Breaker</span><span className={state.valuation.circuitBreakerActive ? "font-semibold text-red-700" : "font-semibold text-green-700"}>{state.valuation.circuitBreakerActive ? "PAUSED" : "READY"}</span></div>
             </div>
             <AgDailyCycleControl initialStatus={cycleStatus} />
+            {cycleStatus.cycle?.status === "completed" && <p className="mt-3 text-sm text-gray-600">The cycle’s persisted-decision count includes reused active decisions. Open the Committee tab to inspect current recommendations and their original record dates.</p>}
           </section>}
 
           {currentTab === "positions" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -66,10 +67,11 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
 
           {currentTab === "committee" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Active Committee</p>
+            <p className="mt-2 text-sm text-gray-600">Current active recommendations. An existing decision may be reused by a later research cycle without creating a new row.</p>
             {state.activeDecisions.length === 0 ? <p className="mt-4 text-sm text-gray-500">No active Committee decisions.</p> : (
               <div className="mt-4 space-y-2">
                 {state.activeDecisions.map((decision) => (
-                  <div key={decision.id} className="flex justify-between text-sm"><span className="font-semibold">{decision.ticker}</span><span className="uppercase text-gray-700">{decision.decision_type === "avoid" ? "REJECT" : decision.decision_type}</span></div>
+                  <div key={decision.id} className="rounded-md border border-gray-100 bg-gray-50 p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold">{decision.ticker}</span><span className="font-medium uppercase text-gray-700">{decision.decision_type === "avoid" ? "REJECT" : decision.decision_type}</span></div><p className="mt-1 text-xs text-gray-500">Decision recorded {new Date(decision.created_at).toLocaleString("en-US", { timeZone: "America/Denver", dateStyle: "medium", timeStyle: "short" })} MT</p>{decision.thesis && <p className="mt-2 break-words text-sm text-gray-700">{decision.thesis}</p>}</div>
                 ))}
               </div>
             )}
