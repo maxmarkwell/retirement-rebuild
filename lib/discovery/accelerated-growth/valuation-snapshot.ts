@@ -12,6 +12,7 @@ export type AgValuationSnapshot = {
   };
   ttmRevenue: number | null;
   ttmNetIncome: number | null;
+  ttmFreeCashFlow: number | null;
   ttmQuarterEnds: string[];
   symbol: string;
   fetchedAt: string;
@@ -62,14 +63,25 @@ async function getQuarterly(symbol: string): Promise<Quarter[]> {
   return json as Quarter[];
 }
 
+type CashFlowQuarter = { date?: string; freeCashFlow?: number; operatingCashFlow?: number; capitalExpenditure?: number; capitalExpenditures?: number };
+export function computeTtmFreeCashFlow(rows: CashFlowQuarter[]) {
+  const normalized = rows.map(row => ({ date: row.date, revenue: row.freeCashFlow ?? (
+    typeof row.operatingCashFlow === "number" && Number.isFinite(row.operatingCashFlow) &&
+    typeof (row.capitalExpenditure ?? row.capitalExpenditures) === "number" && Number.isFinite(row.capitalExpenditure ?? row.capitalExpenditures)
+      ? row.operatingCashFlow - Math.abs((row.capitalExpenditure ?? row.capitalExpenditures) as number) : undefined
+  ) }));
+  const result = computeTtm(normalized);
+  return { value: result.revenue, error: result.error, dates: result.dates };
+}
 type Quote = { price?: number; timestamp?: number; marketCap?: number };
 type Balance = { date?: string; cashAndCashEquivalents?: number; totalDebt?: number; commonStockSharesOutstanding?: number };
-async function fmpRows<T>(endpoint: string, symbol: string): Promise<T[]> {
+async function fmpRows<T>(endpoint: string, symbol: string, params: Record<string,string> = {}): Promise<T[]> {
   const key = process.env.FMP_API_KEY;
   if (!key) throw new Error("FMP_API_KEY missing");
   const url = new URL("https://financialmodelingprep.com/stable/" + endpoint);
   url.searchParams.set("symbol", symbol);
   url.searchParams.set("apikey", key);
+  for (const [name,value] of Object.entries(params)) url.searchParams.set(name,value);
   if (endpoint === "balance-sheet-statement") { url.searchParams.set("period", "quarter"); url.searchParams.set("limit", "1"); }
   const response = await fetch(url, { next: { revalidate: 3600 } });
   if (!response.ok) throw new Error(endpoint + " status " + response.status);
@@ -114,13 +126,26 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   const f = await getCompanyFundamentals(symbol);
   const quarterResult = await getQuarterly(symbol).then(rows => ({rows,error:null as string | null})).catch(e => ({rows:[] as Quarter[],error:String(e)}));
   const ttm=computeTtm(quarterResult.rows);
-  const [quoteResult, balanceResult, secResult] = await Promise.all([
+  const [quoteResult, balanceResult, secResult, cashFlowResult] = await Promise.all([
     fmpRows<Quote>("quote", symbol).then(rows => ({ row: rows[0] ?? null, error: null as string | null }))
       .catch(e => ({ row: null as Quote | null, error: String(e) })),
     fmpRows<Balance>("balance-sheet-statement", symbol).then(rows => ({ row: rows[0] ?? null, error: null as string | null }))
       .catch(e => ({ row: null as Balance | null, error: String(e) })),
     getSecShares(symbol),
+    fmpRows<CashFlowQuarter>("cash-flow-statement", symbol, { period: "quarter", limit: "8" })
+      .then(rows => ({ rows, error: null as string | null }))
+      .catch(e => ({ rows: [] as CashFlowQuarter[], error: String(e) })),
   ]);
+  const cashFlowTtm = computeTtmFreeCashFlow(cashFlowResult.rows);
+  // Do not combine a current market value with cash-flow quarters that differ
+  // from the income-statement TTM period used elsewhere in this snapshot.
+  const matchingTtmPeriods = cashFlowTtm.dates.length === 4 &&
+    cashFlowTtm.dates.every((date, index) => date === ttm.dates[index]);
+  const ttmFcf = matchingTtmPeriods ? cashFlowTtm : {
+    ...cashFlowTtm,
+    value: null,
+    error: "Cash-flow quarters do not match income-statement TTM quarters",
+  };
   const marketCap = valid(f.marketCap);
   const enterpriseValue = valid(f.enterpriseValue);
   const annualRevenue = valid(f.revenue);
@@ -193,7 +218,7 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
     "FMP market values may be cached for up to one hour; fetchedAt is not the market quote timestamp.",
     "Annual financial values are context only, NOT trailing twelve months; fiscal period end is unavailable.",
     "TTM values are calculated from four dated FMP quarters but not reconciled to SEC filings.",
-    "TTM free cash flow is unavailable; annual free cash flow is not a TTM substitute.",
+    "TTM free cash flow is computed from four consecutive dated FMP quarterly cash-flow statements when available, and is not SEC reconciled.",
     "Quote timestamp may be unavailable; fetchedAt is not a quote timestamp.",
     "FMP balance-sheet shares, when available, are dated historical values and are not an independent live share register.",
     "Historical shares times a later quoted price is a diagnostic, not a contemporaneous market-cap calculation.",
@@ -211,17 +236,19 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (reconciliation.marketCapStatus === "MISMATCH") limitations.push("FMP quote market cap differs from FMP profile market cap by more than 5%.");
   if (reconciliation.enterpriseValueStatus === "MISMATCH") limitations.push("Vendor enterprise value differs from simplified balance-sheet reconstruction by more than 5%.");
   if (quarterResult.error) limitations.push("Quarterly fetch: "+quarterResult.error);
+  if (cashFlowResult.error) limitations.push("Quarterly cash flow fetch: "+cashFlowResult.error);
+  if (ttmFcf.error) limitations.push("TTM free cash flow validation: "+ttmFcf.error);
   if (ttm.error) limitations.push("TTM validation: "+ttm.error);
   if (marketCap == null) limitations.push("Market capitalization unavailable.");
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
   if (annualRevenue == null) limitations.push("Annual revenue unavailable.");
   return {
-    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmQuarterEnds: ttm.dates,
+    version: "ag-valuation-v6", reconciliation, secReconciliation, valuationComparison, ttmRevenue: ttm.revenue, ttmNetIncome: ttm.netIncome, ttmFreeCashFlow: ttmFcf.value, ttmQuarterEnds: ttm.dates,
     symbol, fetchedAt: new Date().toISOString(), source: "FMP",
     marketCap, enterpriseValue, annualRevenue, annualNetIncome, annualFreeCashFlow,
     priceToSales: multiple(marketCap, ttm.revenue),
     priceToEarnings: multiple(marketCap, ttm.netIncome),
-    priceToFreeCashFlow: null,
+    priceToFreeCashFlow: multiple(marketCap, ttmFcf.value),
     evToSales: multiple(enterpriseValue, ttm.revenue),
     dataQuality: marketCap != null && ttm.revenue != null ? "PARTIAL" : "UNAVAILABLE",
     limitations,
