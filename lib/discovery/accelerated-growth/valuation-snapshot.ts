@@ -238,6 +238,9 @@ export async function getAgValuationSnapshot(symbol: string): Promise<AgValuatio
   if (quarterResult.error) limitations.push("Quarterly fetch: "+quarterResult.error);
   if (cashFlowResult.error) limitations.push("Quarterly cash flow fetch: "+cashFlowResult.error);
   if (ttmFcf.error) limitations.push("TTM free cash flow validation: "+ttmFcf.error);
+  if (ttmFcf.value != null && ttm.netIncome != null && ttm.netIncome > 0 && ttmFcf.value > 3 * ttm.netIncome) {
+    limitations.push("CASH_CONVERSION_REVIEW: TTM free cash flow exceeds 3x positive TTM net income. Investigate working-capital movements, customer advances, deferred revenue, and cash-flow statement components before interpreting price-to-free-cash-flow as normalized valuation. This is a diagnostic, not proof of an accounting issue.");
+  }
   if (ttm.error) limitations.push("TTM validation: "+ttm.error);
   if (marketCap == null) limitations.push("Market capitalization unavailable.");
   if (enterpriseValue == null) limitations.push("Enterprise value unavailable.");
