@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAgOperationalState } from "@/lib/discovery/accelerated-growth/operational-state";
 import { getAgDailyCycleStatus } from "@/lib/discovery/accelerated-growth/daily-cycle-status";
 import AgDailyCycleControl from "@/components/ag-daily-cycle-control";
+import AgHistoricalReassessmentControl from "@/components/ag-historical-reassessment-control";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,7 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
             )}
           </section>}
 
+          {currentTab === "research" && <AgHistoricalReassessmentControl />}
           {currentTab === "research" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Research Watchlist</p>
             {state.researchWatchlist.length === 0 ? <p className="mt-4 text-sm text-gray-500">No active Deep Research watches.</p> : (
