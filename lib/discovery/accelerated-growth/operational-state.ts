@@ -22,7 +22,7 @@ export async function getAgOperationalState() {
     supabase.from("transactions").select("id, transaction_type, ticker, quantity, gross_amount, fees, created_at, ag_theme_key")
       .eq("portfolio_id", portfolio.id).gte("created_at", era.inception_at).order("created_at", { ascending: true }),
     supabase.from("contributions").select("amount, created_at").eq("portfolio_id", portfolio.id).gte("created_at", era.inception_at),
-    supabase.from("investment_decisions").select("id, ticker, decision_type, status, confidence_score, thesis, created_at, transaction_id, ag_theme_key")
+    supabase.from("investment_decisions").select("id, ticker, decision_type, status, confidence_score, thesis, bull_case, bear_case, reassessment_conditions, exit_conditions, created_at, transaction_id, ag_theme_key")
       .eq("portfolio_id", portfolio.id).eq("source", "ai_committee").gte("created_at", era.inception_at).order("created_at", { ascending: false }).limit(25),
     supabase.from("ag_research_watchlist")
       .select("id, ticker, company_name, confidence, thesis, unresolved_questions, thesis_clock, first_seen_at, last_seen_at")
