@@ -12,7 +12,7 @@ export default function AgHistoricalReassessmentControl() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [preview, setPreview] = useState<{ decision: { decision: string; promptVersion: string; valuationEvidence: string; committeeRationale: string }; valuationSnapshot: { ttmFreeCashFlow: number | null; cashConversionDiagnostic: unknown; cashFlowBreakdown: unknown[]; limitations: string[] } } | null>(null);
+  const [preview, setPreview] = useState<{ decision: { decision: string; promptVersion: string; valuationEvidence: string; committeeRationale: string }; valuationSnapshot: { ttmFreeCashFlow: number | null; cashConversionDiagnostic: unknown; cashFlowBreakdown: unknown[]; secReconciliation: { cik: string | null; sharesOutstanding: number | null; shareCountDate: string | null; filingDate: string | null; accession: string | null; source: string | null; computedMarketCap: number | null; differencePct: number | null; status: "CONSISTENT" | "MISMATCH" | "UNVERIFIED"; error: string | null }; limitations: string[] } } | null>(null);
 
   async function refresh() {
     const response = await fetch("/api/accelerated-growth/historical-reassessments", { cache: "no-store" });
@@ -74,6 +74,7 @@ export default function AgHistoricalReassessmentControl() {
             <p className="font-semibold">Read-only committee preview: {preview.decision.decision} · {preview.decision.promptVersion}</p>
             <p className="mt-2">{preview.decision.committeeRationale}</p>
             <p className="mt-2 whitespace-pre-wrap">{preview.decision.valuationEvidence}</p>
+            <details open className="mt-3"><summary className="cursor-pointer font-semibold">SEC share-count verification</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify(preview.valuationSnapshot.secReconciliation ?? { status: "UNAVAILABLE", error: "SEC reconciliation not returned by preview API." }, null, 2)}</pre><p className="mt-2 text-xs text-slate-600">SEC share counts are dated filing observations, not independently verified current shares or live market capitalization.</p></details>
             <details className="mt-3"><summary className="cursor-pointer font-semibold">Quarterly cash-flow and working-capital diagnostics</summary><pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify({ ttmFreeCashFlow: preview.valuationSnapshot.ttmFreeCashFlow, cashConversionDiagnostic: preview.valuationSnapshot.cashConversionDiagnostic, cashFlowBreakdown: preview.valuationSnapshot.cashFlowBreakdown, limitations: preview.valuationSnapshot.limitations }, null, 2)}</pre></details>
             <p className="mt-2 text-xs text-slate-600">Reconstructed historical research; no decisions or trades saved.</p>
           </div>}
