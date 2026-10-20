@@ -7,16 +7,32 @@ import { getAcceleratedGrowthFundamentals } from "@/lib/discovery/accelerated-gr
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
+// Fixed membership only: financial statements can still change upstream.
+const FIXED_COHORT_ID = "2026-10-20T15:47:52.208Z";
+const FIXED_COHORT = {
+  BASELINE_ONLY: [
+    ["AXTI","mid"],["BRZE","mid"],["HAS","large"],["NKE","large"],
+    ["NVDA","mega"],["SMCI","large"],["SNDK","large"],["UNH","mega"],
+    ["VICR","mid"],["VRNS","mid"],["ALK","mid"],["AEHR","mid"],
+  ],
+  CONTROL_ONLY: [
+    ["AMZN","mega"],["ASTS","large"],["BKNG","large"],["GOOG","mega"],
+    ["HAL","large"],["PEP","large"],["FPS","mid"],["HIMS","mid"],
+    ["WH","mid"],["CLF","mid"],["OKLO","mid"],["PBF","mid"],
+  ],
+} as const;
+
 // Research-only pilot: max 24 symbols, two cached quarterly FMP series per symbol.
 // Never feeds the production selector, Committee, decisions, or portfolio.
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const diagnostic = await getAgSelectorBiasDiagnostic();
-    const baseline = diagnostic.selected;
-    const control = diagnostic.sectorCoverageControl.selected;
+    const fixedCohort = new URL(request.url).searchParams.get("cohort") === "fixed-20261020";
+    const diagnostic = fixedCohort ? null : await getAgSelectorBiasDiagnostic();
+    const baseline = diagnostic?.selected ?? [];
+    const control = diagnostic?.sectorCoverageControl.selected ?? [];
     const baselineSymbols = new Set(baseline.map((item) => item.ticker));
     const controlSymbols = new Set(control.map((item) => item.ticker));
     // Stable order and equal budget for both arms; shared symbols excluded to isolate selector differences.
@@ -24,13 +40,19 @@ export async function GET() {
       b.selectorScore - a.selectorScore || a.ticker.localeCompare(b.ticker);
     const baselineOnly = baseline.filter((item) => !controlSymbols.has(item.ticker)).sort(order).slice(0, 12);
     const controlOnly = control.filter((item) => !baselineSymbols.has(item.ticker)).sort(order).slice(0, 12);
-    const selected = [
+    const liveSelected = [
       ...baselineOnly.map((item) => ({ ...item, arm: "BASELINE_ONLY" })),
       ...controlOnly.map((item) => ({ ...item, arm: "CONTROL_ONLY" })),
     ];
-    const snapshotHash = createHash("sha256").update(JSON.stringify(selected)).digest("hex");
+    const selected = fixedCohort
+      ? Object.entries(FIXED_COHORT).flatMap(([arm, members]) =>
+          members.map(([ticker, marketCapBucket]) => ({ ticker, marketCapBucket, selectorScore: null as number | null, arm })))
+      : liveSelected;
+    const snapshotHash = createHash("sha256").update(JSON.stringify(
+      fixedCohort ? { cohort: FIXED_COHORT_ID, members: FIXED_COHORT } : selected
+    )).digest("hex");
     const results: Array<{
-      ticker: string; arm: string; bucket: string; selectorScore: number;
+      ticker: string; arm: string; bucket: string; selectorScore: number | null;
       eligibleForScoring: boolean | null; comparableGrowthPoints: number | null;
       latestRevenueGrowthYoY: number | null; revenueGrowthSlope: number | null;
       operatingMargin: number | null; freeCashFlowMargin: number | null;
@@ -105,11 +127,13 @@ export async function GET() {
     return NextResponse.json({
       mode: "READ_ONLY_AG_FUNDAMENTAL_PRESCREEN_PILOT",
       sampledAt: new Date().toISOString(),
-      eligibleUniverseCount: diagnostic.eligibleCount,
+      eligibleUniverseCount: diagnostic?.eligibleCount ?? null,
+      cohortMode: fixedCohort ? "FIXED_MEMBERSHIP_REPLAY" : "LIVE_SELECTOR_SAMPLE",
+      fixedCohortId: fixedCohort ? FIXED_COHORT_ID : null,
       selectionFingerprint: snapshotHash,
-      sampling: "Up to 12 unique selections per selector, ranked by existing liquidity/price selector score; no full-universe scan",
+      sampling: fixedCohort ? "Exact 24 ticker/arm memberships from the 2026-10-20 15:47:52 UTC run; selector scores not replayed" : "Up to 12 unique selections per selector, ranked by existing liquidity/price selector score; no full-universe scan",
       growthCandidateDefinition: "8%+ latest YoY revenue growth, positive growth slope, positive operating margin, sufficient quarterly history",
-      caveat: "Descriptive pilot only; growthCandidate is not ADVANCE or BUY. No complete frozen universe, no quality/valuation/earnings assessment. Up to 48 FMP quarterly series requests, subject to cache.",
+      caveat: "Descriptive pilot only; growthCandidate is not ADVANCE or BUY. Fixed replay freezes ticker membership, NOT historical FMP statement versions or full universe. No quality/valuation/earnings assessment. Up to 48 FMP quarterly series requests, subject to cache.",
       baseline: summarize("BASELINE_ONLY"),
       sectorCoverageControl: summarize("CONTROL_ONLY"),
       qualityFlagPolicy: "Advisory heuristic only. Extreme percentages can reflect small denominators or source errors; negative FCF can be investment-related. Verify filings before action.",
