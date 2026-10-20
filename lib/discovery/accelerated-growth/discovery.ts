@@ -208,3 +208,28 @@ export async function getAgSelectorBiasDiagnostic() {
     decisionsWritten: false, transactionsWritten: false,
   };
 }
+
+/**
+ * Read-only export of the CURRENT tradable universe for offline, bucket-matched
+ * experimental ranking. No fundamental API calls and no persistent writes.
+ * The caller must retain the response to replay this exact snapshot later.
+ */
+export async function getAgEligibleUniverseSnapshot() {
+  const universe = await getDynamicDiscoveryUniverse();
+  const eligible = universe.filter(passesAgTradabilityGate);
+  return {
+    universeCount: universe.length,
+    eligibleCount: eligible.length,
+    stocks: eligible.map((stock) => ({
+      ticker: stock.ticker,
+      companyName: stock.companyName,
+      sector: stock.sector,
+      industry: stock.industry,
+      marketCapBucket: stock.marketCapBucket,
+      marketCap: stock.marketCap,
+      price: stock.price,
+      dollarVolume: stock.dollarVolume,
+      selectorScore: Math.round(zeroCallSelectorScore(stock) * 10) / 10,
+    })).sort((a, b) => a.marketCapBucket.localeCompare(b.marketCapBucket) || a.ticker.localeCompare(b.ticker)),
+  };
+}
