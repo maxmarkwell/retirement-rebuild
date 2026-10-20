@@ -27,16 +27,16 @@ export async function GET(request: Request) {
   const batchCount = Math.ceil(ALL.length / BATCH_SIZE);
   if (!Number.isSafeInteger(batch) || batch >= batchCount) return NextResponse.json({ error: `batch must be 0 through ${batchCount - 1}` }, { status: 400 });
   const symbols = ALL.slice(batch * BATCH_SIZE, (batch + 1) * BATCH_SIZE);
-  const results: Array<{ ticker: string; arms: string[]; status: string | null; score: number | null; eligible: boolean | null; error: string | null }> = [];
+  const results: Array<{ ticker: string; arms: string[]; status: string | null; score: number | null; eligible: boolean | null; components: Record<string, number | null> | null; gates: Record<string, boolean | null> | null; metrics: Record<string, number | string | null> | null; scoreVersion: string | null; error: string | null }> = [];
   let rateLimited = false;
   for (const ticker of symbols) {
     const arms = [...(BASELINE.includes(ticker) ? ["BASELINE_PROXY"] : []), ...(CONTROL.includes(ticker) ? ["SECTOR_CONTROL"] : [])];
     try {
       const evaluated = await evaluateAcceleratedGrowthCandidate(ticker);
-      results.push({ ticker, arms, status: evaluated.score.status, score: evaluated.score.total, eligible: evaluated.acceleration.dataQuality.eligibleForScoring, error: null });
+      results.push({ ticker, arms, status: evaluated.score.status, score: evaluated.score.total, eligible: evaluated.acceleration.dataQuality.eligibleForScoring, components: evaluated.score.components, scoreVersion: evaluated.score.version, gates: { sufficientHistory: evaluated.acceleration.dataQuality.eligibleForScoring, totalAtLeast68: evaluated.score.total >= 68, accelerationAtLeast55: evaluated.score.components.fundamentalAcceleration >= 55, revenueGrowthAtLeast8: evaluated.acceleration.revenueTrajectory.latest == null ? null : evaluated.acceleration.revenueTrajectory.latest >= 8, severeDeterioration: evaluated.acceleration.accelerationDirection === "strongly_decelerating" || ((evaluated.acceleration.revenueTrajectory.latest ?? Infinity) < 0 && (evaluated.acceleration.revenueTrajectory.slope ?? Infinity) < -1), accelerationBelow30: evaluated.score.components.fundamentalAcceleration < 30 }, metrics: { latestRevenueGrowthYoY: evaluated.acceleration.revenueTrajectory.latest, revenueGrowthSlope: evaluated.acceleration.revenueTrajectory.slope, operatingMargin: evaluated.acceleration.operatingMarginTrajectory.latest, freeCashFlowMargin: evaluated.acceleration.freeCashFlowMarginTrajectory.latest, accelerationDirection: evaluated.acceleration.accelerationDirection, comparableRevenueGrowthPoints: evaluated.acceleration.dataQuality.comparableRevenueGrowthPoints }, error: null });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Evaluation failed";
-      results.push({ ticker, arms, status: null, score: null, eligible: null, error: message });
+      results.push({ ticker, arms, status: null, score: null, eligible: null, components: null, gates: null, metrics: null, scoreVersion: null, error: message });
       if (isRateLimit(message)) { rateLimited = true; break; }
     }
   }
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     cohortSizes: { baseline: BASELINE.length, control: CONTROL.length, overlap: BASELINE.filter(s => CONTROL.includes(s)).length, unique: ALL.length },
     batch, batchCount, requested: symbols.length, completed: results.length, rateLimited, stoppedEarly: results.length < symbols.length,
     results,
-    caveat: "Full existing quant scoring, not Investment Committee approval or BUY. Repeated calls can return revised vendor fundamentals. No decisions or portfolio writes.",
+    caveat: "Full existing quant scoring with component/gate diagnostics; vendor values are not independently verified. Not Investment Committee approval or BUY. Repeated calls can return revised vendor fundamentals. No decisions or portfolio writes.",
     decisionsWritten: false, transactionsWritten: false,
   }, { headers: { "Cache-Control": "private, no-store" } });
 }
