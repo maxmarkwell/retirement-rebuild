@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAgSelectorBiasDiagnostic } from "@/lib/discovery/accelerated-growth/discovery";
 import { evaluateAcceleratedGrowthCandidate } from "@/lib/discovery/accelerated-growth/evaluate";
@@ -27,6 +28,13 @@ export async function GET() {
       );
     const baselineSample = pick(baseline.filter((item) => !controlSet.has(item.ticker)));
     const controlSample = pick(control.filter((item) => !baselineSet.has(item.ticker)));
+    const snapshotPayload = JSON.stringify({
+      universeCount: diagnostic.universeCount,
+      eligibleCount: diagnostic.eligibleCount,
+      baseline: baseline.map(({ ticker, marketCapBucket, marketCap, price, dollarVolume }) => ({ ticker, marketCapBucket, marketCap, price, dollarVolume })),
+      control: control.map(({ ticker, marketCapBucket, selectorScore }) => ({ ticker, marketCapBucket, selectorScore })),
+    });
+    const selectionSnapshotHash = createHash("sha256").update(snapshotPayload).digest("hex");
     const sample = [
       ...baselineSample.map((ticker) => ({ ticker, arm: "BASELINE_ONLY" })),
       ...controlSample.map((ticker) => ({ ticker, arm: "CONTROL_ONLY" })),
@@ -70,6 +78,10 @@ export async function GET() {
       sampledAt: new Date().toISOString(),
       universeCount: diagnostic.universeCount,
       eligibleCount: diagnostic.eligibleCount,
+      selectionSnapshotHash,
+      snapshotScope: "Selected baseline/control stocks and universe counts only; not a complete saved eligible-universe snapshot",
+      baselineSample,
+      controlSample,
       sampling: "Unique selections only; highest selector score within 2 small, 2 mid, 1 large, 1 mega slots per arm",
       limitations: "Nonrandom, small matched-bucket sample. ADVANCE is quantitative research eligibility, not BUY. Do not infer investment returns or statistical significance.",
       baseline: summary("BASELINE_ONLY"),
