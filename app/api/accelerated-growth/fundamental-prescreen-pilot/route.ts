@@ -70,6 +70,25 @@ export async function GET() {
       row.latestRevenueGrowthYoY != null && row.latestRevenueGrowthYoY >= 8 &&
       row.revenueGrowthSlope != null && row.revenueGrowthSlope > 0 &&
       row.operatingMargin != null && row.operatingMargin > 0;
+    // Advisory only: these flags do not modify the original preliminary-growth definition.
+    // They indicate cases that need manual source validation or cash-conversion review.
+    const qualityFlags = (row: typeof results[number]): string[] => {
+      if (row.error || row.eligibleForScoring !== true) return [];
+      const flags: string[] = [];
+      if (row.operatingMargin != null && Math.abs(row.operatingMargin) > 100)
+        flags.push("EXTREME_OPERATING_MARGIN");
+      if (row.freeCashFlowMargin != null && Math.abs(row.freeCashFlowMargin) > 100)
+        flags.push("EXTREME_FREE_CASH_FLOW_MARGIN");
+      if (row.latestRevenueGrowthYoY != null && Math.abs(row.latestRevenueGrowthYoY) > 300)
+        flags.push("EXTREME_REVENUE_GROWTH_BASE_EFFECT");
+      if (row.operatingMargin != null && row.freeCashFlowMargin != null &&
+          row.operatingMargin > 0 && row.freeCashFlowMargin < -15)
+        flags.push("OPERATING_PROFIT_WITH_NEGATIVE_FCF");
+      if (row.operatingMargin != null && row.freeCashFlowMargin != null &&
+          row.operatingMargin > 60 && row.freeCashFlowMargin > 60)
+        flags.push("UNUSUALLY_HIGH_DUAL_MARGINS_VERIFY_SOURCE");
+      return flags;
+    };
     const summarize = (arm: string) => {
       const rows = results.filter((row) => row.arm === arm);
       return {
@@ -78,6 +97,8 @@ export async function GET() {
         sufficientHistory: rows.filter((row) => row.eligibleForScoring === true).length,
         insufficientHistory: rows.filter((row) => row.eligibleForScoring === false).length,
         preliminaryGrowthCandidates: rows.filter(growthCandidate).length,
+        flaggedGrowthCandidates: rows.filter((row) => growthCandidate(row) && qualityFlags(row).length > 0).length,
+        unflaggedGrowthCandidates: rows.filter((row) => growthCandidate(row) && qualityFlags(row).length === 0).length,
         errors: rows.filter((row) => row.error).length,
       };
     };
@@ -91,7 +112,8 @@ export async function GET() {
       caveat: "Descriptive pilot only; growthCandidate is not ADVANCE or BUY. No complete frozen universe, no quality/valuation/earnings assessment. Up to 48 FMP quarterly series requests, subject to cache.",
       baseline: summarize("BASELINE_ONLY"),
       sectorCoverageControl: summarize("CONTROL_ONLY"),
-      results: results.map((row) => ({ ...row, preliminaryGrowthCandidate: growthCandidate(row) })),
+      qualityFlagPolicy: "Advisory heuristic only. Extreme percentages can reflect small denominators or source errors; negative FCF can be investment-related. Verify filings before action.",
+      results: results.map((row) => ({ ...row, preliminaryGrowthCandidate: growthCandidate(row), qualityFlags: qualityFlags(row) })),
       decisionsWritten: false, transactionsWritten: false,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {
