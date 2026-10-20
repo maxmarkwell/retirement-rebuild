@@ -134,6 +134,31 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   };
 }
 
+// Counterfactual coverage control: same bucket budgets and tradability gate, but
+// select across sectors before repeating a sector. This is NOT a fundamental score.
+function selectSectorCoverageControl(stocks: DynamicUniverseStock[], limit: number): Preselected[] {
+  const groups = new Map<string, Preselected[]>();
+  for (const stock of stocks.filter(passesAgTradabilityGate)) {
+    const sector = stock.sector ?? "Unknown";
+    const group = groups.get(sector) ?? [];
+    group.push({ stock, selectorScore: zeroCallSelectorScore(stock) });
+    groups.set(sector, group);
+  }
+  for (const group of groups.values()) group.sort((a, b) => b.selectorScore - a.selectorScore || a.stock.ticker.localeCompare(b.stock.ticker));
+  const chosen: Preselected[] = [];
+  while (chosen.length < limit) {
+    const available = [...groups.entries()].filter(([, group]) => group.length > 0);
+    if (!available.length) break;
+    available.sort((a, b) => {
+      const aCount = chosen.filter((item) => (item.stock.sector ?? "Unknown") === a[0]).length;
+      const bCount = chosen.filter((item) => (item.stock.sector ?? "Unknown") === b[0]).length;
+      return aCount - bCount || b[1][0].selectorScore - a[1][0].selectorScore || a[0].localeCompare(b[0]);
+    });
+    chosen.push(available[0][1].shift()!);
+  }
+  return chosen;
+}
+
 export async function getAgSelectorBiasDiagnostic() {
   const universe = await getDynamicDiscoveryUniverse();
   const eligible = universe.filter(passesAgTradabilityGate);
@@ -142,6 +167,8 @@ export async function getAgSelectorBiasDiagnostic() {
     selectBucket(universe.filter((stock) => stock.marketCapBucket === bucket), BUCKET_LIMITS[bucket])
       .map(({ stock, selectorScore }) => ({ stock, selectorScore }))
   );
+  const coverageControl = buckets.flatMap((bucket) => selectSectorCoverageControl(universe.filter((stock) => stock.marketCapBucket === bucket), BUCKET_LIMITS[bucket]));
+  const baselineSymbols = new Set(selected.map(({ stock }) => stock.ticker));
   const sectorCounts = (stocks: DynamicUniverseStock[]) => {
     const counts: Record<string, number> = {};
     for (const stock of stocks) {
@@ -162,6 +189,14 @@ export async function getAgSelectorBiasDiagnostic() {
       bucket, eligible: eligible.filter((stock) => stock.marketCapBucket === bucket).length,
       selected: selected.filter(({ stock }) => stock.marketCapBucket === bucket).length,
     })),
+    sectorCoverageControl: {
+      method: "Equal sector representation within each market-cap bucket; liquidity breaks ties; no fundamental ranking",
+      selectedCount: coverageControl.length,
+      overlapWithBaseline: coverageControl.filter(({ stock }) => baselineSymbols.has(stock.ticker)).length,
+      sectors: sectorCounts(coverageControl.map(({ stock }) => stock)),
+      selected: coverageControl.map(({ stock, selectorScore }) => ({ ticker: stock.ticker, sector: stock.sector, marketCapBucket: stock.marketCapBucket, selectorScore: Math.round(selectorScore * 10) / 10 })),
+      warning: "This is a coverage counterfactual, not a recommended production selector or evidence of superior investment returns.",
+    },
     eligibleSectors: sectorCounts(eligible),
     selectedSectors: sectorCounts(selected.map(({ stock }) => stock)),
     selected: selected.map(({ stock, selectorScore }) => ({
