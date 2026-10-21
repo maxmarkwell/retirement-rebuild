@@ -5,6 +5,7 @@
  * Uses the repository's existing TypeScript dependency to load the real
  * fundamentals module without introducing a test-runner dependency.
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- Node CommonJS regression harness intentionally uses require(). */
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
