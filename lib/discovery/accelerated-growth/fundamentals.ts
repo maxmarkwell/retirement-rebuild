@@ -119,7 +119,8 @@ export async function getAcceleratedGrowthFundamentals(symbol: string): Promise<
     const revenue = finite(row.revenue);
     const operatingIncome = finite(row.operatingIncome);
     const netIncome = finite(row.netIncome);
-    const cash = cashFlowByDate.get(row.date ?? "") ?? cashFlow?.[index];
+    // Never associate cash flow from another reporting period with this income quarter.
+    const cash = row.date ? cashFlowByDate.get(row.date) : undefined;
     const vendorFreeCashFlow = finite(cash?.freeCashFlow);
     const operatingCashFlow = finite(cash?.operatingCashFlow);
     const capex = finite(cash?.capitalExpenditure ?? cash?.capitalExpenditures);
@@ -150,6 +151,9 @@ export async function getAcceleratedGrowthFundamentals(symbol: string): Promise<
     quarters.length >= 8 &&
     revenueTrajectory.pointCount >= 4 &&
     operatingMarginTrajectory.pointCount >= 3 &&
+    // Require the latest four quarters to have date-matched FCF before scoring.
+    // This prevents missing latest FCF from silently becoming a neutral score.
+    quarters.slice(0, 4).every((quarter) => quarter.freeCashFlowMargin != null) &&
     freeCashFlowMarginTrajectory.pointCount >= 3 &&
     (income ?? []).length > 0 &&
     (cashFlow ?? []).length > 0;
