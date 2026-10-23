@@ -8,9 +8,9 @@ const margins = [19.482, 16.365, 21.073, 20.491];
 const fcf = [925300000, 652800000, 883900000, 462000000];
 const acceleration: AcceleratedGrowthFundamentals = {
   symbol: "VRT",
-  quarters: growth.map((revenueGrowthYoY, i) => ({
+  quarters: [...growth, 12, 14, 16, 18].map((revenueGrowthYoY, i) => ({
     date: null, fiscalYear: null, period: null, revenue: null,
-    operatingIncome: null, netIncome: null, freeCashFlow: fcf[i],
+    operatingIncome: null, netIncome: null, freeCashFlow: fcf[i] ?? 100000000,
     revenueGrowthYoY, operatingMargin: margins[i], freeCashFlowMargin: 20,
   })),
   revenueAcceleration: -6, operatingMarginChange: 3, freeCashFlowMarginChange: 3,
