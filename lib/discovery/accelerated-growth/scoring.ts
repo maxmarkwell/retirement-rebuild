@@ -1,3 +1,4 @@
+import { qualifiesSustainedHighGrowth } from "./sustained-high-growth";
 import type {
   AcceleratedGrowthFundamentals,
   AgDiscoveryScore,
@@ -99,7 +100,8 @@ function scoreValuation(input?: ValuationRewardInput | null) {
 function classifyStatus(
   acceleration: AcceleratedGrowthFundamentals,
   total: number,
-  fundamentalAcceleration: number
+  fundamentalAcceleration: number,
+  quality?: BusinessQualityInput | null,
 ): AgQuantitativeStatus {
   if (!acceleration.dataQuality.eligibleForScoring) return "INSUFFICIENT_DATA";
 
@@ -113,7 +115,8 @@ function classifyStatus(
 
   // ADVANCE means quantitative evidence is strong enough to justify the more
   // expensive catalyst/research stage. It is not a BUY recommendation.
-  if (total >= 68 && fundamentalAcceleration >= 55 && latestGrowth >= 8) {
+  if ((total >= 68 && fundamentalAcceleration >= 55 && latestGrowth >= 8) ||
+      qualifiesSustainedHighGrowth(acceleration, quality)) {
     return "ADVANCE";
   }
 
@@ -135,7 +138,7 @@ export function scoreAcceleratedGrowthCandidate(input: AgScoringInput): AgDiscov
 
   return {
     total: roundedTotal,
-    status: classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration),
+    status: classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration, input.quality),
     components: {
       fundamentalAcceleration: Math.round(fundamentalAcceleration * 10) / 10,
       earningsConfirmation: Math.round(earningsConfirmation * 10) / 10,
