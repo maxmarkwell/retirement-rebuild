@@ -28,6 +28,8 @@ const score = scoreAcceleratedGrowthCandidate({
   valuation: { freeCashFlowYield: 2.5, priceToSales: 7.38, priceToFreeCashFlow: 39.97 },
 });
 assert.equal(score.status, "ADVANCE");
+assert.equal(score.baselineStatus, "REVIEW");
+assert.equal(score.qualificationPath, "SUSTAINED_HIGH_GROWTH");
 assert.ok(score.total < 68, "Alternative path should be exercised rather than old threshold");
 assert.equal(qualifiesSustainedHighGrowth({ ...acceleration, accelerationDirection: "strongly_decelerating" }, quality), false);
 assert.equal(qualifiesSustainedHighGrowth({ ...acceleration, quarters: acceleration.quarters.map((q, i) => i === 2 ? { ...q, revenueGrowthYoY: 10 } : q) }, quality), false);
