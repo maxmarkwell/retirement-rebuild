@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       version: "ag-discovery-diagnostic-v1", mode: "read_only", scope: "single_ticker_not_universe_ranking",
       symbol, universeEligible: eligible, advancement: eligible ? evaluation?.score.status : "INELIGIBLE",
+      baselineAdvancement: eligible ? evaluation?.score.baselineStatus : "INELIGIBLE",
+      qualificationPath: eligible ? evaluation?.score.qualificationPath : null,
       executionEnabled: false, decisionsPersisted: false, transactionsWritten: false,
       evaluation, message: eligible ? "Current quantitative scoring; not a full-universe ranking." : "Ticker not in the current tradable AG universe.",
     }, { headers: { "Cache-Control": "private, no-store" } });
