@@ -1,3 +1,4 @@
+import { qualifiesSustainedHighGrowth } from "./sustained-high-growth";
 import type {
   AcceleratedGrowthFundamentals,
   AgDiscoveryScore,
@@ -99,8 +100,8 @@ function scoreValuation(input?: ValuationRewardInput | null) {
 function classifyStatus(
   acceleration: AcceleratedGrowthFundamentals,
   total: number,
-  fundamentalAcceleration: number
-): AgQuantitativeStatus {
+  fundamentalAcceleration: number,
+ ): AgQuantitativeStatus {
   if (!acceleration.dataQuality.eligibleForScoring) return "INSUFFICIENT_DATA";
 
   const latestGrowth = acceleration.revenueTrajectory.latest ?? -Infinity;
@@ -133,9 +134,18 @@ export function scoreAcceleratedGrowthCandidate(input: AgScoringInput): AgDiscov
 
   const roundedTotal = Math.round(clamp(total) * 10) / 10;
 
+  const baselineStatus = classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration);
+  const sustainedQualified = baselineStatus === "REVIEW" &&
+    qualifiesSustainedHighGrowth(input.acceleration, input.quality);
+  const status = sustainedQualified ? "ADVANCE" : baselineStatus;
+
   return {
     total: roundedTotal,
-    status: classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration),
+    status,
+    baselineStatus,
+    qualificationPath: status === "ADVANCE"
+      ? sustainedQualified ? "SUSTAINED_HIGH_GROWTH" : "ACCELERATION"
+      : null,
     components: {
       fundamentalAcceleration: Math.round(fundamentalAcceleration * 10) / 10,
       earningsConfirmation: Math.round(earningsConfirmation * 10) / 10,
