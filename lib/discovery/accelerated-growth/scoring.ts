@@ -101,8 +101,7 @@ function classifyStatus(
   acceleration: AcceleratedGrowthFundamentals,
   total: number,
   fundamentalAcceleration: number,
-  quality?: BusinessQualityInput | null,
-): AgQuantitativeStatus {
+ ): AgQuantitativeStatus {
   if (!acceleration.dataQuality.eligibleForScoring) return "INSUFFICIENT_DATA";
 
   const latestGrowth = acceleration.revenueTrajectory.latest ?? -Infinity;
@@ -115,8 +114,7 @@ function classifyStatus(
 
   // ADVANCE means quantitative evidence is strong enough to justify the more
   // expensive catalyst/research stage. It is not a BUY recommendation.
-  if ((total >= 68 && fundamentalAcceleration >= 55 && latestGrowth >= 8) ||
-      qualifiesSustainedHighGrowth(acceleration, quality)) {
+  if (total >= 68 && fundamentalAcceleration >= 55 && latestGrowth >= 8) {
     return "ADVANCE";
   }
 
@@ -136,9 +134,18 @@ export function scoreAcceleratedGrowthCandidate(input: AgScoringInput): AgDiscov
 
   const roundedTotal = Math.round(clamp(total) * 10) / 10;
 
+  const baselineStatus = classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration);
+  const sustainedQualified = baselineStatus === "REVIEW" &&
+    qualifiesSustainedHighGrowth(input.acceleration, input.quality);
+  const status = sustainedQualified ? "ADVANCE" : baselineStatus;
+
   return {
     total: roundedTotal,
-    status: classifyStatus(input.acceleration, roundedTotal, fundamentalAcceleration, input.quality),
+    status,
+    baselineStatus,
+    qualificationPath: status === "ADVANCE"
+      ? sustainedQualified ? "SUSTAINED_HIGH_GROWTH" : "ACCELERATION"
+      : null,
     components: {
       fundamentalAcceleration: Math.round(fundamentalAcceleration * 10) / 10,
       earningsConfirmation: Math.round(earningsConfirmation * 10) / 10,
