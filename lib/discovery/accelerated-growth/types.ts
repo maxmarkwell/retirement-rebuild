@@ -68,7 +68,11 @@ export type AgScoreComponents = {
   marketConfirmation: number | null;
 };
 
+export type AgQualificationPath = "ACCELERATION" | "SUSTAINED_HIGH_GROWTH" | null;
+
 export type AgDiscoveryScore = {
+  qualificationPath: AgQualificationPath;
+  baselineStatus: AgQuantitativeStatus;
   total: number;
   status: AgQuantitativeStatus;
   components: AgScoreComponents;
