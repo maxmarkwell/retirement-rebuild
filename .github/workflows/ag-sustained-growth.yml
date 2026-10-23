@@ -1,0 +1,23 @@
+name: AG sustained growth validation
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/scoring.ts'
+      - 'lib/discovery/accelerated-growth/sustained-high-growth*.ts'
+      - '.github/workflows/ag-sustained-growth.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/sustained-high-growth.test.ts
