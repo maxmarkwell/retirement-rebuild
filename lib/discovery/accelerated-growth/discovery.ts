@@ -133,3 +133,43 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     reassessmentSelectedCount, candidates, errors,
   };
 }
+
+export async function getAgSelectorBiasDiagnostic() {
+  const universe = await getDynamicDiscoveryUniverse();
+  const eligible = universe.filter(passesAgTradabilityGate);
+  const buckets = Object.keys(BUCKET_LIMITS) as UniverseMarketCapBucket[];
+  const selected = buckets.flatMap((bucket) =>
+    selectBucket(universe.filter((stock) => stock.marketCapBucket === bucket), BUCKET_LIMITS[bucket])
+      .map(({ stock, selectorScore }) => ({ stock, selectorScore }))
+  );
+  const sectorCounts = (stocks: DynamicUniverseStock[]) => {
+    const counts: Record<string, number> = {};
+    for (const stock of stocks) {
+      const sector = stock.sector ?? "Unknown";
+      counts[sector] = (counts[sector] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([sector, count]) => ({ sector, count }));
+  };
+  return {
+    mode: "READ_ONLY_SELECTOR_DIAGNOSTIC",
+    universeCount: universe.length,
+    eligibleCount: eligible.length,
+    selectedCount: selected.length,
+    selectionRatePct: eligible.length ? Math.round(selected.length / eligible.length * 10000) / 100 : 0,
+    selectorFormula: "80% log-dollar-volume score, 20% share-price score; market-cap-slice sampling",
+    limitation: "This screener universe does not include growth, margins, earnings surprise, or valuation. It cannot rank fundamental quality without additional data.",
+    buckets: buckets.map((bucket) => ({
+      bucket, eligible: eligible.filter((stock) => stock.marketCapBucket === bucket).length,
+      selected: selected.filter(({ stock }) => stock.marketCapBucket === bucket).length,
+    })),
+    eligibleSectors: sectorCounts(eligible),
+    selectedSectors: sectorCounts(selected.map(({ stock }) => stock)),
+    selected: selected.map(({ stock, selectorScore }) => ({
+      ticker: stock.ticker, companyName: stock.companyName, sector: stock.sector,
+      marketCapBucket: stock.marketCapBucket, marketCap: stock.marketCap,
+      price: stock.price, dollarVolume: stock.dollarVolume,
+      selectorScore: Math.round(selectorScore * 10) / 10,
+    })),
+    decisionsWritten: false, transactionsWritten: false,
+  };
+}
