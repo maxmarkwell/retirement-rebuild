@@ -31,6 +31,9 @@ export async function getAgDailyCycleStatus() {
     .lt("cycle_date", cycleDate).order("cycle_date", { ascending: false }).limit(1);
   if (unfinishedError) throw new Error(`Unable to inspect earlier AG cycles: ${unfinishedError.message}`);
   const previousUnfinishedCycle = unfinishedCycles?.[0] ?? null;
+  const previousCycleInactivityMinutes = previousUnfinishedCycle
+    ? (Date.now() - Date.parse(previousUnfinishedCycle.updated_at)) / 60000 : null;
+  const previousCycleStalled = previousCycleInactivityMinutes !== null && previousCycleInactivityMinutes >= 7;
 
   // Read-only inventory for an earlier unfinished cycle. Never infer safe retry
   // from zero rows: legacy persistence may not have emitted ledger entries.
@@ -147,6 +150,7 @@ export async function getAgDailyCycleStatus() {
   return {
     cycleDate,
     previousUnfinishedCycle,
+    previousCycleStalled,
     previousCycleReconciliation,
     stalled,
     lastActivityAt,
@@ -177,14 +181,18 @@ export async function getAgDailyCycleStatus() {
       attributedDecisions: linkedDecisions.map(({ id, ticker, decision_type, status, transaction_id, created_at }) => ({
         id, ticker, decisionType: decision_type, status, hasTransaction: Boolean(transaction_id), createdAt: created_at,
       })),
-      recoveryState: cycle?.status === "failed"
+      recoveryState: previousUnfinishedCycle
+        ? "previous_cycle_requires_reconciliation"
+        : cycle?.status === "failed"
         ? "manual_review_required"
         : cycle?.status === "running" && persistenceStarted
           ? "persistence_in_progress_or_interrupted"
           : "not_applicable",
       automaticRetryPermitted: false,
     },
-    retryBlockedReason: stalled ? "No progress recorded for at least seven minutes. Review the cycle before retrying; some work may have been saved." : cycle?.status === "failed"
+    retryBlockedReason: previousUnfinishedCycle
+      ? "An earlier Accelerated Growth cycle is unfinished. Reconcile it before starting new discovery."
+      : stalled ? "No progress recorded for at least seven minutes. Review the cycle before retrying; some work may have been saved." : cycle?.status === "failed"
       ? "AG cycle retries require reconciliation because prior persistence may be partial."
       : null,
     executionEnabled: false,

@@ -1,0 +1,59 @@
+name: AG paper BUY safety checks
+
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/buy-activation-policy*.ts'
+      - 'lib/discovery/accelerated-growth/daily-cycle-execution.ts'
+      - 'supabase/migrations/20261015020000_ag_paper_buy_portfolio_lock.sql'
+      - 'tests/ag-paper-buy-migration-contract.test.mjs'
+      - 'tests/ag-production-discovery-contract.test.mjs'
+      - 'lib/discovery/accelerated-growth/daily-cycle.ts'
+      - 'lib/discovery/accelerated-growth/daily-cycle-status.ts'
+      - 'lib/discovery/accelerated-growth/daily-cycle-work.ts'
+      - 'app/api/accelerated-growth/daily-cycle/route.ts'
+      - 'lib/discovery/accelerated-growth/worker-*.ts'
+      - 'lib/discovery/accelerated-growth/research-cycle-rehearsal.ts'
+      - 'tests/ag-research-cycle-rehearsal.test.ts'
+      - 'supabase/migrations/*ag_worker*.sql'
+      - 'tests/ag-worker-*.test.mjs'
+      - 'tests/fixtures/ag-worker-*'
+      - '.github/workflows/ag-paper-buy-safety.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/discovery/accelerated-growth/buy-activation-policy*.ts'
+      - 'lib/discovery/accelerated-growth/daily-cycle-execution.ts'
+      - 'supabase/migrations/20261015020000_ag_paper_buy_portfolio_lock.sql'
+      - 'tests/ag-paper-buy-migration-contract.test.mjs'
+      - 'tests/ag-production-discovery-contract.test.mjs'
+      - 'lib/discovery/accelerated-growth/daily-cycle.ts'
+      - 'lib/discovery/accelerated-growth/daily-cycle-status.ts'
+      - 'lib/discovery/accelerated-growth/daily-cycle-work.ts'
+      - 'app/api/accelerated-growth/daily-cycle/route.ts'
+      - 'lib/discovery/accelerated-growth/worker-*.ts'
+      - 'lib/discovery/accelerated-growth/research-cycle-rehearsal.ts'
+      - 'tests/ag-research-cycle-rehearsal.test.ts'
+      - 'supabase/migrations/*ag_worker*.sql'
+      - 'tests/ag-worker-*.test.mjs'
+      - '.github/workflows/ag-paper-buy-safety.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  buy-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/ag-paper-buy-migration-contract.test.mjs tests/ag-production-discovery-contract.test.mjs tests/ag-worker-*.test.mjs
+      - run: npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/buy-activation-policy.test.ts
+      - run: npx --yes tsx@4.20.6 --test tests/ag-research-cycle-rehearsal.test.ts
+      - run: bash tests/fixtures/run-ag-worker-postgres.sh
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
