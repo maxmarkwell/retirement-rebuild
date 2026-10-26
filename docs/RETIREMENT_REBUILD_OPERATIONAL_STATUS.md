@@ -55,3 +55,33 @@ Next actions:
 ## Instructions for the next ChatGPT session
 
 **First read** `docs/RETIREMENT_REBUILD_VISION.md` and **this document** in the GitHub repository. Then inspect live GitHub PRs/issues, current `main`, GitHub Actions, Vercel production, and Supabase migrations and read-only cycle evidence. Treat this document as a dated handoff, not authoritative live state. Continue implementing and validating durable AG worker reliability in small tested increments, not just creating issues or reports. Never infer a SQL migration is applied from a successful Vercel deployment. Preserve Oct 14 cycle and real-money controls until the user explicitly approves a specific consequential action.
+
+
+## Update — 2026-10-26: VRT completes AG research funnel with read-only BUY
+
+**Newer evidence than the 2026-10-15 snapshot above.** The earlier unresolved-cycle/worker cautions remain open until independently reconciled; this section does not assert that they were resolved.
+
+### Shipped and verified
+- PR [#94](https://github.com/maxmarkwell/retirement-rebuild/pull/94) merged into `main` (squash SHA `18a3c014b3b66d8d9b6c241edcdd9b37314c423c`). It added a bounded **SUSTAINED_HIGH_GROWTH** Discovery qualification path, allowing strong sustained growers to reach research without rewriting the acceleration score or creating BUYs. Regression CI passed.
+- Production Vercel deployment `dpl_8PYdNUQx5EdMYuSCNgddXujaCi4L` was observed READY for that SHA at `https://retirement-rebuild.vercel.app`. Verify current deployment again in the next session.
+- Authenticated read-only VRT Discovery diagnostic returned `ADVANCE` through `SUSTAINED_HIGH_GROWTH` (baseline `REVIEW`); Catalyst Research returned `SUPPORTED`, confidence 0.8; Deep Research returned `PROCEED`; Investment Committee preview returned **`BUY`**.
+- Committee preview completed HTTP 200 on 2026-10-26. Response explicitly stated `mode: read_only`, `executionEnabled: false`, `decisionsPersisted: false`, `transactionsWritten: false`. **No persisted VRT decision, paper transaction, or brokerage trade is established by this test.**
+- Committee snapshot quote was $200.325 on 2026-10-26, vendor market cap ~$77.048B, enterprise value ~$77.575B, P/E 44.48x, P/S 6.71x, TTM revenue $11.480B, TTM net income $1.732B, TTM FCF $2.924B, P/FCF 26.35x. SEC historical-share diagnostic broadly agreed with vendor valuation; working-capital quality and incomplete components require caution. Committee's BUY acknowledged valuation/execution risk, backlog conversion uncertainty, and UIG as optional rather than required upside. Earnings scheduled 2026-10-28; verify the actual release before relying on pre-earnings research.
+- Read-only API routes: `GET /api/accelerated-growth/discovery-preview?symbol=VRT`, `GET /api/accelerated-growth/catalyst-preview?symbol=VRT`, `POST /api/accelerated-growth/deep-preview` body `{catalyst}`, and `POST /api/accelerated-growth/committee-preview` body `{research}`. The latter returns `decision`, `valuationSnapshot`, and `valuationNarrativeAudit`. Authenticated user/browser session and open AG paper strategy era required. Research calls consume model usage.
+- The production `GET /api/accelerated-growth/committee` diagnostic is disabled; `GET /api/accelerated-growth/research-preview?max=5` is read-only but uses dynamic candidate selection and does **not** guarantee VRT selection.
+
+### Current next task — deterministic AG paper sizing and decision lifecycle
+
+The user wants to continue from the first VRT Committee BUY into a **controlled, read-only validation of the AG paper portfolio's deterministic BUY eligibility, position sizing, available cash, and concentration controls**. Do not assume a Committee BUY implies executable eligibility or a position. Inspect the real code path and current portfolio state first; if necessary, propose a narrowly scoped read-only VRT sizing preview, with tests, before any database writes. No such sizing preview or sizing verification was completed in the handoff session.
+
+Inspected `lib/discovery/accelerated-growth/committee-pipeline.ts`: `persistAgCommitteeDecisions` restricts writes to `paper_active` with an open `accelerated_growth` paper era; derives BUY liquidity/theme evidence from dynamic universe; reuses or supersedes active decisions under lifecycle rules and refuses an already-executed BUY. It does **not** set recommended quantity/allocation; those remain null. `lib/discovery/accelerated-growth/execution-evidence.ts` checks volume >= 50,000 shares and dollar volume >= $1M. `lib/discovery/accelerated-growth/committee.ts` explicitly forbids the AI Committee from sizing. Actual sizing code path remains to be traced and verified.
+
+**Absolute constraint:** User alone executes all real-money brokerage purchases. Do not build, propose, enable, or test automatic brokerage buying. Real Portfolio stays isolated; AG remains paper-only and execution-disabled absent specific approval. Research preview is not authorization to persist a BUY, modify positions, initiate cycles, or execute paper trades. The Oct 14 stalled-cycle reconciliation and durable worker backlog remain separately unresolved.
+
+### Next-session sequence
+
+1. Read the vision charter and this operational document, verify `main`/deployment and relevant Supabase state.
+2. Trace AG paper sizing/execution eligibility from UI/API through deterministic engine and cash/holdings/limits. Identify whether read-only sizing can be safely evaluated for the existing VRT Committee result.
+3. Test the sizing and duplicate-decision safeguards without writing to production, with targeted regression tests and PR review if code changes are needed.
+4. Separately revisit VRT after Oct 28 earnings before any actual capital decision. Preserve all prior controls and require explicit user approval for consequential actions.
+
