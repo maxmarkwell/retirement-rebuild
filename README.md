@@ -1,6 +1,14 @@
 # Retirement Rebuild
 
-For project continuity, read the [vision and governing principles](docs/RETIREMENT_REBUILD_VISION.md) and the [operational status and cross-session handoff](docs/RETIREMENT_REBUILD_OPERATIONAL_STATUS.md) before modifying the investment research or execution workflows.
+Retirement Rebuild is an evidence-driven investment research and portfolio-management application built with Next.js, Supabase, and Vercel. AI research and independent Investment Committee decisions establish **ownership merit** (BUY/WATCH/REJECT); deterministic portfolio engines exclusively determine purchase eligibility and sizing. **AI does not allocate dollars or shares.**
+
+The Real Long-Term portfolio is undergoing controlled real-money testing, beginning at $200. The user independently places trades at E*TRADE and manually records actual fills. No automated real-money brokerage execution is authorized. Accelerated Growth (AG) is a separate paper-only research and portfolio strategy; other paper portfolios and VOO remain controls.
+
+AG research progresses through quantitative Discovery, Catalyst Research, Deep Research, and Investment Committee review. The sustained-high-growth qualification pathway admitted VRT to a successful read-only sequence on October 26, 2026: ADVANCE → SUPPORTED → PROCEED → BUY. **This BUY was not persisted as an active investment decision, was not allocated, and was not traded.** A research result, persisted decision, eligible sized proposal and executed transaction are distinct lifecycle states.
+
+The current AG engineering focus is verification of read-only deterministic BUY sizing and its paper-portfolio risk controls. Normal AG daily-cycle transaction execution remains disabled; do not invoke the separate write-capable paper execution function for diagnostics. See the linked operational status for audited functions, current limitations, safety restrictions and next steps.
+
+For strategic decisions and current verified status, read [the vision and governing principles](docs/RETIREMENT_REBUILD_VISION.md) and [the operational status and cross-session handoff](docs/RETIREMENT_REBUILD_OPERATIONAL_STATUS.md) before modifying any research, allocation, or execution workflow.
 
 ---
 
