@@ -1,0 +1,24 @@
+name: AG read-only sizing preflight
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/buy-sizing-preflight*.ts'
+      - 'lib/discovery/accelerated-growth/risk-sizing.ts'
+      - 'lib/discovery/accelerated-growth/portfolio-guardrails.ts'
+      - '.github/workflows/ag-buy-sizing-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: npx --yes tsx@4.20.6 lib/discovery/accelerated-growth/buy-sizing-preflight.test.ts
