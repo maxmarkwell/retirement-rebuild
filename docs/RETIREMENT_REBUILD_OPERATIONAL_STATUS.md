@@ -55,3 +55,32 @@ Next actions:
 ## Instructions for the next ChatGPT session
 
 **First read** `docs/RETIREMENT_REBUILD_VISION.md` and **this document** in the GitHub repository. Then inspect live GitHub PRs/issues, current `main`, GitHub Actions, Vercel production, and Supabase migrations and read-only cycle evidence. Treat this document as a dated handoff, not authoritative live state. Continue implementing and validating durable AG worker reliability in small tested increments, not just creating issues or reports. Never infer a SQL migration is applied from a successful Vercel deployment. Preserve Oct 14 cycle and real-money controls until the user explicitly approves a specific consequential action.
+
+
+## October 26, 2026 — AG VRT BUY milestone and deterministic sizing review
+
+**This section supersedes older AG research-stage status above only where explicitly stated.** Preserve the October 14 cycle incident and its recovery restrictions until separately verified and resolved.
+
+### Verified research milestone, not execution
+
+Vertiv Holdings (VRT) passed four authenticated read-only diagnostics: quantitative Discovery **ADVANCE** through `SUSTAINED_HIGH_GROWTH`, Catalyst **SUPPORTED**, Deep Research **PROCEED**, and Investment Committee **BUY**. The October 26 research-stage result did **not** persist an active Committee BUY decision, create a proposed allocation, or execute a paper or real-money transaction. The Committee's ownership-merit judgment does not determine shares, capital allocation, or entry price. Valuation and cash-flow normalization remain material research caveats. A later earnings event was scheduled for October 28; reassessment must use up-to-date evidence.
+
+PR #94 (`18a3c014b3b66d8d9b6c241edcdd9b37314c423c`) introduced the sustained-high-growth research qualification path and was reported merged and deployed READY in the handoff. This is a research admission path, **not** an automatic BUY or portfolio execution bypass.
+
+### Verified code path for AG paper sizing (inspection on October 26)
+
+- `lib/discovery/accelerated-growth/committee-pipeline.ts`: `persistAgCommitteeDecisions` requires an authenticated user, `paper_active` portfolio and open paper AG era, and guards against reusing an executed BUY. The VRT read-only preview did not invoke this persistence.
+- `lib/discovery/accelerated-growth/daily-cycle-work.ts`: `runAgResearchDailyCycle` throws `AG_PAPER_EXECUTION_DISABLED` if `executeTransactions: true` is requested; it calls the execution orchestrator with execution disabled.
+- `lib/discovery/accelerated-growth/daily-cycle-execution.ts`: `executeAgDailyCycleTransactions` delegates an enabled BUY to `executeAgPaperBuy`. This does not make direct calls to the separate executor safe for a preview.
+- `lib/discovery/accelerated-growth/paper-execution.ts`: `executeAgPaperBuy` checks authentication, unexecuted active Committee BUY, paper portfolio and era, decision age and persisted evidence; loads transactions/contributions, computes AG accounting, reconstructs holdings, values positions, assesses theme exposure and drawdown; evaluates guardrails and `sizeAgBuy`; **then can advance a persisted high-water mark, insert authorization and invoke the transaction-writing `execute_ag_paper_buy_authorized` RPC**. Never invoke this executor for a read-only sizing preview.
+- `lib/discovery/accelerated-growth/portfolio-guardrails.ts`: `evaluateAgPortfolioGuardrails` checks sleeve, theme and position caps; at least $5 cash; valid thesis/liquidity; and the 20% sleeve drawdown review circuit breaker. Adds additionally require completed reassessment.
+- `lib/discovery/accelerated-growth/risk-sizing.ts`: `sizeAgBuy` uses 20% AG sleeve, 5% single-position, 10% theme, and 50%-of-position-cap starter target; $5 minimum BUY notional and three-decimal share quantities. No AI sizing is involved. The separate generic `lib/portfolio/position-sizing.ts` is **not** the AG executor sizing function.
+- `lib/discovery/accelerated-growth/execution-evidence.ts`: liquidity evidence requires at least 50,000 daily shares and $1 million daily dollar volume and supplies theme attribution.
+
+At **$200 reference capital** only, these percentage limits imply a $40 AG sleeve cap, $10 position cap, $5 starter target and $20 theme cap. These are examples of code-defined limits, **not live AG portfolio readings or an authorized allocation**.
+
+### Unverified / next controlled step
+
+Current AG paper cash, holdings, contributions, theme allocation, quote, high-water mark and exact live VRT eligibility are **not verified**. The normal AG candidate selector has not been shown to select VRT. There is no verified read-only end-to-end VRT sizing preview. Before proposing an endpoint, inspect the relevant existing AG accounting/valuation functions and a candidate diagnostic-route authentication pattern; refactor the read-only calculation boundary if necessary, without calling `executeAgPaperBuy`, advancing the high-water mark, creating authorizations, persisting decisions or writing transactions. Add regression coverage for cash, liquidity, concentration, executed/duplicate decision, circuit breaker, and paper-versus-real isolation; then run TypeScript and CI checks and open a separate focused code PR.
+
+**Do not enable AG paper execution, initiate research cycles, alter the real portfolio, or treat the VRT Committee preview as an executed holding.**
