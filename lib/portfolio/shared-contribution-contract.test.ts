@@ -18,4 +18,12 @@ assert.throws(() => planSharedContribution(portfolios, {...request,contributionD
 assert.throws(() => planSharedContribution(portfolios, {...request,idempotencyKey:"short"}),/key/);
 assert.throws(() => planSharedContribution(portfolios.filter(p=>p.type!=="real"),request),/Exactly one/);
 assert.throws(() => planSharedContribution([...portfolios,portfolios[0]],request),/Exactly one/);
+
+// Valid cent amounts must survive ordinary floating-point representation.
+for (const amount of [0.01, 0.29, 1.01, 5.04, 19.99, 100.29]) {
+  assert.equal(planSharedContribution(portfolios, { ...request, amount }).contributionCents, Math.round(amount * 100));
+}
+for (const amount of [0.001, 0.299, 1.005, Number.NaN, Infinity, -0.01]) {
+  assert.throws(() => planSharedContribution(portfolios, { ...request, amount }), /positive whole-cent/);
+}
 console.log("Shared contribution posting contract tests passed");
