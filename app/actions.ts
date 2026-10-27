@@ -9,66 +9,18 @@ import type { ActionState } from "@/lib/forms/action-state";
 // CONTRIBUTION
 // ---------------------------------------------------------
 
+/**
+ * Legacy Server Action is permanently non-posting. The only contemplated
+ * real contribution write path is the independently gated, idempotent API.
+ * Keep this stub while any compiled clients might still invoke this action.
+ */
 export async function addContribution(
   _prevState: ActionState,
-  formData: FormData
+  _formData: FormData
 ): Promise<ActionState> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      success: false,
-      message: "You must be signed in.",
-    };
-  }
-
-  const portfolioId = formData.get("portfolio_id") as string;
-  const amount = Number(formData.get("amount"));
-  const contributionDate = formData.get("contribution_date") as string;
-  const notes = formData.get("notes") as string;
-
-  if (!portfolioId) {
-    return {
-      success: false,
-      message: "Portfolio is required.",
-    };
-  }
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return {
-      success: false,
-      message: "Contribution amount must be greater than zero.",
-    };
-  }
-
-  if (!contributionDate) {
-    return {
-      success: false,
-      message: "Contribution date is required.",
-    };
-  }
-
-  const { error } = await supabase.from("contributions").insert({
-    user_id: user.id,
-    portfolio_id: portfolioId,
-    amount,
-    contribution_date: contributionDate,
-    notes: notes || null,
-  });
-
-  if (error) {
-    throw new Error(`Unable to add contribution: ${error.message}`);
-  }
-
-  revalidatePath("/");
-
   return {
-    success: true,
-    message: `Contribution recorded successfully: $${amount.toFixed(2)}.`,
+    success: false,
+    message: "Legacy contribution entry is disabled. Use the read-only shared-capital preview until verified posting is enabled.",
   };
 }
 

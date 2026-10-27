@@ -1,0 +1,11 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const source = fs.readFileSync("app/actions.ts", "utf8");
+const from = source.indexOf("export async function addContribution(");
+const to = source.indexOf("// BUY", from);
+assert.ok(from >= 0 && to > from, "Legacy action must exist for fail-closed compatibility.");
+const body = source.slice(from, to);
+assert.match(body, /success:\s*false/);
+assert.match(body, /Legacy contribution entry is disabled/);
+assert.doesNotMatch(body, /\.from\s*\(\s*["']contributions["']\s*\)|\.insert\s*\(|fetch\s*\(/);
+console.log("Legacy contribution Server Action is fail-closed and has no write path.");
