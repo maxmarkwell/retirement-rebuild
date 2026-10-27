@@ -178,12 +178,12 @@ export default async function Home() {
                 <p className="mt-1 text-xs text-gray-500">Total gain/loss across both strategies</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm text-gray-600">Total portfolio value</p>
+                <p className="text-sm text-gray-600">Investment account value</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">${investmentOverview.realEquity.toFixed(2)}</p>
                 <p className="mt-1 text-xs text-gray-500">Available real cash: ${investmentOverview.realCash.toFixed(2)}</p>
               </div>
             </div>
-            <p className="mt-4 text-xs text-slate-500">Returns exclude contributions. Total portfolio value and available cash reflect your investment account without double-counting strategy allocations.
+            <p className="mt-4 text-xs text-slate-500">Returns exclude contributions. Account value and available cash are shown once, without double-counting capital across strategies.
               {latestPriceDate && Number.isFinite(latestPriceDate.getTime()) ? ` Oldest holding quote: ${latestPriceDate.toLocaleDateString("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" })}.` : " No open-position quote dates available."}
             </p>
           </section>
