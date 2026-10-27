@@ -23,19 +23,20 @@ check() {
   actual=$(curl --silent --output /dev/null --write-out '%{http_code}' "$@")
   if [[ "$actual" != "$expected" ]]; then echo "Expected HTTP $expected, got $actual"; cat "$LOG"; exit 1; fi
 }
-# These requests cannot reach auth/database because feature gate is closed.
-start_server false
-check 503 -X POST "$BASE/api/shared-capital/contributions"
-check 503 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: application/json' -d '{"confirmedExternalDeposit":true,"amount":100,"contributionDate":"2026-10-27","idempotencyKey":"http_smoke_request_0001"}'
-stop_server
-# Use a separate listener: npm may leave its Next child running briefly.
-# Never let the enabled checks accidentally hit the disabled instance.
-PORT=3018
-BASE="http://127.0.0.1:$PORT"
-# When enabled only inside this ephemeral CI process, reject invalid browser
-# submissions before accessing Supabase or writing financial rows.
-start_server true
-check 403 -X POST "$BASE/api/shared-capital/contributions" -H 'Content-Type: application/json' -d '{}'
-check 403 -X POST "$BASE/api/shared-capital/contributions" -H 'Origin: https://other.example' -H 'Content-Type: application/json' -d '{}'
-check 415 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: text/plain' -d '{}'
-echo "Live HTTP feature-gate/origin/content-type smoke tests passed"
+# Run only one Next dev server per isolated CI job. Next.js uses a
+# repository-wide dev lock even when the ports differ.
+case "${SMOKE_MODE:-}" in
+  disabled)
+    start_server false
+    check 503 -X POST "$BASE/api/shared-capital/contributions"
+    check 503 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: application/json' -d '{"confirmedExternalDeposit":true,"amount":100,"contributionDate":"2026-10-27","idempotencyKey":"http_smoke_request_0001"}'
+    ;;
+  guards)
+    start_server true
+    check 403 -X POST "$BASE/api/shared-capital/contributions" -H 'Content-Type: application/json' -d '{}'
+    check 403 -X POST "$BASE/api/shared-capital/contributions" -H 'Origin: https://other.example' -H 'Content-Type: application/json' -d '{}'
+    check 415 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: text/plain' -d '{}'
+    ;;
+  *) echo "SMOKE_MODE must be disabled or guards"; exit 2 ;;
+esac
+echo "Live HTTP ${SMOKE_MODE} smoke tests passed"
