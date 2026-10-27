@@ -37,4 +37,5 @@ CREATE POLICY "Users manage own contributions" ON public.contributions
   WITH CHECK ((select auth.uid())=user_id);
 SQL
 cp "$ROOT/supabase/migrations/20261027170000_contribution_idempotency.sql" "$DIR/supabase/migrations/20261027170000_contribution_idempotency.sql"
+cp "$ROOT/supabase/migrations/20261027190000_contribution_external_reference.sql" "$DIR/supabase/migrations/20261027190000_contribution_external_reference.sql"
 echo "Fixture initialized with the exact repository contribution migration."
