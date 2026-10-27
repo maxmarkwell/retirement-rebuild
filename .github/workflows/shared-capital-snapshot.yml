@@ -1,0 +1,24 @@
+name: Shared capital snapshot safety
+on:
+  pull_request:
+    paths:
+      - 'app/api/shared-capital/snapshot/**'
+      - 'lib/portfolio/shared-capital*.ts'
+      - '.github/workflows/shared-capital-snapshot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: npx --yes tsx@4.20.6 lib/portfolio/shared-capital.test.ts
+      - run: npx --yes tsx@4.20.6 app/api/shared-capital/snapshot/route.test.ts
