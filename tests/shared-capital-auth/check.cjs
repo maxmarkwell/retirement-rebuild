@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { createClient } = require("@supabase/supabase-js");
 const { execFileSync } = require("node:child_process");
-const info = JSON.parse(execFileSync("./node_modules/.bin/supabase", ["status", "-o", "json"], {
+const info = JSON.parse(execFileSync("../node_modules/.bin/supabase", ["status", "-o", "json"], {
   cwd: ".contribution-supabase-ci", encoding: "utf8"
 }));
 const url = info.API_URL || info.api_url;
