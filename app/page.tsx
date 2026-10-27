@@ -7,7 +7,7 @@ import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { calculateInvestmentOverview } from "@/lib/portfolio/investment-overview";
 import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
-import ContributionForm from "@/components/contribution-form";
+import SharedContributionPreview from "@/components/shared-contribution-preview";
 import SnapshotButton from "@/components/snapshot-button";
 import { getAgOperationalState } from "@/lib/discovery/accelerated-growth/operational-state";
 
@@ -312,7 +312,7 @@ export default async function Home() {
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record buy</summary><div className="mt-4"><BuyForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record sell</summary><div className="mt-4"><SellForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
-            <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Add contribution</summary><div className="mt-4"><ContributionForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
+            <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Contribution preview (read-only)</summary><SharedContributionPreview currentSharedCash={realAccounting?.cash ?? null} /></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Manual performance snapshot</summary><div className="mt-4"><SnapshotButton /></div></details>
           </div>
         </section>
