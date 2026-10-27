@@ -17,6 +17,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Generate Next.js route and layout types
+        run: npx next typegen
       - name: Check TypeScript
         run: npx tsc --noEmit --incremental false
       - name: Ensure legacy action has no contribution writes
