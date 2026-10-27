@@ -18,3 +18,7 @@ assert.equal(calculateInvestmentOverview({...base,realQuotesComplete:false}).rea
 assert.equal(calculateInvestmentOverview({...base,contributedCapital:300,realCash:233.11,realEquity:299.90}).realCash,233.11);
 assert.throws(()=>calculateInvestmentOverview({...base,realEquity:Number.NaN}));
 console.log("Combined investment overview fixtures passed");
+
+import { readFileSync } from "node:fs";
+const dashboardSource = readFileSync("app/page.tsx", "utf8");
+assert.ok(dashboardSource.includes('}$' + '${Math.abs(v).toFixed(2)}'), "Gain/loss formatter must include a literal dollar symbol.");
