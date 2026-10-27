@@ -28,6 +28,15 @@ jobs:
           [auth.email]
           enable_confirmations = false
           TOML
+      - name: Grant local fixture API access without changing production schema
+        run: |
+          cat >> .contribution-supabase-ci/supabase/migrations/20261028000000_local_fixture_grants.sql <<'SQL'
+          GRANT USAGE ON SCHEMA public TO service_role, authenticated, anon;
+          GRANT ALL ON TABLE public.portfolios TO service_role;
+          GRANT SELECT, INSERT ON TABLE public.contributions TO authenticated;
+          GRANT SELECT ON TABLE public.contributions TO anon;
+          GRANT ALL ON TABLE public.contributions TO service_role;
+          SQL
       - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase start
       - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase db reset --local
       - run: bash tests/shared-capital-local-supabase/check-schema.sh
