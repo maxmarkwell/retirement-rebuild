@@ -1,0 +1,16 @@
+import { strict as assert } from "node:assert";
+import { previewSharedCapital } from "./shared-capital";
+const tx=[{id:"a",transactionType:"buy" as const,grossAmount:66.89,fees:0}];
+const base={startingCapital:200,realContributions:[],realTransactions:tx,agRiskCap:40,agRealMarketValue:0};
+const result=previewSharedCapital(base);
+assert.equal(result.sharedAvailableCash,133.11);
+assert.equal(result.agMaximumNewCapital,40);
+assert.equal(previewSharedCapital({...base,proposedAgPurchase:5.21}).hypotheticalPurchaseAffordable,true);
+assert.equal(previewSharedCapital({...base,realContributions:[{id:"deposit-1",amount:100}]}).sharedAvailableCash,233.11);
+assert.equal(previewSharedCapital({...base,agRiskCap:60,realContributions:[{id:"deposit-1",amount:100}]}).agMaximumNewCapital,60);
+assert.equal(previewSharedCapital({...base,agRealMarketValue:38,proposedAgPurchase:5.21}).hypotheticalPurchaseAffordable,false);
+assert.equal(previewSharedCapital({...base,realTransactions:[...tx,{id:"b",transactionType:"sell",grossAmount:10,fees:0.05}]}).sharedAvailableCash,143.06);
+assert.throws(()=>previewSharedCapital({...base,realTransactions:[...tx,tx[0]]}),/Duplicate/);
+assert.throws(()=>previewSharedCapital({...base,realContributions:[{id:"c",amount:100},{id:"c",amount:100}]}),/Duplicate/);
+assert.throws(()=>previewSharedCapital({...base,realTransactions:[{id:"overspend",transactionType:"buy",grossAmount:210,fees:0}]}),/negative cash/);
+console.log("Shared-capital read-only audit fixtures passed");
