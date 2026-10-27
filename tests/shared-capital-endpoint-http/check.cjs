@@ -33,7 +33,7 @@ async function post(body,identity) {
     {user_id:b.id,type:"real",is_real_money:true}
   ]).select("id,user_id");
   assert.ifError(pe);
-  const payload={confirmedExternalDeposit:true,amount:10.29,contributionDate:"2026-10-27",idempotencyKey:"http_auth_request_0001"};
+  const payload={confirmedExternalDeposit:true,amount:10.29,contributionDate:"2026-10-27",idempotencyKey:"http_auth_request_0001",externalDepositReference:"etrade_deposit_tx_0001"};
   const unauth=await post(payload,null);
   assert.equal(unauth.status,401,JSON.stringify(unauth));
   const created=await post(payload,a);
@@ -44,6 +44,10 @@ async function post(body,identity) {
   assert.equal(repeat.status,200,JSON.stringify(repeat));
   assert.equal(repeat.data.status,"already_recorded");
   assert.equal(repeat.data.contributionId,created.data.contributionId);
+  const alternateKey=await post({...payload,idempotencyKey:"http_auth_request_9999"},a);
+  assert.equal(alternateKey.status,409,JSON.stringify(alternateKey));
+  const missingRef=await post({...payload,externalDepositReference:undefined,idempotencyKey:"http_auth_request_0003"},a);
+  assert.equal(missingRef.status,400,JSON.stringify(missingRef));
   const conflict=await post({...payload,amount:20.29},a);
   assert.equal(conflict.status,409,JSON.stringify(conflict));
   const {data:rows,error:re}=await admin.from("contributions").select("id,user_id,portfolio_id,amount,idempotency_key");
