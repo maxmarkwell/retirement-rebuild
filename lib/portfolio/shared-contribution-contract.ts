@@ -20,9 +20,13 @@ export function planSharedContribution(
 ) {
   const real = portfolios.filter(p => p.type === "real" && p.isRealMoney);
   if (real.length !== 1 || !real[0].id) throw new Error("Exactly one real-money account is required.");
+  // JSON numbers such as 0.29 may not multiply to an exact integer in
+  // binary floating point. Normalize to cents, then reject sub-cent amounts.
+  const rawCents = request.amount * 100;
+  const contributionCents = Math.round(rawCents);
   if (!Number.isFinite(request.amount) || request.amount <= 0 ||
-      Math.round(request.amount * 100) !== request.amount * 100 ||
-      !Number.isSafeInteger(request.amount * 100)) {
+      !Number.isSafeInteger(contributionCents) ||
+      Math.abs(rawCents - contributionCents) > 1e-8) {
     throw new Error("Contribution must be a positive whole-cent amount.");
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(request.contributionDate) ||
@@ -34,7 +38,7 @@ export function planSharedContribution(
   }
   return {
     destinationPortfolioId: real[0].id,
-    contributionCents: Math.round(request.amount * 100),
+    contributionCents,
     contributionDate: request.contributionDate,
     idempotencyKey: request.idempotencyKey,
     postingMode: "not_implemented" as const,
