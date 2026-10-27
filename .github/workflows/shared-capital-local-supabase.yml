@@ -1,0 +1,32 @@
+name: Local Supabase shared-capital integration readiness
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-capital-local-supabase/**'
+      - '.github/workflows/shared-capital-local-supabase.yml'
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  supabase-local:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Start isolated local Supabase services
+        run: npx supabase start
+      - name: Rebuild local schema from repository migrations
+        run: npx supabase db reset --local
+      - name: Check production-relevant schema prerequisites locally
+        run: bash tests/shared-capital-local-supabase/check-schema.sh
+      - name: Shut down isolated services
+        if: always()
+        run: npx supabase stop --no-backup || true
