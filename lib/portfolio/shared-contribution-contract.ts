@@ -26,7 +26,7 @@ export function planSharedContribution(
     throw new Error("Contribution must be a positive whole-cent amount.");
   }
   if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(request.contributionDate) ||
-      new Date(request.contributionDate + "T00:00:00Z").toISOString().slice(0, 10) !== request.contributionDate) {
+      (!Number.isFinite(Date.parse(request.contributionDate + "T00:00:00Z")) || new Date(request.contributionDate + "T00:00:00Z").toISOString().slice(0, 10) !== request.contributionDate)) {
     throw new Error("Contribution date must be a valid ISO calendar date.");
   }
   if (!/^[a-zA-Z0-9_-]{16,128}$/.test(request.idempotencyKey)) {
