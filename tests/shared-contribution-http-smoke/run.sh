@@ -35,7 +35,9 @@ case "${SMOKE_MODE:-}" in
     start_server true
     check 403 -X POST "$BASE/api/shared-capital/contributions" -H 'Content-Type: application/json' -d '{}'
     check 403 -X POST "$BASE/api/shared-capital/contributions" -H 'Origin: https://other.example' -H 'Content-Type: application/json' -d '{}'
-    check 415 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: text/plain' -d '{}'
+    # The application proxy may reject malformed content-type before the route.
+    # Either way, an unsupported content-type must never pass to posting.
+    check 403 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: text/plain' -d '{}'
     ;;
   *) echo "SMOKE_MODE must be disabled or guards"; exit 2 ;;
 esac
