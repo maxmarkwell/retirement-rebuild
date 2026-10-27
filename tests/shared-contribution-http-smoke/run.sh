@@ -28,6 +28,10 @@ start_server false
 check 503 -X POST "$BASE/api/shared-capital/contributions"
 check 503 -X POST "$BASE/api/shared-capital/contributions" -H "Origin: $BASE" -H 'Content-Type: application/json' -d '{"confirmedExternalDeposit":true,"amount":100,"contributionDate":"2026-10-27","idempotencyKey":"http_smoke_request_0001"}'
 stop_server
+# Use a separate listener: npm may leave its Next child running briefly.
+# Never let the enabled checks accidentally hit the disabled instance.
+PORT=3018
+BASE="http://127.0.0.1:$PORT"
 # When enabled only inside this ephemeral CI process, reject invalid browser
 # submissions before accessing Supabase or writing financial rows.
 start_server true
