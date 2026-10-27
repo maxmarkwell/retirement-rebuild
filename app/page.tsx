@@ -122,7 +122,8 @@ export default async function Home() {
     ? calculatePortfolioAccounting(agPortfolio, contributions ?? [], transactions ?? [], marketPrices,
         { inception_at: agEra.inception_at, reference_total_capital: agEra.reference_total_capital })
     : null;
-  const realMissingQuotes = realAccounting?.holdings.some(h => h.marketPrice == null) ?? true;
+  const realUnpricedTickers = realAccounting?.holdings.filter(h => h.marketPrice == null).map(h => h.ticker) ?? [];
+  const realMissingQuotes = realUnpricedTickers.length > 0;
   const agMissingQuotes = agAccounting?.holdings.some(h => h.marketPrice == null) ?? true;
   const investmentOverview = realAccounting && agAccounting && realPortfolio
     ? calculateInvestmentOverview({
@@ -136,6 +137,7 @@ export default async function Home() {
         agQuotesComplete: !agMissingQuotes,
       })
     : null;
+  const pendingQuoteLabel = realUnpricedTickers.length ? `Awaiting quote: ${realUnpricedTickers.join(", ")}` : null;
   const showMoney = (v: number | null) => v == null ? "Unavailable" : `${v < 0 ? "−" : v > 0 ? "+" : ""}$${Math.abs(v).toFixed(2)}`;
   const showPercent = (v: number | null) => v == null ? "N/A" : `${v < -0.000001 ? "−" : v > 0.000001 ? "+" : ""}${Math.abs(v).toFixed(2)}%`;
   const dashboardQuotes = [...(realAccounting?.holdings ?? []), ...(agAccounting?.holdings ?? [])]
@@ -168,7 +170,7 @@ export default async function Home() {
                 <p className="text-sm text-gray-600">Long-Term gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.realGain)}</p>
                 <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.realReturnPct)} of Long-Term capital</p>
-                <p className="mt-1 text-xs text-gray-500">Actual holdings and realized results</p>
+                <p className="mt-1 text-xs text-gray-500">{pendingQuoteLabel ?? "Actual holdings and realized results"}</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Accelerated Growth gain/loss</p>
@@ -180,12 +182,13 @@ export default async function Home() {
                 <p className="text-sm text-gray-600">Combined strategy gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.combinedStrategyGain)}</p>
                 <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.combinedChangePct)} relative to shared capital</p>
-                <p className="mt-1 text-xs text-gray-500">Sum of strategy gains and losses</p>
+                <p className="mt-1 text-xs text-gray-500">{pendingQuoteLabel ?? "Sum of strategy gains and losses"}</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm text-gray-600">Investment account value</p>
+                <p className="text-sm text-gray-600">{realMissingQuotes ? "Estimated investment account value" : "Investment account value"}</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">${investmentOverview.realEquity.toFixed(2)}</p>
                 <p className="mt-1 text-xs text-gray-500">Available real cash: ${investmentOverview.realCash.toFixed(2)}</p>
+                {pendingQuoteLabel && <p className="mt-1 text-xs text-amber-800">Uses purchase cost for {realUnpricedTickers.join(", ")} until priced.</p>}
               </div>
             </div>
             <p className="mt-4 text-xs text-slate-500">Returns exclude contributions. Account value and available cash are shown once, without double-counting capital across strategies.
