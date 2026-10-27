@@ -1,0 +1,37 @@
+name: Authenticated local Supabase contribution RLS
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-capital-auth/**'
+      - '.github/workflows/shared-capital-auth.yml'
+      - 'tests/shared-capital-local-supabase/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: bash tests/shared-capital-local-supabase/prepare.sh
+      - name: Disable email verification only for disposable local test users
+        run: |
+          cat >> .contribution-supabase-ci/supabase/config.toml <<'TOML'
+          [auth.email]
+          enable_confirmations = false
+          TOML
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase start
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase db reset --local
+      - run: bash tests/shared-capital-local-supabase/check-schema.sh
+      - name: Exercise real local Supabase Auth sessions and contribution RLS
+        run: node tests/shared-capital-auth/check.cjs
+      - if: always()
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase stop --no-backup || true
