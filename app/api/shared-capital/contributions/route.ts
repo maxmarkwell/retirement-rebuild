@@ -40,8 +40,10 @@ export async function POST(request: Request) {
   if (payload.confirmedExternalDeposit !== true ||
       typeof payload.amount !== "number" ||
       typeof payload.contributionDate !== "string" ||
-      typeof payload.idempotencyKey !== "string") {
-    return respond({ error: "Confirmed deposit, amount, date, and request key are required." }, 400);
+      typeof payload.idempotencyKey !== "string" ||
+      typeof payload.externalDepositReference !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/.test(payload.externalDepositReference)) {
+    return respond({ error: "Confirmed deposit, amount, date, request key, and brokerage transaction reference are required." }, 400);
   }
 
   try {
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
       { amount: payload.amount, contributionDate: payload.contributionDate, idempotencyKey: payload.idempotencyKey },
     );
 
-    const fields = "id, portfolio_id, amount, contribution_date, idempotency_key";
+    const fields = "id, portfolio_id, amount, contribution_date, idempotency_key, external_deposit_reference";
     const matching = () => supabase.from("contributions").select(fields)
       .eq("user_id", user.id).eq("idempotency_key", plan.idempotencyKey).maybeSingle();
 
@@ -65,19 +67,31 @@ export async function POST(request: Request) {
       if (!existing) return null;
       const identical = existing.portfolio_id === plan.destinationPortfolioId &&
         Math.round(Number(existing.amount) * 100) === plan.contributionCents &&
-        existing.contribution_date === plan.contributionDate;
+        existing.contribution_date === plan.contributionDate &&
+        existing.external_deposit_reference === payload.externalDepositReference;
       return identical
         ? respond({ status: "already_recorded", contributionId: existing.id, fundsTransferred: false })
         : respond({ error: "Request key already belongs to a different contribution." }, 409);
     };
 
+    // A separate request key must never replay the same brokerage transaction.
+    const matchExternalDeposit = async () => {
+      const { data: existing, error } = await supabase.from("contributions").select(fields)
+        .eq("user_id", user.id).eq("external_deposit_reference", payload.externalDepositReference).maybeSingle();
+      if (error) throw new Error("Brokerage deposit reconciliation failed.");
+      return existing ? respond({ error: "This brokerage deposit is already recorded under another request." }, 409) : null;
+    };
+
     const before = await matchExisting();
     if (before) return before;
+    const externalBefore = await matchExternalDeposit();
+    if (externalBefore) return externalBefore;
     const { data: inserted, error: insertError } = await supabase.from("contributions")
       .insert({
         user_id: user.id, portfolio_id: plan.destinationPortfolioId,
         amount: plan.contributionCents / 100, contribution_date: plan.contributionDate,
         idempotency_key: plan.idempotencyKey,
+        external_deposit_reference: payload.externalDepositReference,
       }).select("id").single();
 
     if (insertError) {
@@ -85,6 +99,8 @@ export async function POST(request: Request) {
       if (insertError.code === "23505") {
         const raced = await matchExisting();
         if (raced) return raced;
+        const externalRaced = await matchExternalDeposit();
+        if (externalRaced) return externalRaced;
         return respond({ error: "Contribution request conflict. Please reconcile." }, 409);
       }
       throw new Error("Unable to post contribution.");

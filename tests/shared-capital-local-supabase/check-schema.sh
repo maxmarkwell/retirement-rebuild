@@ -14,6 +14,12 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename='contributions' AND indexname='contributions_user_idempotency_key_uidx') THEN
    RAISE EXCEPTION 'Local unique contribution index missing';
  END IF;
+ IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='contributions' AND column_name='external_deposit_reference') THEN
+   RAISE EXCEPTION 'Local external deposit reference migration missing';
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename='contributions' AND indexname='contributions_user_external_reference_uidx') THEN
+   RAISE EXCEPTION 'Local external reference uniqueness index missing';
+ END IF;
  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid='public.contributions'::regclass) THEN
    RAISE EXCEPTION 'Contribution RLS is not enabled locally';
  END IF;

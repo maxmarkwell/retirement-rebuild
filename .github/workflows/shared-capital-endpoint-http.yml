@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'tests/shared-capital-endpoint-http/**'
+      - 'tests/shared-capital-local-supabase/**'
+      - 'app/api/shared-capital/contributions/route.ts'
+      - 'supabase/migrations/20261027190000_contribution_external_reference.sql'
       - '.github/workflows/shared-capital-endpoint-http.yml'
   workflow_dispatch:
 permissions:
