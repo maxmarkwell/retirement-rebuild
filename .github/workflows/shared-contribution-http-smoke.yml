@@ -1,0 +1,25 @@
+name: Contribution live HTTP security smoke
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-contribution-http-smoke/**'
+      - '.github/workflows/shared-contribution-http-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  http-smoke:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SUPABASE_URL: https://invalid.test.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: isolated-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Exercise real Next HTTP endpoint without database access
+        run: bash tests/shared-contribution-http-smoke/run.sh
