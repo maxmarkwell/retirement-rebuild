@@ -21,12 +21,14 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Prepare isolated contribution-only migration fixture
+        run: bash tests/shared-capital-local-supabase/prepare.sh
       - name: Start isolated local Supabase services
-        run: npx supabase start
-      - name: Rebuild local schema from repository migrations
-        run: npx supabase db reset --local
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase start
+      - name: Rebuild isolated contribution schema
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase db reset --local
       - name: Check production-relevant schema prerequisites locally
         run: bash tests/shared-capital-local-supabase/check-schema.sh
       - name: Shut down isolated services
         if: always()
-        run: npx supabase stop --no-backup || true
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase stop --no-backup || true
