@@ -1,0 +1,47 @@
+name: Shared contribution authenticated HTTP integration
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-capital-endpoint-http/**'
+      - '.github/workflows/shared-capital-endpoint-http.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  endpoint-local:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: bash tests/shared-capital-local-supabase/prepare.sh
+      - name: Prepare disposable-only Auth and PostgREST grants
+        run: |
+          cat >> .contribution-supabase-ci/supabase/config.toml <<'TOML'
+          [auth.email]
+          enable_confirmations = false
+          TOML
+          cat > .contribution-supabase-ci/supabase/migrations/20261028000000_local_http_grants.sql <<'SQL'
+          ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
+          CREATE POLICY "Owner reads portfolio" ON public.portfolios TO authenticated
+            USING ((select auth.uid())=user_id);
+          GRANT SELECT ON public.portfolios TO authenticated;
+          GRANT ALL ON public.portfolios TO service_role;
+          GRANT SELECT, INSERT ON public.contributions TO authenticated;
+          GRANT SELECT ON public.contributions TO anon;
+          GRANT ALL ON public.contributions TO service_role;
+          SQL
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase start
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase db reset --local
+      - run: bash tests/shared-capital-local-supabase/check-schema.sh
+      - name: Real Next HTTP request against disposable Supabase
+        run: bash tests/shared-capital-endpoint-http/run.sh
+      - if: always()
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase stop --no-backup || true
