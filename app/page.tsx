@@ -111,7 +111,7 @@ export default async function Home() {
     console.error("Unable to load Accelerated Growth operational state:", error);
   }
 
-  // Only the real portfolio owns actual money. The AG result remains simulated.
+  // Current accounting source for account-level cash and equity; do not double count strategy-specific virtual allocations.
   const realPortfolio = (portfolios ?? []).find(p => p.type === "real" && p.is_real_money === true);
   const realAccounting = realPortfolio
     ? calculatePortfolioAccounting(realPortfolio, contributions ?? [], transactions ?? [], marketPrices)
@@ -157,33 +157,33 @@ export default async function Home() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-cyan-800">All investments</p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-900">Combined Investment Overview</h2>
-                <p className="mt-1 text-sm text-gray-500">Real account performance and Accelerated Growth paper results, shown separately.</p>
+                <p className="mt-1 text-sm text-gray-500">Performance across Long-Term and Accelerated Growth.</p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Since inception</span>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm text-gray-600">Real portfolio gain/loss</p>
+                <p className="text-sm text-gray-600">Long-Term gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.realGain)}</p>
                 <p className="mt-1 text-xs text-gray-500">Actual holdings and realized results</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Accelerated Growth gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.paperGain)}</p>
-                <p className="mt-1 text-xs text-gray-500">Paper results only — not brokerage assets</p>
+                <p className="mt-1 text-xs text-gray-500">Accelerated Growth performance</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Combined strategy gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.combinedStrategyGain)}</p>
-                <p className="mt-1 text-xs text-gray-500">Real + hypothetical paper P/L; not actual account return</p>
+                <p className="mt-1 text-xs text-gray-500">Total gain/loss across both strategies</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm text-gray-600">Actual account value</p>
+                <p className="text-sm text-gray-600">Total portfolio value</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">${investmentOverview.realEquity.toFixed(2)}</p>
                 <p className="mt-1 text-xs text-gray-500">Available real cash: ${investmentOverview.realCash.toFixed(2)}</p>
               </div>
             </div>
-            <p className="mt-4 text-xs text-slate-500">Returns exclude contributions. Real cash and equity are counted once; AG paper cash is never included in brokerage assets.
+            <p className="mt-4 text-xs text-slate-500">Returns exclude contributions. Total portfolio value and available cash reflect your investment account without double-counting strategy allocations.
               {latestPriceDate && Number.isFinite(latestPriceDate.getTime()) ? ` Oldest holding quote: ${latestPriceDate.toLocaleDateString("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" })}.` : " No open-position quote dates available."}
             </p>
           </section>
