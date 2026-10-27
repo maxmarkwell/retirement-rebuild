@@ -1,0 +1,46 @@
+name: Authenticated local Supabase contribution RLS
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-capital-auth/**'
+      - '.github/workflows/shared-capital-auth.yml'
+      - 'tests/shared-capital-local-supabase/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: bash tests/shared-capital-local-supabase/prepare.sh
+      - name: Disable email verification only for disposable local test users
+        run: |
+          cat >> .contribution-supabase-ci/supabase/config.toml <<'TOML'
+          [auth.email]
+          enable_confirmations = false
+          TOML
+      - name: Grant local fixture API access without changing production schema
+        run: |
+          cat >> .contribution-supabase-ci/supabase/migrations/20261028000000_local_fixture_grants.sql <<'SQL'
+          GRANT USAGE ON SCHEMA public TO service_role, authenticated, anon;
+          GRANT ALL ON TABLE public.portfolios TO service_role;
+          GRANT SELECT, INSERT ON TABLE public.contributions TO authenticated;
+          GRANT SELECT ON TABLE public.contributions TO anon;
+          GRANT ALL ON TABLE public.contributions TO service_role;
+          SQL
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase start
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase db reset --local
+      - run: bash tests/shared-capital-local-supabase/check-schema.sh
+      - name: Exercise real local Supabase Auth sessions and contribution RLS
+        run: node tests/shared-capital-auth/check.cjs
+      - if: always()
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase stop --no-backup || true
