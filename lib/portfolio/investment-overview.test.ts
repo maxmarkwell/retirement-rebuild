@@ -1,0 +1,24 @@
+import { strict as assert } from "node:assert";
+import { calculateInvestmentOverview } from "./investment-overview";
+const base = { realGrowth: -0.10, agPaperGrowth: 0, realCash: 133.11, realEquity: 199.90, contributedCapital: 200, agReferenceCapital: 200, realQuotesComplete: true, agQuotesComplete: true };
+const r=calculateInvestmentOverview(base);
+assert.equal(r.realEquity,199.90);
+assert.equal(r.realCash,133.11);
+assert.equal(r.combinedStrategyGain,-0.10);
+assert.equal(r.realReturnPct,-0.05);
+assert.equal(r.agReturnPct,0);
+assert.equal(r.combinedChangePct,-0.05);
+assert.equal(calculateInvestmentOverview({...base,agPaperGrowth:2}).combinedStrategyGain,1.90);
+assert.equal(calculateInvestmentOverview({...base,agPaperGrowth:2}).agReturnPct,1);
+assert.equal(calculateInvestmentOverview({...base,agPaperGrowth:2}).combinedChangePct,0.95);
+assert.equal(calculateInvestmentOverview({...base,agQuotesComplete:false}).combinedStrategyGain,null);
+assert.equal(calculateInvestmentOverview({...base,agQuotesComplete:false}).combinedChangePct,null);
+assert.equal(calculateInvestmentOverview({...base,agReferenceCapital:0}).agReturnPct,null);
+assert.equal(calculateInvestmentOverview({...base,realQuotesComplete:false}).realGain,null);
+assert.equal(calculateInvestmentOverview({...base,contributedCapital:300,realCash:233.11,realEquity:299.90}).realCash,233.11);
+assert.throws(()=>calculateInvestmentOverview({...base,realEquity:Number.NaN}));
+console.log("Combined investment overview fixtures passed");
+
+import { readFileSync } from "node:fs";
+const dashboardSource = readFileSync("app/page.tsx", "utf8");
+assert.ok(dashboardSource.includes('}$' + '${Math.abs(v).toFixed(2)}'), "Gain/loss formatter must include a literal dollar symbol.");

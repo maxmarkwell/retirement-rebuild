@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import TransactionHistory from "@/components/transaction-history";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
+import { calculateInvestmentOverview } from "@/lib/portfolio/investment-overview";
 import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
 import ContributionForm from "@/components/contribution-form";
@@ -110,6 +111,39 @@ export default async function Home() {
     console.error("Unable to load Accelerated Growth operational state:", error);
   }
 
+  // Current accounting source for account-level cash and equity; do not double count strategy-specific virtual allocations.
+  const realPortfolio = (portfolios ?? []).find(p => p.type === "real" && p.is_real_money === true);
+  const realAccounting = realPortfolio
+    ? calculatePortfolioAccounting(realPortfolio, contributions ?? [], transactions ?? [], marketPrices)
+    : null;
+  const agPortfolio = (portfolios ?? []).find(p => p.type === "paper_active" && agEraByPortfolioId.has(p.id));
+  const agEra = agPortfolio ? agEraByPortfolioId.get(agPortfolio.id) : undefined;
+  const agAccounting = agPortfolio && agEra
+    ? calculatePortfolioAccounting(agPortfolio, contributions ?? [], transactions ?? [], marketPrices,
+        { inception_at: agEra.inception_at, reference_total_capital: agEra.reference_total_capital })
+    : null;
+  const realMissingQuotes = realAccounting?.holdings.some(h => h.marketPrice == null) ?? true;
+  const agMissingQuotes = agAccounting?.holdings.some(h => h.marketPrice == null) ?? true;
+  const investmentOverview = realAccounting && agAccounting && realPortfolio
+    ? calculateInvestmentOverview({
+        realGrowth: realAccounting.investmentGrowth,
+        agPaperGrowth: agAccounting.investmentGrowth,
+        realCash: realAccounting.cash,
+        realEquity: realAccounting.permanentCapital,
+        contributedCapital: Number(realPortfolio.starting_capital) + realAccounting.contributionsTotal,
+        agReferenceCapital: Number(agEra?.reference_total_capital ?? agPortfolio?.starting_capital ?? 0) + agAccounting.contributionsTotal,
+        realQuotesComplete: !realMissingQuotes,
+        agQuotesComplete: !agMissingQuotes,
+      })
+    : null;
+  const showMoney = (v: number | null) => v == null ? "Unavailable" : `${v < 0 ? "−" : v > 0 ? "+" : ""}$${Math.abs(v).toFixed(2)}`;
+  const showPercent = (v: number | null) => v == null ? "N/A" : `${v < -0.000001 ? "−" : v > 0.000001 ? "+" : ""}${Math.abs(v).toFixed(2)}%`;
+  const dashboardQuotes = [...(realAccounting?.holdings ?? []), ...(agAccounting?.holdings ?? [])]
+    .map(h => quoteFetchedAt[h.ticker]).filter((value): value is string => Boolean(value));
+  const latestPriceDate = dashboardQuotes.length
+    ? new Date(Math.min(...dashboardQuotes.map(value => Date.parse(value))))
+    : null;
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-7 sm:px-8">
       <div className="mx-auto max-w-7xl">
@@ -118,6 +152,47 @@ export default async function Home() {
           <h1 className="mt-1 text-3xl font-bold text-gray-900">Mission Control</h1>
           <p className="mt-2 text-gray-600">Your capital, performance, and strategy at a glance.</p>
         </div>
+
+        {investmentOverview && (
+          <section aria-label="All investments overview" className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-cyan-800">All investments</p>
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">Combined Investment Overview</h2>
+                <p className="mt-1 text-sm text-gray-500">Performance across Long-Term and Accelerated Growth.</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Since inception</span>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-gray-600">Long-Term gain/loss</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.realGain)}</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.realReturnPct)} of Long-Term capital</p>
+                <p className="mt-1 text-xs text-gray-500">Actual holdings and realized results</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-gray-600">Accelerated Growth gain/loss</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.paperGain)}</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.agReturnPct)} of AG reference capital</p>
+                <p className="mt-1 text-xs text-gray-500">Accelerated Growth performance</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-gray-600">Combined strategy gain/loss</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.combinedStrategyGain)}</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.combinedChangePct)} relative to shared capital</p>
+                <p className="mt-1 text-xs text-gray-500">Sum of strategy gains and losses</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm text-gray-600">Investment account value</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">${investmentOverview.realEquity.toFixed(2)}</p>
+                <p className="mt-1 text-xs text-gray-500">Available real cash: ${investmentOverview.realCash.toFixed(2)}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-slate-500">Returns exclude contributions. Account value and available cash are shown once, without double-counting capital across strategies.
+              {latestPriceDate && Number.isFinite(latestPriceDate.getTime()) ? ` Oldest holding quote: ${latestPriceDate.toLocaleDateString("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", year: "numeric" })}.` : " No open-position quote dates available."}
+            </p>
+          </section>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {portfolios?.filter((portfolio) => portfolio.type !== "paper_long_term").map((portfolio) => {
