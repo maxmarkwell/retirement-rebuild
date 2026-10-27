@@ -20,7 +20,7 @@ async function signup(name) {
 }
 async function post(body,identity) {
   const res=await fetch(base+"/api/shared-capital/contributions",{
-    method:"POST",headers:{"Origin":base,"Content-Type":"application/json",...(identity?{"Cookie":identity.cookie()}:{})},
+    method:"POST",headers:{"Origin":"http://localhost:3029","Content-Type":"application/json",...(identity?{"Cookie":identity.cookie()}:{})},
     body:JSON.stringify(body)
   });
   return {status:res.status,data:await res.json()};
