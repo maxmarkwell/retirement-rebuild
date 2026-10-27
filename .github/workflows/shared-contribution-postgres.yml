@@ -1,0 +1,30 @@
+name: Isolated PostgreSQL contribution idempotency
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-contribution-postgres/**'
+      - '.github/workflows/shared-contribution-postgres.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-fixtures:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run isolated database concurrency tests
+        run: bash tests/shared-contribution-postgres/run.sh
