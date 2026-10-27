@@ -131,7 +131,7 @@ export default async function Home() {
         realCash: realAccounting.cash,
         realEquity: realAccounting.permanentCapital,
         contributedCapital: Number(realPortfolio.starting_capital) + realAccounting.contributionsTotal,
-        agReferenceCapital: Number(agEra.reference_total_capital) + agAccounting.contributionsTotal,
+        agReferenceCapital: Number(agEra?.reference_total_capital ?? agPortfolio?.starting_capital ?? 0) + agAccounting.contributionsTotal,
         realQuotesComplete: !realMissingQuotes,
         agQuotesComplete: !agMissingQuotes,
       })
