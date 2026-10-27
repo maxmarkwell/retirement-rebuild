@@ -136,7 +136,7 @@ export default async function Home() {
         agQuotesComplete: !agMissingQuotes,
       })
     : null;
-  const showMoney = (v: number | null) => v == null ? "Unavailable" : `${v < 0 ? "−" : v > 0 ? "+" : ""}${Math.abs(v).toFixed(2)}`;
+  const showMoney = (v: number | null) => v == null ? "Unavailable" : `${v < 0 ? "−" : v > 0 ? "+" : ""}$${Math.abs(v).toFixed(2)}`;
   const showPercent = (v: number | null) => v == null ? "N/A" : `${v < -0.000001 ? "−" : v > 0.000001 ? "+" : ""}${Math.abs(v).toFixed(2)}%`;
   const dashboardQuotes = [...(realAccounting?.holdings ?? []), ...(agAccounting?.holdings ?? [])]
     .map(h => quoteFetchedAt[h.ticker]).filter((value): value is string => Boolean(value));
