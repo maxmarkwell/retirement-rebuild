@@ -16,6 +16,16 @@ export async function POST(request: Request) {
   if (process.env.SHARED_CONTRIBUTION_POSTING_ENABLED !== "true") {
     return respond({ error: "Contribution posting is not enabled." }, 503);
   }
+  // Browser-origin defense in depth; do not accept cross-origin POSTs or
+  // requests with no Origin. The feature remains off until integration tests.
+  const origin = request.headers.get("origin");
+  const expectedOrigin = new URL(request.url).origin;
+  if (!origin || origin !== expectedOrigin) {
+    return respond({ error: "Cross-origin contribution requests are not allowed." }, 403);
+  }
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return respond({ error: "JSON content type required." }, 415);
+  }
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return respond({ error: "Authentication required." }, 401);
