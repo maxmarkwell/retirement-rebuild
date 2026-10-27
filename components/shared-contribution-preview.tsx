@@ -1,0 +1,73 @@
+"use client";
+
+import { useState } from "react";
+
+type Props = { currentSharedCash: number | null };
+
+export default function SharedContributionPreview({ currentSharedCash }: Props) {
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState("");
+  const [reference, setReference] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const parsed = Number(amount);
+  const wholeCents = amount.trim() !== "" && Number.isFinite(parsed) && parsed > 0 &&
+    Math.abs(parsed * 100 - Math.round(parsed * 100)) < 1e-8;
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    !Number.isNaN(Date.parse(date + "T00:00:00Z")) &&
+    new Date(date + "T00:00:00Z").toISOString().slice(0, 10) === date;
+  const validReference = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/.test(reference);
+  const ready = wholeCents && validDate && validReference && confirmed;
+  return (
+    <div className="mt-4 space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-5">
+      <div>
+        <h3 className="font-semibold text-amber-950">Shared cash contribution preview</h3>
+        <p className="mt-1 text-sm text-amber-900">
+          Planning only. This preview cannot submit a contribution, update balances, or transfer brokerage funds.
+          Enter only deposits already settled at your brokerage.
+        </p>
+      </div>
+      <p className="text-sm text-slate-800">
+        Current ledger cash: <strong>{currentSharedCash == null ? "Unavailable" : `$${currentSharedCash.toFixed(2)}`}</strong>
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-800">
+          Settled deposit amount ($)
+          <input type="number" min="0.01" step="0.01" value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2" placeholder="25.00" />
+        </label>
+        <label className="text-sm font-medium text-slate-800">
+          Settlement date
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2" />
+        </label>
+        <label className="text-sm font-medium text-slate-800 sm:col-span-2">
+          Brokerage transaction reference
+          <input type="text" value={reference} onChange={(e) => setReference(e.target.value)}
+            maxLength={128} className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2"
+            placeholder="Reference copied from settled brokerage activity" />
+        </label>
+      </div>
+      <label className="flex items-start gap-2 text-sm text-slate-800">
+        <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}
+          className="mt-1" />
+        I have independently verified this deposit is settled in the brokerage account.
+      </label>
+      {ready ? (
+        <p role="status" className="text-sm font-semibold text-slate-900">
+          Preview ready: +${parsed.toFixed(2)}. Estimated shared ledger cash after a future verified entry:
+          {" "}{currentSharedCash == null ? "unavailable" : `$${(currentSharedCash + parsed).toFixed(2)}`}.
+          No entry has been saved.
+        </p>
+      ) : (
+        <p role="status" className="text-sm text-amber-900">
+          Complete a positive whole-cent amount, valid date, brokerage reference (8–128 characters),
+          and settlement confirmation to preview.
+        </p>
+      )}
+      <button type="button" disabled className="rounded bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+        Posting locked — review only
+      </button>
+    </div>
+  );
+}
