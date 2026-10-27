@@ -1,0 +1,30 @@
+name: Isolated contribution ownership RLS
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-contribution-rls/**'
+      - '.github/workflows/shared-contribution-rls.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-rls:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify ownership isolation using disposable PostgreSQL
+        run: bash tests/shared-contribution-rls/run.sh
