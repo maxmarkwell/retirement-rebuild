@@ -1,0 +1,23 @@
+name: Legacy contribution action must remain disabled
+on:
+  pull_request:
+    paths:
+      - 'app/actions.ts'
+      - '.github/workflows/legacy-contribution-action-guard.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check TypeScript
+        run: npx tsc --noEmit --incremental false
+      - name: Ensure legacy action has no contribution writes
+        run: node tests/legacy-contribution-action-guard/check.cjs
