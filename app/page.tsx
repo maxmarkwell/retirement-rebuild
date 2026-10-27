@@ -131,11 +131,13 @@ export default async function Home() {
         realCash: realAccounting.cash,
         realEquity: realAccounting.permanentCapital,
         contributedCapital: Number(realPortfolio.starting_capital) + realAccounting.contributionsTotal,
+        agReferenceCapital: Number(agEra.reference_total_capital) + agAccounting.contributionsTotal,
         realQuotesComplete: !realMissingQuotes,
         agQuotesComplete: !agMissingQuotes,
       })
     : null;
   const showMoney = (v: number | null) => v == null ? "Unavailable" : `${v < 0 ? "−" : v > 0 ? "+" : ""}${Math.abs(v).toFixed(2)}`;
+  const showPercent = (v: number | null) => v == null ? "N/A" : `${v < -0.000001 ? "−" : v > 0.000001 ? "+" : ""}${Math.abs(v).toFixed(2)}%`;
   const dashboardQuotes = [...(realAccounting?.holdings ?? []), ...(agAccounting?.holdings ?? [])]
     .map(h => quoteFetchedAt[h.ticker]).filter((value): value is string => Boolean(value));
   const latestPriceDate = dashboardQuotes.length
@@ -165,17 +167,20 @@ export default async function Home() {
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Long-Term gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.realGain)}</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.realReturnPct)} of Long-Term capital</p>
                 <p className="mt-1 text-xs text-gray-500">Actual holdings and realized results</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Accelerated Growth gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.paperGain)}</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.agReturnPct)} of AG reference capital</p>
                 <p className="mt-1 text-xs text-gray-500">Accelerated Growth performance</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Combined strategy gain/loss</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{showMoney(investmentOverview.combinedStrategyGain)}</p>
-                <p className="mt-1 text-xs text-gray-500">Total gain/loss across both strategies</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-slate-700">{showPercent(investmentOverview.combinedChangePct)} relative to shared capital</p>
+                <p className="mt-1 text-xs text-gray-500">Sum of strategy gains and losses</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-600">Investment account value</p>
