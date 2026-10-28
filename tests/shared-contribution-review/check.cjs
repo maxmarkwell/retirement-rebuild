@@ -1,8 +1,12 @@
 const assert=require("node:assert/strict");
 const fs=require("node:fs");
-const s=fs.readFileSync("components/shared-contribution-preview.tsx","utf8");
-assert.match(s,/Review proposed deposit/);
-assert.match(s,/reviewAcknowledged/);
-assert.match(s,/Posting locked — review only/);
-assert.doesNotMatch(s,/\bfetch\s*\(|\baxios\b|formAction\s*=|\baddContribution\s*\(|\.from\s*\(|\.insert\s*\(/);
-console.log("Two-step shared contribution preview has no write path.");
+const component=fs.readFileSync("components/shared-contribution-preview.tsx","utf8");
+const page=fs.readFileSync("app/page.tsx","utf8");
+assert.match(component,/Review proposed deposit/);
+assert.match(component,/reviewAcknowledged/);
+assert.match(component,/Posting locked — review only/);
+assert.match(component,/if \(!postingUiEnabled \|\| !ready \|\| !reviewOpen \|\| !reviewAcknowledged \|\| submitting \|\| !requestKey\) return/);
+assert.match(component,/postingUiEnabled \? \(/);
+assert.match(page,/SHARED_CONTRIBUTION_POSTING_ENABLED === "true" && process\.env\.SHARED_CONTRIBUTION_UI_ENABLED === "true"/);
+assert.doesNotMatch(component,/\baxios\b|formAction\s*=|\baddContribution\s*\(|\.from\s*\(|\.insert\s*\(/);
+console.log("Two-step contribution review remains fail-closed unless both server-controlled gates are on.");

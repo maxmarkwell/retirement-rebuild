@@ -1,0 +1,16 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const page=fs.readFileSync("app/page.tsx","utf8");
+const ui=fs.readFileSync("components/shared-contribution-preview.tsx","utf8");
+const route=fs.readFileSync("app/api/shared-capital/contributions/route.ts","utf8");
+assert.match(page,/postingUiEnabled=\{process\.env\.SHARED_CONTRIBUTION_POSTING_ENABLED === "true" && process\.env\.SHARED_CONTRIBUTION_UI_ENABLED === "true"\}/);
+assert.match(ui,/if \(!postingUiEnabled \|\| !ready \|\| !reviewOpen \|\| !reviewAcknowledged \|\| submitting \|\| !requestKey\) return/);
+assert.match(ui,/onClick=\{recordReviewedDeposit\}/);
+assert.match(ui,/idempotencyKey: requestKey/);
+assert.match(ui,/externalDepositReference: reference/);
+assert.match(ui,/crypto\.randomUUID/);
+assert.match(ui,/Posting locked — review only/);
+assert.match(route,/process\.env\.SHARED_CONTRIBUTION_POSTING_ENABLED !== "true"/);
+assert.equal(process.env.SHARED_CONTRIBUTION_POSTING_ENABLED,"false");
+assert.equal(process.env.SHARED_CONTRIBUTION_UI_ENABLED,"false");
+console.log("Dual server/UI gate and reviewed payload checks passed with both flags off.");
