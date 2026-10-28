@@ -1,0 +1,18 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const action=fs.readFileSync("app/actions.ts","utf8");
+const accounting=fs.readFileSync("lib/portfolio/accounting.ts","utf8");
+const page=fs.readFileSync("app/page.tsx","utf8");
+const form=fs.readFileSync("components/dividend-form.tsx","utf8");
+assert.match(action,/export async function addDividend/);
+assert.match(action,/transaction_type:"dividend"/);
+assert.match(action,/\.eq\("user_id",user\.id\)/);
+assert.match(action,/\.eq\("portfolio_id",portfolioId\)/);
+assert.match(action,/already recorded/);
+assert.match(accounting,/dividendIncome \+= grossAmount/);
+assert.match(accounting,/totalSellProceeds \+\s*dividendIncome/);
+assert.match(form,/Record Dividend/);
+assert.match(page,/Permanent Capital/);
+assert.match(page,/Accelerated Growth/);
+assert.doesNotMatch(form,/\(paper\)/i);
+console.log("Manual dividend form, accounting and ownership guards present.");
