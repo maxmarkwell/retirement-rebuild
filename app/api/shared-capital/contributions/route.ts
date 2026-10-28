@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   // requests with no Origin. The feature remains off until integration tests.
   const origin = request.headers.get("origin");
   const expectedOrigin = new URL(request.url).origin;
+  if (process.env.SHARED_CONTRIBUTION_BROWSER_TEST_ENABLED === "true") console.error("CI origin diagnostic", JSON.stringify({origin, expectedOrigin, host:request.headers.get("host"), forwardedHost:request.headers.get("x-forwarded-host"), forwardedProto:request.headers.get("x-forwarded-proto")}));
   if (!origin || origin !== expectedOrigin) {
     return respond({ error: "Cross-origin contribution requests are not allowed." }, 403);
   }
