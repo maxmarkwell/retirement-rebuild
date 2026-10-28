@@ -20,7 +20,7 @@ async function signup(name) {
 }
 async function post(body,identity) {
   const res=await fetch(base+"/api/shared-capital/contributions",{
-    method:"POST",headers:{"Origin":"http://localhost:3029","Content-Type":"application/json",...(identity?{"Cookie":identity.cookie()}:{})},
+    method:"POST",headers:{"Origin":base,"Content-Type":"application/json",...(identity?{"Cookie":identity.cookie()}:{})},
     body:JSON.stringify(body)
   });
   return {status:res.status,data:await res.json()};
@@ -34,6 +34,8 @@ async function post(body,identity) {
   ]).select("id,user_id");
   assert.ifError(pe);
   const payload={confirmedExternalDeposit:true,amount:10.29,contributionDate:"2026-10-27",idempotencyKey:"http_auth_request_0001",externalDepositReference:"etrade_deposit_tx_0001"};
+  const crossOrigin=await fetch(base+"/api/shared-capital/contributions",{method:"POST",headers:{"Origin":"https://attacker.example","Content-Type":"application/json"},body:JSON.stringify(payload)});
+  assert.equal(crossOrigin.status,403,"Cross-origin requests must remain rejected");
   const unauth=await post(payload,null);
   assert.equal(unauth.status,401,JSON.stringify(unauth));
   const created=await post(payload,a);

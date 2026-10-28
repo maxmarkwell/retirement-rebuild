@@ -19,7 +19,15 @@ export async function POST(request: Request) {
   // Browser-origin defense in depth; do not accept cross-origin POSTs or
   // requests with no Origin. The feature remains off until integration tests.
   const origin = request.headers.get("origin");
-  const expectedOrigin = new URL(request.url).origin;
+  // Next dev/edge adapters may construct request.url from their bind address
+  // (e.g. 0.0.0.0), which differs from the public request authority.
+  // Compare against the request Host and forwarded protocol instead. Reject
+  // absent/malformed values; never use a client-supplied Origin as the expected value.
+  const host = request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const protocol = forwardedProto ?? new URL(request.url).protocol.slice(0, -1);
+  const expectedOrigin = host && (protocol === "http" || protocol === "https")
+    ? `${protocol}://${host}` : null;
   if (!origin || origin !== expectedOrigin) {
     return respond({ error: "Cross-origin contribution requests are not allowed." }, 403);
   }
