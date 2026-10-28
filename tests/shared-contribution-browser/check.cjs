@@ -20,9 +20,9 @@ const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToke
  const browser=await chromium.launch({headless:true});
  try {
   const context=await browser.newContext();
-  await context.addCookies(cookies.map(c=>({name:c.name,value:c.value,domain:"127.0.0.1",path:"/"})));
+  await context.addCookies(cookies.map(c=>({name:c.name,value:c.value,domain:"localhost",path:"/"})));
   const page=await context.newPage();
-  await page.goto("http://127.0.0.1:3029/shared-contribution-browser-test");
+  await page.goto("http://localhost:3029/shared-contribution-browser-test");
   await page.getByLabel("Settled deposit amount ($)").fill("10.29");
   await page.getByLabel("Settlement date").fill("2026-10-27");
   await page.getByLabel("Brokerage transaction reference").fill("browser_deposit_tx_0001");
