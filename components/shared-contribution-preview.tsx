@@ -14,7 +14,9 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState("");
-  const edit = () => { setReviewOpen(false); setReviewAcknowledged(false); setRequestKey(null); setResult(""); };
+  const [checking, setChecking] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const edit = () => { setReviewOpen(false); setReviewAcknowledged(false); setRequestKey(null); setResult(""); setUncertain(false); };
   const parsed = Number(amount);
   const wholeCents = amount.trim() !== "" && Number.isFinite(parsed) && parsed > 0 &&
     Math.abs(parsed * 100 - Math.round(parsed * 100)) < 1e-8;
@@ -27,6 +29,7 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
     if (!postingUiEnabled || !ready || !reviewOpen || !reviewAcknowledged || submitting || !requestKey) return;
     setSubmitting(true);
     setResult("");
+    setUncertain(false);
     try {
       const response = await fetch("/api/shared-capital/contributions", {
         method: "POST",
@@ -47,12 +50,41 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
         setReviewOpen(false);
         setRequestKey(null);
       } else {
+        if (response.status >= 500) setUncertain(true);
         setResult(`Not recorded or not confirmed: ${data.error ?? "Unexpected server response"}. Check the contribution ledger before trying again.`);
       }
     } catch {
+      setUncertain(true);
       setResult("Unable to confirm the server outcome. Check the contribution ledger before retrying; the same request key remains reserved.");
     } finally {
       setSubmitting(false);
+    }
+  }
+  async function checkRequestStatus() {
+    if (!requestKey || checking || submitting) return;
+    setChecking(true);
+    try {
+      const response = await fetch(`/api/shared-capital/contributions/status?idempotencyKey=${encodeURIComponent(requestKey)}`,
+        { method: "GET", credentials: "same-origin", cache: "no-store" });
+      const data: { status?: string; contributionId?: string; error?: string;
+        amount?: number; contributionDate?: string; externalDepositReference?: string } = await response.json();
+      if (response.ok && data.status === "recorded") {
+        const matches = data.amount === Math.round(parsed * 100) / 100 &&
+          data.contributionDate === date && data.externalDepositReference === reference;
+        setResult(matches
+          ? `The ledger confirms contribution ID ${data.contributionId}. Do not submit again; refresh dashboard and reconcile brokerage cash.`
+          : "A request with this key exists but its details differ. Stop and reconcile manually.");
+        setUncertain(false);
+        setReviewAcknowledged(false);
+      } else if (response.ok && data.status === "not_found") {
+        setResult("No record is visible yet. The original request might still be processing. Do not resubmit; reconcile manually.");
+      } else {
+        setResult(`Status unavailable: ${data.error ?? "Unable to verify"}. Do not resubmit until reconciled.`);
+      }
+    } catch {
+      setResult("Status could not be checked. Do not resubmit until reconciled.");
+    } finally {
+      setChecking(false);
     }
   }
   return (
@@ -103,7 +135,7 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
           and settlement confirmation to preview.
         </p>
       )}
-      <button type="button" disabled={!ready} onClick={() => { setReviewOpen(true); setReviewAcknowledged(false); setRequestKey(crypto.randomUUID().replace(/-/g, "")); }} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
+      <button type="button" disabled={!ready || uncertain || submitting} onClick={() => { setReviewOpen(true); setReviewAcknowledged(false); setRequestKey(crypto.randomUUID().replace(/-/g, "")); }} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
         Review proposed deposit
       </button>
       {reviewOpen && ready && (
@@ -121,7 +153,7 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
         </div>
       )}
       {postingUiEnabled ? (
-        <button type="button" disabled={!ready || !reviewOpen || !reviewAcknowledged || !requestKey || submitting}
+        <button type="button" disabled={!ready || !reviewOpen || !reviewAcknowledged || !requestKey || submitting || uncertain}
           onClick={recordReviewedDeposit}
           className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
           {submitting ? "Recording..." : "Record confirmed deposit"}
@@ -132,6 +164,12 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
         </button>
       )}
       {result && <p role="status" className="text-sm font-medium text-slate-900">{result}</p>}
+      {postingUiEnabled && uncertain && requestKey && (
+        <button type="button" onClick={checkRequestStatus} disabled={checking || submitting}
+          className="rounded border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50">
+          {checking ? "Checking ledger..." : "Check this request in ledger (read only)"}
+        </button>
+      )}
     </div>
   );
 }
