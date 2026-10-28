@@ -135,7 +135,7 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
           and settlement confirmation to preview.
         </p>
       )}
-      <button type="button" disabled={!ready} onClick={() => { setReviewOpen(true); setReviewAcknowledged(false); setRequestKey(crypto.randomUUID().replace(/-/g, "")); }} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
+      <button type="button" disabled={!ready || uncertain || submitting} onClick={() => { setReviewOpen(true); setReviewAcknowledged(false); setRequestKey(crypto.randomUUID().replace(/-/g, "")); }} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
         Review proposed deposit
       </button>
       {reviewOpen && ready && (
@@ -153,7 +153,7 @@ export default function SharedContributionPreview({ currentSharedCash, postingUi
         </div>
       )}
       {postingUiEnabled ? (
-        <button type="button" disabled={!ready || !reviewOpen || !reviewAcknowledged || !requestKey || submitting}
+        <button type="button" disabled={!ready || !reviewOpen || !reviewAcknowledged || !requestKey || submitting || uncertain}
           onClick={recordReviewedDeposit}
           className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
           {submitting ? "Recording..." : "Record confirmed deposit"}
