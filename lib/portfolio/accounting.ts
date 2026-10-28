@@ -80,6 +80,7 @@ export function calculatePortfolioAccounting(
 
   let totalBuys = 0;
   let totalSellProceeds = 0;
+  let dividendIncome = 0;
 
   const holdingsMap = new Map<string, CostBasisHolding>();
 
@@ -102,6 +103,9 @@ export function calculatePortfolioAccounting(
 
     if (transaction.transaction_type === "sell") {
       totalSellProceeds += grossAmount - fees;
+    }
+    if (transaction.transaction_type === "dividend") {
+      dividendIncome += grossAmount;
     }
 
     if (
@@ -259,7 +263,8 @@ export function calculatePortfolioAccounting(
     startingCapital +
     contributionsTotal -
     totalBuys +
-    totalSellProceeds;
+    totalSellProceeds +
+    dividendIncome;
 
   const permanentCapital =
     cash + marketValue;
