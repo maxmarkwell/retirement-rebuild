@@ -8,6 +8,7 @@ import { calculateInvestmentOverview } from "@/lib/portfolio/investment-overview
 import BuyForm from "@/components/buy-form";
 import SellForm from "@/components/sell-form";
 import SharedContributionPreview from "@/components/shared-contribution-preview";
+import SharedContributionHistory from "@/components/shared-contribution-history";
 import SnapshotButton from "@/components/snapshot-button";
 import { getAgOperationalState } from "@/lib/discovery/accelerated-growth/operational-state";
 
@@ -51,6 +52,13 @@ export default async function Home() {
   if (contributionsError) {
     throw new Error(`Unable to load contributions: ${contributionsError.message}`);
   }
+
+  // Separate read-only history query; never show a partial ledger as complete.
+  const { data: realHistory, error: realHistoryError } = await supabase
+    .from("contributions")
+    .select("id, portfolio_id, amount, contribution_date, external_deposit_reference, idempotency_key")
+    .order("contribution_date", { ascending: false })
+    .order("created_at", { ascending: false });
 
   const { data: transactions, error: transactionsError } = await supabase
     .from("transactions")
@@ -316,6 +324,14 @@ export default async function Home() {
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Manual performance snapshot</summary><div className="mt-4"><SnapshotButton /></div></details>
           </div>
         </section>
+        <SharedContributionHistory
+          entries={(realHistory ?? []).filter(c => c.portfolio_id === realPortfolio?.id).map(c => ({
+            id: c.id, amount: Number(c.amount), contribution_date: c.contribution_date,
+            external_deposit_reference: c.external_deposit_reference, idempotency_key: c.idempotency_key,
+          }))}
+          currentCash={realAccounting?.cash ?? null}
+          historyAvailable={!realHistoryError && !!realPortfolio}
+        />
         <details className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <summary className="cursor-pointer text-lg font-semibold text-slate-900">Transaction history</summary>
           <div className="mt-5"><TransactionHistory transactions={transactions ?? []} portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div>

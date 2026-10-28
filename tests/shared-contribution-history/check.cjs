@@ -1,0 +1,14 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const page=fs.readFileSync("app/page.tsx","utf8");
+const history=fs.readFileSync("components/shared-contribution-history.tsx","utf8");
+assert.match(page,/SharedContributionHistory/);
+assert.match(page,/realHistoryError/);
+assert.match(page,/c\.portfolio_id === realPortfolio\?\.id/);
+assert.match(page,/\.order\("contribution_date", \{ ascending: false \}\)/);
+assert.match(history,/external settlement not independently verified/i);
+assert.match(history,/historyAvailable/);
+assert.match(history,/No real portfolio contributions have been recorded/);
+assert.match(history,/Starting capital is accounted for separately/);
+assert.doesNotMatch(history,/\bfetch\s*\(|\.insert\s*\(|\.update\s*\(|\.delete\s*\(|\buse server\b/);
+console.log("Real contribution history has a read-only presentation and fail-closed unavailable state.");
