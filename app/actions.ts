@@ -439,10 +439,11 @@ export async function addDividend(
   const ticker = String(formData.get("ticker") ?? "").trim().toUpperCase();
   const rawAmount = String(formData.get("amount") ?? "").trim();
   const date = String(formData.get("payment_date") ?? "");
-  const cents = Number(rawAmount) * 100;
+  const rawCents = Number(rawAmount) * 100;
+  const cents = Math.round(rawCents);
   if (!/^[A-Z][A-Z0-9.\-]{0,11}$/.test(ticker) ||
       !/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(rawAmount) ||
-      !Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 ||
+      !Number.isSafeInteger(cents) || Math.abs(rawCents - cents) > 1e-8 || cents < 1 || cents > 100000000 ||
       !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
       Number.isNaN(Date.parse(date + "T12:00:00Z")) ||
       new Date(date + "T12:00:00Z").toISOString().slice(0,10) !== date) {
