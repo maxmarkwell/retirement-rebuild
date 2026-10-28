@@ -1,0 +1,13 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const api = fs.readFileSync("app/api/shared-capital/contributions/status/route.ts","utf8");
+const ui = fs.readFileSync("components/shared-contribution-preview.tsx","utf8");
+assert.match(api,/export async function GET/);
+assert.doesNotMatch(api,/\.insert\s*\(|\.update\s*\(|\.delete\s*\(|export async function POST/);
+assert.match(api,/supabase\.auth\.getUser\(\)/);
+assert.match(api,/\.eq\("user_id", user\.id\)/);
+assert.match(api,/Cache-Control.*private, no-store/);
+assert.match(ui,/Check this request in ledger \(read only\)/);
+assert.match(ui,/!requestKey \|\| submitting \|\| uncertain/);
+assert.match(ui,/response\.status >= 500/);
+console.log("Read-only request reconciliation authentication and fail-closed UI checks passed.");
