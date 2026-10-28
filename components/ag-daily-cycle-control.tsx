@@ -44,6 +44,8 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
   const [maxCandidates, setMaxCandidates] = useState(1);
   const [message, setMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
 
   async function refreshStatus(): Promise<CycleStatus | null> {
     const response = await fetch("/api/accelerated-growth/daily-cycle/status", { cache: "no-store" });
@@ -52,6 +54,30 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
     setStatus(body);
     setStatusError(null);
     return body as CycleStatus;
+  }
+
+  async function refreshManually() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshNotice(null);
+    try {
+      const latest = await refreshStatus();
+      if (latest) {
+        setRefreshNotice(latest.stalled
+          ? "Status checked. This cycle is still stalled; no new research progress has been recorded. Do not start another attempt."
+          : latest.status === "running"
+            ? "Status checked. The cycle remains running; check the stage counts and last activity below."
+            : `Status checked. Current state: ${latest.status.replaceAll("_", " ")}.`);
+        router.refresh();
+      } else {
+        setRefreshNotice("Status check failed. No changes were made to the cycle.");
+      }
+    } catch {
+      setStatusError("Unable to contact the cycle status service.");
+      setRefreshNotice("Status check failed. No changes were made to the cycle.");
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   async function runCycle() {
@@ -130,7 +156,8 @@ export default function AgDailyCycleControl({ initialStatus }: { initialStatus: 
       {status.previousCycleReconciliation && <p className="mt-2 text-xs text-slate-700">Recorded prior-cycle evidence: {status.previousCycleReconciliation.stageCheckpoints} stage checkpoints, {status.previousCycleReconciliation.symbolCheckpoints} symbol checkpoints, {status.previousCycleReconciliation.watchWriteRecords} watch writes, {status.previousCycleReconciliation.decisionWriteRecords} decision writes, {status.previousCycleReconciliation.attributedDecisionCount} attributed decisions. {status.previousCycleReconciliation.decisionInventoryTruncated ? "Decision inventory truncated; manual review required." : "Zero records do not establish that retrying is safe."}</p>}
       {status.status === "running" && <p role="status" className="mt-2 text-xs text-amber-800">{status.stalled ? "No recorded activity for at least seven minutes. This cycle needs review before another attempt." : "Cycle is recorded as running. This does not guarantee the server request is still active."}</p>}
       {status.lastActivityAt && <p className="mt-1 text-xs text-gray-500">Last recorded activity: {new Date(status.lastActivityAt).toLocaleString()}</p>}
-      <button type="button" onClick={() => void refreshStatus()} className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800">Refresh Cycle Status</button>
+      <button type="button" onClick={() => void refreshManually()} disabled={refreshing} className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">{refreshing ? "Checking Cycle Status..." : "Refresh Cycle Status"}</button>
+      {refreshNotice && <p role="status" className="mt-2 text-xs font-medium text-slate-700">{refreshNotice}</p>}
       {statusError && <p role="alert" className="mt-2 text-xs text-red-700">{statusError}</p>}
 
       {status.cycle && (
