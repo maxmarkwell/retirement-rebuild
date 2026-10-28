@@ -423,3 +423,67 @@ export async function addSellTransaction(
     )}.`,
   };
 }
+/**
+ * Manual dividend receipt only. No brokerage operation is initiated.
+ * The portfolio and matching holding are verified server-side.
+ */
+export async function addDividend(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, message: "You must be signed in." };
+
+  const portfolioId = String(formData.get("portfolio_id") ?? "");
+  const ticker = String(formData.get("ticker") ?? "").trim().toUpperCase();
+  const rawAmount = String(formData.get("amount") ?? "").trim();
+  const date = String(formData.get("payment_date") ?? "");
+  const cents = Number(rawAmount) * 100;
+  if (!/^[A-Z][A-Z0-9.\-]{0,11}$/.test(ticker) ||
+      !/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(rawAmount) ||
+      !Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      Number.isNaN(Date.parse(date + "T12:00:00Z")) ||
+      new Date(date + "T12:00:00Z").toISOString().slice(0,10) !== date) {
+    return { success: false, message: "Enter a valid stock symbol, whole-cent dividend, and payment date." };
+  }
+  const { data: portfolio, error: portfolioError } = await supabase.from("portfolios")
+    .select("id,type,is_real_money").eq("id",portfolioId).eq("user_id",user.id).maybeSingle();
+  if (portfolioError || !portfolio ||
+      !(portfolio.type === "real" && portfolio.is_real_money ||
+        portfolio.type === "paper_active" && !portfolio.is_real_money)) {
+    return { success: false, message: "Select Permanent Capital or Accelerated Growth." };
+  }
+
+  const { data: prior, error: priorError } = await supabase.from("transactions")
+    .select("id,transaction_type,quantity,ticker")
+    .eq("user_id",user.id).eq("portfolio_id",portfolioId)
+    .eq("ticker",ticker).in("transaction_type",["buy","sell"]);
+  if (priorError) return { success:false, message:"Unable to verify owned shares." };
+  const held = (prior ?? []).reduce((n,t) => n + (t.transaction_type === "buy" ? 1 : -1) * Number(t.quantity ?? 0), 0);
+  if (!(held > 0)) return {success:false,message:"No shares of that symbol are recorded in this portfolio."};
+
+  // One distribution per portfolio/symbol/payment-date/amount. Reject repeated
+  // manual attempts; do not silently assume a repeated notification is new cash.
+  const { data: existing, error: duplicateError } = await supabase.from("transactions")
+    .select("id,gross_amount")
+    .eq("user_id",user.id).eq("portfolio_id",portfolioId).eq("ticker",ticker)
+    .eq("transaction_type","dividend")
+    .gte("transaction_date", date+"T00:00:00Z")
+    .lt("transaction_date",new Date(Date.parse(date+"T00:00:00Z")+86400000).toISOString());
+  if (duplicateError) return {success:false,message:"Could not verify prior dividend entries."};
+  if ((existing ?? []).some(t => Math.round(Number(t.gross_amount)*100) === cents)) {
+    return {success:false,message:"This dividend is already recorded. Review transaction history before recording again."};
+  }
+
+  const { error } = await supabase.from("transactions").insert({
+    user_id:user.id,portfolio_id:portfolioId,transaction_type:"dividend",
+    ticker,quantity:null,price_per_share:null,gross_amount:cents/100,
+    fees:0,transaction_date:date+"T12:00:00Z",
+    notes:"Manual dividend received",
+  });
+  if (error) return {success:false,message:"Unable to record dividend. Check transaction history before retrying."};
+  revalidatePath("/");
+  return {success:true,message:`Dividend recorded: ${ticker} +$${(cents/100).toFixed(2)}. No brokerage transaction was initiated.`};
+}
