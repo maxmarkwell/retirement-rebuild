@@ -2,16 +2,19 @@
 
 import { useState } from "react";
 
-type Props = { currentSharedCash: number | null };
+type Props = { currentSharedCash: number | null; postingUiEnabled: boolean };
 
-export default function SharedContributionPreview({ currentSharedCash }: Props) {
+export default function SharedContributionPreview({ currentSharedCash, postingUiEnabled }: Props) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [reference, setReference] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewAcknowledged, setReviewAcknowledged] = useState(false);
-  const edit = () => { setReviewOpen(false); setReviewAcknowledged(false); };
+  const [requestKey, setRequestKey] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState("");
+  const edit = () => { setReviewOpen(false); setReviewAcknowledged(false); setRequestKey(null); setResult(""); };
   const parsed = Number(amount);
   const wholeCents = amount.trim() !== "" && Number.isFinite(parsed) && parsed > 0 &&
     Math.abs(parsed * 100 - Math.round(parsed * 100)) < 1e-8;
@@ -20,12 +23,44 @@ export default function SharedContributionPreview({ currentSharedCash }: Props) 
     new Date(date + "T00:00:00Z").toISOString().slice(0, 10) === date;
   const validReference = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/.test(reference);
   const ready = wholeCents && validDate && validReference && confirmed;
+  async function recordReviewedDeposit() {
+    if (!postingUiEnabled || !ready || !reviewOpen || !reviewAcknowledged || submitting || !requestKey) return;
+    setSubmitting(true);
+    setResult("");
+    try {
+      const response = await fetch("/api/shared-capital/contributions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          confirmedExternalDeposit: true,
+          amount: Math.round(parsed * 100) / 100,
+          contributionDate: date,
+          externalDepositReference: reference,
+          idempotencyKey: requestKey,
+        }),
+      });
+      const data: { status?: string; error?: string; contributionId?: string } = await response.json();
+      if (response.ok && (data.status === "recorded" || data.status === "already_recorded") && data.contributionId) {
+        setResult(`Contribution ${data.status === "recorded" ? "recorded" : "already recorded"} (ID: ${data.contributionId}). Refresh the dashboard and reconcile against E*TRADE.`);
+        setReviewAcknowledged(false);
+        setReviewOpen(false);
+        setRequestKey(null);
+      } else {
+        setResult(`Not recorded or not confirmed: ${data.error ?? "Unexpected server response"}. Check the contribution ledger before trying again.`);
+      }
+    } catch {
+      setResult("Unable to confirm the server outcome. Check the contribution ledger before retrying; the same request key remains reserved.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
   return (
     <div className="mt-4 space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-5">
       <div>
         <h3 className="font-semibold text-amber-950">Shared cash contribution preview</h3>
         <p className="mt-1 text-sm text-amber-900">
-          Planning only. This preview cannot submit a contribution, update balances, or transfer brokerage funds.
+          {postingUiEnabled ? "Recording is available only after final review. This does not transfer brokerage funds." : "Planning only. This preview cannot submit a contribution, update balances, or transfer brokerage funds."}
           Enter only deposits already settled at your brokerage.
         </p>
       </div>
@@ -68,7 +103,7 @@ export default function SharedContributionPreview({ currentSharedCash }: Props) 
           and settlement confirmation to preview.
         </p>
       )}
-      <button type="button" disabled={!ready} onClick={() => { setReviewOpen(true); setReviewAcknowledged(false); }} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
+      <button type="button" disabled={!ready} onClick={() => { setReviewOpen(true); setReviewAcknowledged(false); setRequestKey(crypto.randomUUID().replace(/-/g, "")); }} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
         Review proposed deposit
       </button>
       {reviewOpen && ready && (
@@ -85,9 +120,18 @@ export default function SharedContributionPreview({ currentSharedCash }: Props) 
           <p role="status" className="text-sm font-medium text-slate-800">{reviewAcknowledged ? "Review completed locally. No record was written." : "Review the statement details before acknowledging."}</p>
         </div>
       )}
-      <button type="button" disabled className="rounded bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
-        Posting locked — review only
-      </button>
+      {postingUiEnabled ? (
+        <button type="button" disabled={!ready || !reviewOpen || !reviewAcknowledged || !requestKey || submitting}
+          onClick={recordReviewedDeposit}
+          className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300 disabled:text-slate-700">
+          {submitting ? "Recording..." : "Record confirmed deposit"}
+        </button>
+      ) : (
+        <button type="button" disabled className="rounded bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+          Posting locked — review only
+        </button>
+      )}
+      {result && <p role="status" className="text-sm font-medium text-slate-900">{result}</p>}
     </div>
   );
 }
