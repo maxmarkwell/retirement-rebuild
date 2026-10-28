@@ -1,0 +1,49 @@
+name: Browser reviewed contribution integration (local only)
+on:
+  pull_request:
+    paths:
+      - 'tests/shared-contribution-browser/**'
+      - 'app/shared-contribution-browser-test/**'
+      - '.github/workflows/shared-contribution-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save --ignore-scripts playwright
+      - run: npx playwright install --with-deps chromium
+      - run: bash tests/shared-capital-local-supabase/prepare.sh
+      - name: Prepare disposable Auth and PostgREST
+        run: |
+          cat >> .contribution-supabase-ci/supabase/config.toml <<'TOML'
+          [auth.email]
+          enable_confirmations = false
+          TOML
+          cat > .contribution-supabase-ci/supabase/migrations/20261028000000_local_browser_grants.sql <<'SQL'
+          ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
+          CREATE POLICY "Owner reads portfolio" ON public.portfolios TO authenticated
+            USING ((select auth.uid())=user_id);
+          GRANT SELECT ON public.portfolios TO authenticated;
+          GRANT ALL ON public.portfolios TO service_role;
+          GRANT SELECT, INSERT ON public.contributions TO authenticated;
+          GRANT SELECT ON public.contributions TO anon;
+          GRANT ALL ON public.contributions TO service_role;
+          SQL
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase start
+      - run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase db reset --local
+      - run: bash tests/shared-capital-local-supabase/check-schema.sh
+      - run: bash tests/shared-contribution-browser/run.sh
+      - if: always()
+        run: cd .contribution-supabase-ci && ../node_modules/.bin/supabase stop --no-backup || true
