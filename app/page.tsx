@@ -312,7 +312,7 @@ export default async function Home() {
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record buy</summary><div className="mt-4"><BuyForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record sell</summary><div className="mt-4"><SellForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
-            <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Contribution preview (read-only)</summary><SharedContributionPreview currentSharedCash={realAccounting?.cash ?? null} /></details>
+            <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Contribution preview (read-only)</summary><SharedContributionPreview currentSharedCash={realAccounting?.cash ?? null} postingUiEnabled={process.env.SHARED_CONTRIBUTION_POSTING_ENABLED === "true" && process.env.SHARED_CONTRIBUTION_UI_ENABLED === "true"} /></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Manual performance snapshot</summary><div className="mt-4"><SnapshotButton /></div></details>
           </div>
         </section>
