@@ -1,0 +1,24 @@
+name: Real contribution history read-only checks
+on:
+  pull_request:
+    paths:
+      - 'components/shared-contribution-history.tsx'
+      - 'app/page.tsx'
+      - 'tests/shared-contribution-history/**'
+      - '.github/workflows/shared-contribution-history.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/shared-contribution-history/check.cjs
