@@ -6,6 +6,7 @@ import TransactionHistory from "@/components/transaction-history";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { calculateInvestmentOverview } from "@/lib/portfolio/investment-overview";
 import BuyForm from "@/components/buy-form";
+import DividendForm from "@/components/dividend-form";
 import SellForm from "@/components/sell-form";
 import SharedContributionPreview from "@/components/shared-contribution-preview";
 import SharedContributionHistory from "@/components/shared-contribution-history";
@@ -319,6 +320,7 @@ export default async function Home() {
           <p className="mt-1 text-sm text-slate-500">Record activity when needed. Trades remain manually executed.</p>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record buy</summary><div className="mt-4"><BuyForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
+            <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record Dividend</summary><div className="mt-4"><DividendForm portfolios={(portfolios ?? []).filter(p => (p.type === "real" && p.is_real_money) || (p.type === "paper_active" && !p.is_real_money)).map(p => ({id:p.id,label:p.type === "real" ? "Permanent Capital" : "Accelerated Growth"}))} /></div></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Record sell</summary><div className="mt-4"><SellForm portfolios={(portfolios ?? []).filter((p) => p.type !== "paper_long_term")} /></div></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Contribution preview (read-only)</summary><SharedContributionPreview currentSharedCash={realAccounting?.cash ?? null} postingUiEnabled={process.env.SHARED_CONTRIBUTION_POSTING_ENABLED === "true" && process.env.SHARED_CONTRIBUTION_UI_ENABLED === "true"} /></details>
             <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold text-cyan-800">Manual performance snapshot</summary><div className="mt-4"><SnapshotButton /></div></details>
