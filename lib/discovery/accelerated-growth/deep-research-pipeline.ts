@@ -3,6 +3,7 @@ import { researchAgCatalyst } from "./catalyst-research";
 import { researchAgDeepCandidate, type AgDeepResearch, type AgPriorResearchWatch } from "./deep-research";
 import { createClient } from "@/lib/supabase/server";
 import type { AgSavedCandidateOutcome } from "./load-completed-candidates";
+import { selectAgResearchCandidates } from "./candidate-selection";
 
 export type AgQuantitativeWatchResolution = {
   symbol: string;
@@ -96,32 +97,18 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
       resolution: candidate.score.status as AgCommitteeWatchResolution["resolution"],
     }));
 
-  const maxCandidates = Math.max(1, Math.min(options?.maxCandidates ?? 5, 5));
-  const advance = discovery.candidates.filter((candidate) => candidate.score.status === "ADVANCE");
-  const watchedAdvance = advance.filter((candidate) => reassessTickers.has(candidate.symbol.toUpperCase()));
-  const newAdvance = advance.filter((candidate) => !reassessTickers.has(candidate.symbol.toUpperCase()));
-
-  // During paper portfolio-building, reserve one deep-research slot for a
-  // new ADVANCE candidate when available. Reassess existing WATCH states in
-  // the remaining slots; keep the five-candidate ceiling unchanged.
-  const watchSlotLimit = newAdvance.length > 0 ? Math.max(0, maxCandidates - 1) : maxCandidates;
-  const selected = [
-    ...watchedAdvance.sort((a, b) => {
-      const aWatch = priorWatchByTicker.get(a.symbol.toUpperCase());
-      const bWatch = priorWatchByTicker.get(b.symbol.toUpperCase());
-      if (aWatch && bWatch) return new Date(aWatch.lastSeenAt).getTime() - new Date(bWatch.lastSeenAt).getTime();
-      if (aWatch) return -1;
-      if (bWatch) return 1;
-      return b.score.total - a.score.total;
-    }),
-    ...newAdvance.sort((a, b) => b.score.total - a.score.total),
-  ].filter((candidate, index) => !reassessTickers.has(candidate.symbol.toUpperCase()) || index < watchSlotLimit).slice(0, maxCandidates);
+  const { candidates: selected, symbols: selectedSymbols } = selectAgResearchCandidates({
+    candidates: discovery.candidates,
+    reassessSymbols: reassessTickers,
+    priorWatches: priorWatchByTicker,
+    maxCandidates: options?.maxCandidates ?? 5,
+  });
 
   // When resuming, the exact selected manifest must match completed symbol
   // checkpoints. Never fill missing entries with fresh research implicitly.
   const saved = options?.savedCandidateOutcomes;
   if (saved) {
-    const expected = selected.map(candidate => candidate.symbol.toUpperCase());
+    const expected = selectedSymbols;
     if (saved.length !== expected.length ||
         saved.some((entry, index) => entry.symbol !== expected[index])) {
       throw new Error("AG_SAVED_CANDIDATE_SELECTION_MISMATCH");
