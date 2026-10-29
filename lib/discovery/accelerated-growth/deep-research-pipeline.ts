@@ -61,7 +61,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   }
 
   const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
-  // When a completed Discovery stage is recovered, reuse its authoritative result\n  // instead of repeating expensive quantitative screening.\n  const discovery = options?.discovery ?? await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
+  // When a completed Discovery stage is recovered, reuse its authoritative result
+  // instead of repeating expensive quantitative screening.
+  const discovery = options?.discovery ?? await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
   const discoverySummary = {
     universeCount: discovery.universeCount, eligibleUniverseCount: discovery.eligibleUniverseCount,
     rejectedByTradabilityCount: discovery.rejectedByTradabilityCount,
