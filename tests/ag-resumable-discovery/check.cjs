@@ -9,7 +9,7 @@ assert.match(source,/p_stage: "discovery"/);
 assert.match(source,/ag_worker_complete_stage/);
 assert.match(source,/completed !== true/);
 assert.match(source,/discovery\.errors\.length \|\| discovery\.rateLimited \|\| discovery\.stoppedEarly/);
-assert.doesNotMatch(source,/\.from\("transactions"\)|\.from\("investment_decisions"\)|persistAgCommitteeDecisions/);
+assert.doesNotMatch(source,/\.from\("transactions"\)|persistAgCommitteeDecisions|\.insert\(|\.update\(|\.delete\(/);
 const route=fs.readFileSync("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
 assert.match(route,/executeTransactions: false/);
 console.log("AG discovery checkpoint guard passed (not yet attached to production Run).");
