@@ -92,12 +92,20 @@ export async function runAgCommitteePipeline(options?: { maxCandidates?: number 
   const decisions: AgCommitteeDecision[] = [];
   const errors: AgCommitteePipelineResult["errors"] = [];
 
-  for (const research of proceed) {
-    try {
-      const valuation = await getAgValuationSnapshot(research.symbol);
-      decisions.push(await runAgCommittee(research, valuation));
-    } catch (error) {
-      errors.push({ symbol: research.symbol, stage: "COMMITTEE", error: error instanceof Error ? error.message : "Unknown AG Committee error." });
+  // Committee calls for distinct symbols are independent. Preserve rank order
+  // while bounding concurrent requests to avoid provider bursts.
+  for (let offset = 0; offset < proceed.length; offset += 3) {
+    const outcomes = await Promise.all(proceed.slice(offset, offset + 3).map(async (research) => {
+      try {
+        const valuation = await getAgValuationSnapshot(research.symbol);
+        return { decision: await runAgCommittee(research, valuation), error: null };
+      } catch (error) {
+        return { decision: null, error: { symbol: research.symbol, stage: "COMMITTEE" as const, error: error instanceof Error ? error.message : "Unknown AG Committee error." } };
+      }
+    }));
+    for (const outcome of outcomes) {
+      if (outcome.decision) decisions.push(outcome.decision);
+      if (outcome.error) errors.push(outcome.error);
     }
   }
 
