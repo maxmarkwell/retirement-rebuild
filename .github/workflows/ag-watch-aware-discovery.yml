@@ -1,0 +1,24 @@
+name: AG watch-aware checkpoint verification
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/resumable-discovery.ts'
+      - '.github/workflows/ag-watch-aware-discovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - name: Verify watch-aware discovery
+        run: |
+          node -e 'const s=require("fs").readFileSync("lib/discovery/accelerated-growth/resumable-discovery.ts","utf8");for(const k of ["ag_research_watchlist","investment_decisions","reassessSymbols","era.inception_at","runAcceleratedGrowthDiscovery({ reassessSymbols })"])if(!s.includes(k))throw Error("Missing "+k);'
