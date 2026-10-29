@@ -1,0 +1,26 @@
+name: AG bounded research validation
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/discovery.ts'
+      - 'lib/discovery/accelerated-growth/deep-research-pipeline.ts'
+      - 'lib/discovery/accelerated-growth/committee-pipeline.ts'
+      - '.github/workflows/ag-bounded-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - name: Assert bounded fanout and unchanged write guard
+        run: |
+          node -e 'const fs=require("fs"),a=require("node:assert/strict");for(const p of ["discovery","deep-research-pipeline","committee-pipeline"]){const s=fs.readFileSync("lib/discovery/accelerated-growth/"+p+".ts","utf8");a.match(s,/offset \+= 3/);a.match(s,/Promise.all/)}a.match(fs.readFileSync("app/api/accelerated-growth/daily-cycle/route.ts","utf8"),/executeTransactions: false/);'
