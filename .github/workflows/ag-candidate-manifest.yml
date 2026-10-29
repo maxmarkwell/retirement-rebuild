@@ -1,0 +1,25 @@
+name: AG saved candidate continuation
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/load-completed-candidates.ts'
+      - 'lib/discovery/accelerated-growth/deep-research-pipeline.ts'
+      - 'lib/discovery/accelerated-growth/committee-pipeline.ts'
+      - 'tests/ag-candidate-manifest/**'
+      - '.github/workflows/ag-candidate-manifest.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-candidate-manifest/check.cjs
