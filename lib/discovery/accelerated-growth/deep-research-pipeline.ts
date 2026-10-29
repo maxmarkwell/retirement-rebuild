@@ -12,7 +12,7 @@ export type AgQuantitativeWatchResolution = {
 export type AgCommitteeWatchResolution = AgQuantitativeWatchResolution;
 
 export type AgDeepResearchPipelineResult = {
-  discovery: { universeCount: number; eligibleUniverseCount: number; rejectedByTradabilityCount: number; reassessmentRequestedCount: number; reassessmentSelectedCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; rateLimited: boolean; stoppedEarly: boolean };
+  discovery: { universeCount: number; eligibleUniverseCount: number; rejectedByTradabilityCount: number; reassessmentRequestedCount: number; reassessmentSelectedCount: number; preselectedCount: number; evaluatedCount: number; advanceCount: number; candidateCoverage?: AgDiscoveryResult["candidateCoverage"]; rateLimited: boolean; stoppedEarly: boolean };
   catalystSupportedCount: number; requestedCount: number; completedCount: number; failedCount: number;
   results: AgDeepResearch[];
   quantitativeWatchResolutions: AgQuantitativeWatchResolution[];
@@ -72,6 +72,7 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     reassessmentSelectedCount: discovery.reassessmentSelectedCount,
     preselectedCount: discovery.preselectedCount,
     evaluatedCount: discovery.evaluatedCount, advanceCount: discovery.advanceCount,
+    candidateCoverage: discovery.candidateCoverage,
     rateLimited: discovery.rateLimited, stoppedEarly: discovery.stoppedEarly,
   };
   if (discovery.errors.length > 0 || discovery.rateLimited || discovery.stoppedEarly) {
