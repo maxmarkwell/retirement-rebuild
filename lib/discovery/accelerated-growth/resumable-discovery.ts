@@ -13,7 +13,6 @@ export async function runAgDiscoveryCheckpoint(input: {
   userId: string;
   portfolioId: string;
   strategyEraId: string;
-  reassessSymbols: string[];
 }) {
   const db = createAdminClient();
   const { data: cycle, error: lookupError } = await db.from("ag_daily_cycles")
@@ -41,8 +40,28 @@ export async function runAgDiscoveryCheckpoint(input: {
 
   // Read-only discovery. This function never persists a watchlist, decision,
   // brokerage transaction, or portfolio cash change.
-  if (!Array.isArray(input.reassessSymbols) || input.reassessSymbols.some(symbol => !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol))) throw new Error("AG_DISCOVERY_INVALID_WATCH_MANIFEST");
-  const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: input.reassessSymbols });
+  const { data: era, error: eraError } = await db.from("portfolio_strategy_eras")
+    .select("inception_at").eq("id", input.strategyEraId)
+    .eq("portfolio_id", input.portfolioId).eq("user_id", input.userId)
+    .eq("strategy_key", "accelerated_growth").eq("execution_mode", "paper")
+    .is("ended_at", null).maybeSingle();
+  if (eraError || !era) throw new Error("AG_DISCOVERY_OPEN_ERA_REQUIRED");
+  const [priorWatches, committeeWatches] = await Promise.all([
+    db.from("ag_research_watchlist").select("ticker")
+      .eq("user_id", input.userId).eq("portfolio_id", input.portfolioId)
+      .eq("strategy_era_id", input.strategyEraId).is("resolved_at", null)
+      .order("last_seen_at", { ascending: true }).limit(5),
+    db.from("investment_decisions").select("ticker")
+      .eq("user_id", input.userId).eq("portfolio_id", input.portfolioId)
+      .eq("source", "ai_committee").eq("decision_type", "watch")
+      .eq("status", "active").gte("created_at", era.inception_at),
+  ]);
+  if (priorWatches.error || committeeWatches.error) throw new Error("AG_DISCOVERY_WATCH_READ_FAILED");
+  const reassessSymbols = Array.from(new Set([
+    ...(priorWatches.data ?? []).map(row => row.ticker.toUpperCase()),
+    ...(committeeWatches.data ?? []).map(row => row.ticker.toUpperCase()),
+  ]));
+  const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols });
   if (discovery.errors.length || discovery.rateLimited || discovery.stoppedEarly) {
     throw new Error("AG_DISCOVERY_INCOMPLETE_REQUIRES_REVIEW");
   }
