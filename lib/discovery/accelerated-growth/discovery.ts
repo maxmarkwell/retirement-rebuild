@@ -26,6 +26,11 @@ export type AgDiscoveryResult = {
   rejectedByTradabilityCount: number;
   reassessmentRequestedCount: number;
   reassessmentSelectedCount: number;
+  candidateCoverage: {
+    eligibleByBucket: Record<UniverseMarketCapBucket, number>;
+    selectedByBucket: Record<UniverseMarketCapBucket, number>;
+    highestRankedNotSelected: Array<{ symbol: string; bucket: UniverseMarketCapBucket; selectorScore: number }>;
+  };
   candidates: AgDiscoveryCandidate[];
   errors: Array<{ symbol: string; error: string }>;
 };
@@ -104,6 +109,19 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     reassessmentSelectedCount += 1;
   }
 
+  // Explain which high-ranked, investable stocks did not reach quantitative
+  // evaluation. This is diagnostic evidence, not an investment recommendation.
+  const selectedTickerSet = new Set(selected.map((item) => item.stock.ticker.toUpperCase()));
+  const eligibleByBucket = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
+  const selectedByBucket = { small: 0, mid: 0, large: 0, mega: 0 } as Record<UniverseMarketCapBucket, number>;
+  for (const stock of universe) if (passesAgTradabilityGate(stock)) eligibleByBucket[stock.marketCapBucket] += 1;
+  for (const item of selected) selectedByBucket[item.stock.marketCapBucket] += 1;
+  const highestRankedNotSelected = universe
+    .filter((stock) => passesAgTradabilityGate(stock) && !selectedTickerSet.has(stock.ticker.toUpperCase()))
+    .map((stock) => ({ symbol: stock.ticker, bucket: stock.marketCapBucket, selectorScore: Math.round(zeroCallSelectorScore(stock) * 10) / 10 }))
+    .sort((a, b) => b.selectorScore - a.selectorScore || a.symbol.localeCompare(b.symbol))
+    .slice(0, 20);
+
   const candidates: AgDiscoveryCandidate[] = [];
   const errors: Array<{ symbol: string; error: string }> = [];
   let rateLimited = false;
@@ -147,6 +165,6 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
     bucketSelectionCounts, eligibleUniverseCount,
     rejectedByTradabilityCount: universe.length - eligibleUniverseCount,
     reassessmentRequestedCount: reassessmentSeen.size,
-    reassessmentSelectedCount, candidates, errors,
+    reassessmentSelectedCount, candidateCoverage: { eligibleByBucket, selectedByBucket, highestRankedNotSelected }, candidates, errors,
   };
 }
