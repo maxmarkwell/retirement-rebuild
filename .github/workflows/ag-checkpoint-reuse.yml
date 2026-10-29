@@ -1,0 +1,25 @@
+name: AG checkpoint reuse validation
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/load-completed-discovery.ts'
+      - 'lib/discovery/accelerated-growth/deep-research-pipeline.ts'
+      - 'lib/discovery/accelerated-growth/committee-pipeline.ts'
+      - 'tests/ag-checkpoint-reuse/**'
+      - '.github/workflows/ag-checkpoint-reuse.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-checkpoint-reuse/check.cjs

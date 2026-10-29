@@ -1,4 +1,4 @@
-import { runAcceleratedGrowthDiscovery } from "./discovery";
+import { runAcceleratedGrowthDiscovery, type AgDiscoveryResult } from "./discovery";
 import { researchAgCatalyst } from "./catalyst-research";
 import { researchAgDeepCandidate, type AgDeepResearch, type AgPriorResearchWatch } from "./deep-research";
 import { createClient } from "@/lib/supabase/server";
@@ -19,7 +19,7 @@ export type AgDeepResearchPipelineResult = {
   errors: Array<{ symbol: string; stage: "CATALYST" | "DEEP_RESEARCH" | "DISCOVERY"; error: string }>;
 };
 
-export async function runAgDeepResearchPipeline(options?: { maxCandidates?: number }): Promise<AgDeepResearchPipelineResult> {
+export async function runAgDeepResearchPipeline(options?: { maxCandidates?: number; discovery?: AgDiscoveryResult }): Promise<AgDeepResearchPipelineResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const priorWatchByTicker = new Map<string, AgPriorResearchWatch>();
@@ -61,7 +61,9 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   }
 
   const reassessTickers = new Set<string>([...priorWatchByTicker.keys(), ...committeeWatchTickers]);
-  const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
+  // When a completed Discovery stage is recovered, reuse its authoritative result
+  // instead of repeating expensive quantitative screening.
+  const discovery = options?.discovery ?? await runAcceleratedGrowthDiscovery({ reassessSymbols: Array.from(reassessTickers) });
   const discoverySummary = {
     universeCount: discovery.universeCount, eligibleUniverseCount: discovery.eligibleUniverseCount,
     rejectedByTradabilityCount: discovery.rejectedByTradabilityCount,
