@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const selection = fs.readFileSync("lib/discovery/accelerated-growth/candidate-selection.ts", "utf8");
 const pipeline = fs.readFileSync("lib/discovery/accelerated-growth/deep-research-pipeline.ts", "utf8");
+const checkpoints = fs.readFileSync("lib/discovery/accelerated-growth/load-completed-candidates.ts", "utf8");
 const discovery = fs.readFileSync("lib/discovery/accelerated-growth/discovery.ts", "utf8");
 
 assert.match(selection, /Math\.min\(Math\.trunc\(input\.maxCandidates \|\| 5\), 5\)/);
@@ -13,4 +14,6 @@ assert.match(pipeline, /const expected = selectedSymbols/);
 assert.doesNotMatch(pipeline, /const watchedAdvance =/);
 assert.match(discovery, /highestRankedNotSelected/);
 assert.match(pipeline, /candidateCoverage: discovery\.candidateCoverage/);
+assert.match(selection, /function assertAgCandidateCheckpointManifest/);
+assert.match(checkpoints, /assertAgCandidateCheckpointManifest\(\{ expectedSymbols: expected, checkpoints: rows \}\)/);
 console.log("AG candidate selection reuse and coverage checks passed.");
