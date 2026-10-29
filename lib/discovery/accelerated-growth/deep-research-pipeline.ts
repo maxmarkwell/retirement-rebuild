@@ -3,7 +3,7 @@ import { researchAgCatalyst } from "./catalyst-research";
 import { researchAgDeepCandidate, type AgDeepResearch, type AgPriorResearchWatch } from "./deep-research";
 import { createClient } from "@/lib/supabase/server";
 import type { AgSavedCandidateOutcome } from "./load-completed-candidates";
-import { selectAgResearchCandidates } from "./candidate-selection";
+import { assertAgPersistedCandidateSelection, selectAgResearchCandidates } from "./candidate-selection";
 
 export type AgQuantitativeWatchResolution = {
   symbol: string;
@@ -109,10 +109,10 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const saved = options?.savedCandidateOutcomes;
   if (saved) {
     const expected = selectedSymbols;
-    if (saved.length !== expected.length ||
-        saved.some((entry, index) => entry.symbol !== expected[index])) {
-      throw new Error("AG_SAVED_CANDIDATE_SELECTION_MISMATCH");
-    }
+    assertAgPersistedCandidateSelection({
+      expectedSymbols: expected,
+      persistedSymbols: saved.map(entry => entry.symbol),
+    });
     const savedResearch = saved.flatMap(entry => entry.research ? [entry.research] : []);
     return {
       discovery: discoverySummary,
