@@ -107,15 +107,32 @@ export async function runAcceleratedGrowthDiscovery(options?: { reassessSymbols?
   const candidates: AgDiscoveryCandidate[] = [];
   const errors: Array<{ symbol: string; error: string }> = [];
   let rateLimited = false;
-  for (const item of selected.sort((a, b) => b.selectorScore - a.selectorScore)) {
-    try {
-      const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker);
-      candidates.push({ ...candidate, selectorScore: Math.round(item.selectorScore * 10) / 10, sector: item.stock.sector, industry: item.stock.industry });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Evaluation failed.";
-      errors.push({ symbol: item.stock.ticker, error: message });
-      if (isRateLimitError(error)) { rateLimited = true; break; }
+  // Bound concurrency to reduce single-request wall time without flooding data vendors.
+  // Always preserve the same deterministic preselection and ranked evaluation set.
+  const ranked = selected.sort((a, b) => b.selectorScore - a.selectorScore);
+  for (let offset = 0; offset < ranked.length; offset += 3) {
+    const batch = ranked.slice(offset, offset + 3);
+    const settled = await Promise.all(batch.map(async (item) => {
+      try {
+        const candidate = await evaluateAcceleratedGrowthCandidate(item.stock.ticker);
+        return { item, candidate, error: null as string | null, limited: false };
+      } catch (error) {
+        return {
+          item, candidate: null,
+          error: error instanceof Error ? error.message : "Evaluation failed.",
+          limited: isRateLimitError(error),
+        };
+      }
+    }));
+    for (const result of settled) {
+      if (result.candidate) {
+        candidates.push({ ...result.candidate, selectorScore: Math.round(result.item.selectorScore * 10) / 10, sector: result.item.stock.sector, industry: result.item.stock.industry });
+      } else {
+        errors.push({ symbol: result.item.stock.ticker, error: result.error ?? "Evaluation failed." });
+        if (result.limited) rateLimited = true;
+      }
     }
+    if (rateLimited) break;
   }
 
   const statusOrder = { ADVANCE: 0, REVIEW: 1, REJECT: 2, INSUFFICIENT_DATA: 3 } as const;
