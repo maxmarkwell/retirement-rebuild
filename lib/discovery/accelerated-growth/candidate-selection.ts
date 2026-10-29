@@ -1,0 +1,47 @@
+import type { AgDiscoveryCandidate } from "./discovery";
+import type { AgPriorResearchWatch } from "./deep-research";
+
+export type AgCandidateSelection = {
+  symbols: string[];
+  candidates: AgDiscoveryCandidate[];
+};
+
+/**
+ * Choose a fixed ordered candidate manifest for one research cycle.
+ * The caller must persist this manifest before dispatching detached workers;
+ * it must not recompute the selection using changing portfolio state.
+ */
+export function selectAgResearchCandidates(input: {
+  candidates: AgDiscoveryCandidate[];
+  reassessSymbols: ReadonlySet<string>;
+  priorWatches: ReadonlyMap<string, AgPriorResearchWatch>;
+  maxCandidates: number;
+}): AgCandidateSelection {
+  const limit = Math.max(1, Math.min(Math.trunc(input.maxCandidates || 5), 5));
+  const advance = input.candidates.filter(candidate => candidate.score.status === "ADVANCE");
+  const watched = advance.filter(candidate => input.reassessSymbols.has(candidate.symbol.toUpperCase()));
+  const fresh = advance.filter(candidate => !input.reassessSymbols.has(candidate.symbol.toUpperCase()));
+
+  // Reassess the oldest unresolved WATCHes first, while keeping at least one
+  // discovery slot for a new growth opportunity whenever one exists.
+  watched.sort((a, b) => {
+    const aWatch = input.priorWatches.get(a.symbol.toUpperCase());
+    const bWatch = input.priorWatches.get(b.symbol.toUpperCase());
+    if (aWatch && bWatch) {
+      const age = Date.parse(aWatch.lastSeenAt) - Date.parse(bWatch.lastSeenAt);
+      if (Number.isFinite(age) && age !== 0) return age;
+    }
+    if (aWatch !== undefined) return -1;
+    if (bWatch !== undefined) return 1;
+    return b.score.total - a.score.total || a.symbol.localeCompare(b.symbol);
+  });
+  fresh.sort((a, b) => b.score.total - a.score.total || a.symbol.localeCompare(b.symbol));
+
+  const watchSlots = fresh.length > 0 ? Math.max(0, limit - 1) : limit;
+  const candidates = [...watched.slice(0, watchSlots), ...fresh].slice(0, limit);
+  const symbols = candidates.map(candidate => candidate.symbol.toUpperCase());
+  if (new Set(symbols).size !== symbols.length) {
+    throw new Error("AG_DUPLICATE_CANDIDATE_SELECTION");
+  }
+  return { symbols, candidates };
+}
