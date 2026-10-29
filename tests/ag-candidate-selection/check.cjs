@@ -15,5 +15,7 @@ assert.doesNotMatch(pipeline, /const watchedAdvance =/);
 assert.match(discovery, /highestRankedNotSelected/);
 assert.match(pipeline, /candidateCoverage: discovery\.candidateCoverage/);
 assert.match(selection, /function assertAgCandidateCheckpointManifest/);
+assert.match(selection, /function assertAgPersistedCandidateSelection/);
+assert.match(pipeline, /assertAgPersistedCandidateSelection\(/);
 assert.match(checkpoints, /assertAgCandidateCheckpointManifest\(\{ expectedSymbols: expected, checkpoints: rows \}\)/);
 console.log("AG candidate selection reuse and coverage checks passed.");
