@@ -59,11 +59,33 @@ export function assertAgCandidateCheckpointManifest(input: {
       expected.some(s => !/^[A-Z][A-Z0-9.-]{0,14}$/.test(s))) {
     throw new Error("AG_CANDIDATE_MANIFEST_INVALID");
   }
+  // A checkpoint is authoritative evidence only for a selected symbol. An
+  // unexpected or duplicate row must halt continuation before provider calls.
   const actual = input.checkpoints.map(row => row.symbol.toUpperCase());
   if (new Set(actual).size !== actual.length || actual.some(s => !expected.includes(s))) {
     throw new Error("AG_CANDIDATE_MANIFEST_UNEXPECTED_CHECKPOINT");
   }
   if (input.checkpoints.some(row => !["pending", "running", "completed", "needs_manual_review"].includes(row.status))) {
     throw new Error("AG_CANDIDATE_MANIFEST_UNKNOWN_STATUS");
+  }
+}
+
+/**
+ * Verify the durable selection record before running any candidate worker.
+ * Never infer the selected set from completed checkpoints: a missing claim
+ * must not silently shrink the cycle.
+ */
+export function assertAgPersistedCandidateSelection(input: {
+  expectedSymbols: readonly string[];
+  persistedSymbols: readonly string[];
+}): void {
+  const expected = input.expectedSymbols.map(s => s.toUpperCase());
+  const persisted = input.persistedSymbols.map(s => s.toUpperCase());
+  if (!expected.length || expected.length > 5 ||
+      expected.some(s => !/^[A-Z][A-Z0-9.-]{0,14}$/.test(s)) ||
+      new Set(expected).size !== expected.length ||
+      persisted.length !== expected.length ||
+      persisted.some((s, index) => s !== expected[index])) {
+    throw new Error("AG_PERSISTED_SELECTION_MISMATCH");
   }
 }
