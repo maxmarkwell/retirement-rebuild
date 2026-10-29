@@ -1,0 +1,15 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const source=fs.readFileSync("lib/discovery/accelerated-growth/resumable-discovery.ts","utf8");
+assert.match(source,/createAdminClient/);
+assert.match(source,/eq\("user_id", input.userId\)/);
+assert.match(source,/eq\("is_real_money", false\)/);
+assert.match(source,/ag_worker_claim_stage/);
+assert.match(source,/p_stage: "discovery"/);
+assert.match(source,/ag_worker_complete_stage/);
+assert.match(source,/completed !== true/);
+assert.match(source,/discovery\.errors\.length \|\| discovery\.rateLimited \|\| discovery\.stoppedEarly/);
+assert.doesNotMatch(source,/\.from\("transactions"\)|\.from\("investment_decisions"\)|persistAgCommitteeDecisions/);
+const route=fs.readFileSync("app/api/accelerated-growth/daily-cycle/route.ts","utf8");
+assert.match(route,/executeTransactions: false/);
+console.log("AG discovery checkpoint guard passed (not yet attached to production Run).");
