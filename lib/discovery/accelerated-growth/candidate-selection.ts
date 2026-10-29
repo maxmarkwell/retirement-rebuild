@@ -45,3 +45,25 @@ export function selectAgResearchCandidates(input: {
   }
   return { symbols, candidates };
 }
+
+/**
+ * Fail closed before executing or resuming a cycle. The manifest must be
+ * persisted once by the coordinator and compared against all checkpoint rows.
+ */
+export function assertAgCandidateCheckpointManifest(input: {
+  expectedSymbols: readonly string[];
+  checkpoints: readonly { symbol: string; status: string }[];
+}): void {
+  const expected = input.expectedSymbols.map(s => s.toUpperCase());
+  if (expected.length > 5 || new Set(expected).size !== expected.length ||
+      expected.some(s => !/^[A-Z][A-Z0-9.-]{0,14}$/.test(s))) {
+    throw new Error("AG_CANDIDATE_MANIFEST_INVALID");
+  }
+  const actual = input.checkpoints.map(row => row.symbol.toUpperCase());
+  if (new Set(actual).size !== actual.length || actual.some(s => !expected.includes(s))) {
+    throw new Error("AG_CANDIDATE_MANIFEST_UNEXPECTED_CHECKPOINT");
+  }
+  if (input.checkpoints.some(row => !["pending", "running", "completed", "needs_manual_review"].includes(row.status))) {
+    throw new Error("AG_CANDIDATE_MANIFEST_UNKNOWN_STATUS");
+  }
+}
