@@ -1,0 +1,10 @@
+const assert=require("node:assert/strict"),fs=require("node:fs");
+const loader=fs.readFileSync("lib/discovery/accelerated-growth/load-completed-candidates.ts","utf8");
+const deep=fs.readFileSync("lib/discovery/accelerated-growth/deep-research-pipeline.ts","utf8");
+const committee=fs.readFileSync("lib/discovery/accelerated-growth/committee-pipeline.ts","utf8");
+for(const x of ['eq("user_id",user.id)','eq("status","running")','AG_CANDIDATE_MANIFEST_MISMATCH','AG_CANDIDATE_MANIFEST_INCOMPLETE','AG_CANDIDATE_MANIFEST_INVALID_OUTPUT'])assert.ok(loader.includes(x),x);
+assert.match(deep,/AG_SAVED_CANDIDATE_SELECTION_MISMATCH/);
+assert.match(deep,/savedCandidateOutcomes/);
+assert.match(committee,/savedCandidateOutcomes: options\?\.savedCandidateOutcomes/);
+assert.doesNotMatch(loader,/\.insert\(|\.update\(|\.delete\(|\.rpc\(/);
+console.log("Candidate checkpoint manifest validates complete owner-scoped output before Committee reuse.");
