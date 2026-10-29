@@ -44,15 +44,41 @@ export async function runAgResearchDailyCycle(options?: {
         console.info("[AG_RESEARCH_STAGE]", JSON.stringify({ cycleId: context.cycleId, stage, elapsedMs: now - cycleStartedAt, sincePreviousCheckpointMs: now - lastCheckpointAt }));
         lastCheckpointAt = now;
       };
+      // Stop research before the Vercel hard kill at 300 seconds. Timeout
+      // fails the cycle through runAgDailyCycle's ordinary failure recorder.
+      // In-flight promises may finish later, so every persistence boundary
+      // below must first verify the cycle is still running.
+      const researchDeadlineAt = Date.now() + 230_000;
+      const withinDeadline = (stage: string) => {
+        if (Date.now() >= researchDeadlineAt) {
+          throw new Error(`AG_RESEARCH_DEADLINE_EXCEEDED:${stage}: research exceeded the safe 230-second request budget; no cycle writes are permitted.`);
+        }
+      };
+      const deadlineRace = async <T>(work: Promise<T>, stage: string): Promise<T> => {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          return await Promise.race([
+            work,
+            new Promise<never>((_resolve, reject) => {
+              timeout = setTimeout(() => reject(new Error(`AG_RESEARCH_DEADLINE_EXCEEDED:${stage}: research exceeded the safe 230-second request budget.`)),
+                Math.max(1, researchDeadlineAt - Date.now()));
+            }),
+          ]);
+        } finally {
+          if (timeout) clearTimeout(timeout);
+        }
+      };
       await checkpoint("holding_review_start");
-      const holdingReviews = await runAgHoldingReviewPipeline();
+      const holdingReviews = await deadlineRace(runAgHoldingReviewPipeline(), "holding_reviews");
+      withinDeadline("holding_reviews_completed");
       if (holdingReviews.errors.length > 0 || holdingReviews.failedCount > 0) {
         throw new Error("Holding reassessment did not complete cleanly; no daily-cycle decisions were persisted.");
       }
 
       await checkpoint("holding_review_completed");
       await checkpoint("committee_research_start");
-      const pipeline = await runAgCommitteePipeline({ maxCandidates });
+      const pipeline = await deadlineRace(runAgCommitteePipeline({ maxCandidates }), "committee_research");
+      withinDeadline("committee_research_completed");
       if (pipeline.errors.length > 0 || pipeline.failedCount > 0) {
         throw new Error("Committee pipeline did not complete cleanly; no daily-cycle decisions were persisted.");
       }
@@ -80,6 +106,7 @@ export async function runAgResearchDailyCycle(options?: {
         persistedDecisionCount: pipeline.decisions.length + holdingReviews.decisions.length,
       });
 
+      withinDeadline("before_persistence");
       await checkpoint("research_validated");
       const supabase = await createClient();
       const markStage = async (stage: string) => {
