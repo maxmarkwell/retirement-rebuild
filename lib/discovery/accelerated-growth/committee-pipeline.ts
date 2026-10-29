@@ -1,5 +1,6 @@
 import { runAgDeepResearchPipeline } from "./deep-research-pipeline";
 import type { AgDiscoveryResult } from "./discovery";
+import type { AgSavedCandidateOutcome } from "./load-completed-candidates";
 import { runAgCommittee, type AgCommitteeDecision } from "./committee";
 import { getAgValuationSnapshot } from "./valuation-snapshot";
 import { createClient } from "@/lib/supabase/server";
@@ -48,8 +49,8 @@ export type AgCommitteePipelineResult = {
   errors: Array<{ symbol: string; stage: "UPSTREAM" | "COMMITTEE"; error: string }>;
 };
 
-export async function runAgCommitteePipeline(options?: { maxCandidates?: number; discovery?: AgDiscoveryResult }): Promise<AgCommitteePipelineResult> {
-  const upstream = await runAgDeepResearchPipeline({ maxCandidates: options?.maxCandidates ?? 5, discovery: options?.discovery });
+export async function runAgCommitteePipeline(options?: { maxCandidates?: number; discovery?: AgDiscoveryResult; savedCandidateOutcomes?: AgSavedCandidateOutcome[] }): Promise<AgCommitteePipelineResult> {
+  const upstream = await runAgDeepResearchPipeline({ maxCandidates: options?.maxCandidates ?? 5, discovery: options?.discovery, savedCandidateOutcomes: options?.savedCandidateOutcomes });
   const proceed = upstream.results.filter((result) => result.researchStatus === "PROCEED");
 
   const upstreamSummary = {
