@@ -1,0 +1,12 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const loader=fs.readFileSync("lib/discovery/accelerated-growth/load-completed-discovery.ts","utf8");
+const deep=fs.readFileSync("lib/discovery/accelerated-growth/deep-research-pipeline.ts","utf8");
+const committee=fs.readFileSync("lib/discovery/accelerated-growth/committee-pipeline.ts","utf8");
+assert.match(loader,/eq\("status", "completed"\)/);
+assert.match(loader,/eq\("user_id", input.userId\)/);
+assert.match(loader,/AG_DISCOVERY_CHECKPOINT_INVALID_OR_INCOMPLETE/);
+assert.match(deep,/options\?\.discovery \?\? await runAcceleratedGrowthDiscovery/);
+assert.match(committee,/discovery: options\?\.discovery/);
+assert.doesNotMatch(loader,/\.insert\(|\.update\(|\.delete\(/);
+console.log("Checkpointed Discovery reuse is read-only, scoped and validates complete stage output.");
