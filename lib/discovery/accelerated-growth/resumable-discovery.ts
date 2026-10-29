@@ -13,6 +13,7 @@ export async function runAgDiscoveryCheckpoint(input: {
   userId: string;
   portfolioId: string;
   strategyEraId: string;
+  reassessSymbols: string[];
 }) {
   const db = createAdminClient();
   const { data: cycle, error: lookupError } = await db.from("ag_daily_cycles")
@@ -40,7 +41,8 @@ export async function runAgDiscoveryCheckpoint(input: {
 
   // Read-only discovery. This function never persists a watchlist, decision,
   // brokerage transaction, or portfolio cash change.
-  const discovery = await runAcceleratedGrowthDiscovery();
+  if (!Array.isArray(input.reassessSymbols) || input.reassessSymbols.some(symbol => !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol))) throw new Error("AG_DISCOVERY_INVALID_WATCH_MANIFEST");
+  const discovery = await runAcceleratedGrowthDiscovery({ reassessSymbols: input.reassessSymbols });
   if (discovery.errors.length || discovery.rateLimited || discovery.stoppedEarly) {
     throw new Error("AG_DISCOVERY_INCOMPLETE_REQUIRES_REVIEW");
   }
