@@ -1,6 +1,5 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import type { AgDeepResearchPipelineResult } from "./deep-research-pipeline";
 import type { AgDeepResearch } from "./deep-research";
 
 export type AgSavedCandidateOutcome = {
@@ -54,7 +53,7 @@ export async function loadCompletedAgCandidateOutcomes(input: {
     }
     const output = row.output as { symbol?: unknown; catalystStatus?: unknown; research?: unknown };
     if (output.symbol !== symbol ||
-        !["NOT_FOUND","SUPPORTED","FOUND"].includes(String(output.catalystStatus)) ||
+        !["NOT_FOUND","SUPPORTED","MIXED"].includes(String(output.catalystStatus)) ||
         (output.catalystStatus === "NOT_FOUND" && output.research !== null) ||
         (output.catalystStatus !== "NOT_FOUND" && (!output.research || typeof output.research !== "object" ||
           (output.research as { symbol?: unknown }).symbol !== symbol))) {
