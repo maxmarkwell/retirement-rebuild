@@ -116,18 +116,28 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
   const results: AgDeepResearch[] = [];
   const errors: AgDeepResearchPipelineResult["errors"] = [];
   let catalystSupportedCount = 0;
-  for (const candidate of selected) {
-    try {
-      const catalyst = await researchAgCatalyst(candidate);
-      if (catalyst.catalystStatus === "NOT_FOUND") continue;
-      catalystSupportedCount += 1;
+  // Independent candidate research can overlap, but cap provider concurrency.
+  // Each candidate still completes catalyst validation before deep research.
+  for (let offset = 0; offset < selected.length; offset += 3) {
+    const batch = selected.slice(offset, offset + 3);
+    const outcomes = await Promise.all(batch.map(async (candidate) => {
       try {
-        results.push(await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null));
+        const catalyst = await researchAgCatalyst(candidate);
+        if (catalyst.catalystStatus === "NOT_FOUND") return { result: null, supported: false, error: null };
+        try {
+          const result = await researchAgDeepCandidate(candidate, catalyst, priorWatchByTicker.get(candidate.symbol.toUpperCase()) ?? null);
+          return { result, supported: true, error: null };
+        } catch (error) {
+          return { result: null, supported: true, error: { symbol: candidate.symbol, stage: "DEEP_RESEARCH" as const, error: error instanceof Error ? error.message : "Unknown AG deep research error." } };
+        }
       } catch (error) {
-        errors.push({ symbol: candidate.symbol, stage: "DEEP_RESEARCH", error: error instanceof Error ? error.message : "Unknown AG deep research error." });
+        return { result: null, supported: false, error: { symbol: candidate.symbol, stage: "CATALYST" as const, error: error instanceof Error ? error.message : "Unknown AG catalyst research error." } };
       }
-    } catch (error) {
-      errors.push({ symbol: candidate.symbol, stage: "CATALYST", error: error instanceof Error ? error.message : "Unknown AG catalyst research error." });
+    }));
+    for (const outcome of outcomes) {
+      if (outcome.supported) catalystSupportedCount += 1;
+      if (outcome.result) results.push(outcome.result);
+      if (outcome.error) errors.push(outcome.error);
     }
   }
 
