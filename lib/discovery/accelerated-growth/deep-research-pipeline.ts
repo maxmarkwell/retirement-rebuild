@@ -2,6 +2,7 @@ import { runAcceleratedGrowthDiscovery, type AgDiscoveryResult } from "./discove
 import { researchAgCatalyst } from "./catalyst-research";
 import { researchAgDeepCandidate, type AgDeepResearch, type AgPriorResearchWatch } from "./deep-research";
 import { createClient } from "@/lib/supabase/server";
+import type { AgSavedCandidateOutcome } from "./load-completed-candidates";
 
 export type AgQuantitativeWatchResolution = {
   symbol: string;
@@ -19,7 +20,7 @@ export type AgDeepResearchPipelineResult = {
   errors: Array<{ symbol: string; stage: "CATALYST" | "DEEP_RESEARCH" | "DISCOVERY"; error: string }>;
 };
 
-export async function runAgDeepResearchPipeline(options?: { maxCandidates?: number; discovery?: AgDiscoveryResult }): Promise<AgDeepResearchPipelineResult> {
+export async function runAgDeepResearchPipeline(options?: { maxCandidates?: number; discovery?: AgDiscoveryResult; savedCandidateOutcomes?: AgSavedCandidateOutcome[] }): Promise<AgDeepResearchPipelineResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const priorWatchByTicker = new Map<string, AgPriorResearchWatch>();
@@ -114,6 +115,25 @@ export async function runAgDeepResearchPipeline(options?: { maxCandidates?: numb
     }),
     ...newAdvance.sort((a, b) => b.score.total - a.score.total),
   ].filter((candidate, index) => !reassessTickers.has(candidate.symbol.toUpperCase()) || index < watchSlotLimit).slice(0, maxCandidates);
+
+  // When resuming, the exact selected manifest must match completed symbol
+  // checkpoints. Never fill missing entries with fresh research implicitly.
+  const saved = options?.savedCandidateOutcomes;
+  if (saved) {
+    const expected = selected.map(candidate => candidate.symbol.toUpperCase());
+    if (saved.length !== expected.length ||
+        saved.some((entry, index) => entry.symbol !== expected[index])) {
+      throw new Error("AG_SAVED_CANDIDATE_SELECTION_MISMATCH");
+    }
+    const savedResearch = saved.flatMap(entry => entry.research ? [entry.research] : []);
+    return {
+      discovery: discoverySummary,
+      catalystSupportedCount: saved.filter(entry => entry.catalystStatus !== "NOT_FOUND").length,
+      requestedCount: selected.length, completedCount: savedResearch.length,
+      failedCount: 0, results: savedResearch, quantitativeWatchResolutions,
+      committeeWatchResolutions, errors: [],
+    };
+  }
 
   const results: AgDeepResearch[] = [];
   const errors: AgDeepResearchPipelineResult["errors"] = [];
