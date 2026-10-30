@@ -6,6 +6,7 @@ on:
       - 'lib/discovery/accelerated-growth/opportunity-research.ts'
       - 'lib/discovery/accelerated-growth/opportunity-discovery-step.ts'
       - 'lib/discovery/accelerated-growth/process-opportunity-scan.ts'
+      - 'lib/discovery/accelerated-growth/initialize-opportunity-scan.ts'
       - '.github/workflows/ag-opportunity-qualification.yml'
       - 'tests/ag-opportunity-qualification/**'
   workflow_dispatch:
