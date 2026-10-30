@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'lib/discovery/accelerated-growth/opportunity-qualification.ts'
+      - 'lib/discovery/accelerated-growth/opportunity-research.ts'
       - '.github/workflows/ag-opportunity-qualification.yml'
       - 'tests/ag-opportunity-qualification/**'
   workflow_dispatch:
