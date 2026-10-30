@@ -4,6 +4,7 @@ on:
     paths:
       - 'lib/discovery/accelerated-growth/opportunity-qualification.ts'
       - 'lib/discovery/accelerated-growth/opportunity-research.ts'
+      - 'lib/discovery/accelerated-growth/opportunity-discovery-step.ts'
       - '.github/workflows/ag-opportunity-qualification.yml'
       - 'tests/ag-opportunity-qualification/**'
   workflow_dispatch:
