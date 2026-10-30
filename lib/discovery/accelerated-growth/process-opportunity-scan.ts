@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { researchAgOpportunityDiscoveryStep } from "./opportunity-discovery-step";
+import { rankAgOpportunityResearch } from "./rank-opportunity-research";
 
 const VERSION = "ag-opportunity-v2";
 type ResearchResult = Awaited<ReturnType<typeof researchAgOpportunityDiscoveryStep>>;
@@ -51,8 +52,14 @@ export async function processAgOpportunityScanStep(scanRunId: string) {
     throw new Error("AG_V2_INVALID_SAVED_MANIFEST");
   }
   if (state.cursor === state.symbols.length) {
+    const ranked = rankAgOpportunityResearch(state.results);
     const { data: done, error: finishError } = await db.from("discovery_scan_runs")
-      .update({ status: "completed", stage: "ag_v2_complete", completed_at: new Date().toISOString() })
+      .update({
+        status: "completed", stage: "ag_v2_complete", completed_at: new Date().toISOString(),
+        state: { ...state, rankedQualifiedCandidates: ranked },
+        completed_count: state.results.length,
+        deep_candidate_count: ranked.length,
+      })
       .eq("id", scanRunId).eq("user_id", user.id).eq("status", "running").eq("stage", "ag_v2_ready")
       .select("id").maybeSingle();
     if (finishError || !done) throw new Error("AG_V2_FINALIZATION_UNCONFIRMED");
