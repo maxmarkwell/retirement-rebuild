@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { AgDeepResearch } from "./deep-research";
+import { assertAgCandidateCheckpointManifest } from "./candidate-selection";
 
 export type AgSavedCandidateOutcome = {
   symbol: string;
@@ -41,6 +42,7 @@ export async function loadCompletedAgCandidateOutcomes(input: {
     .select("symbol,status,output").eq("cycle_id",input.cycleId)
     .eq("parent_stage","catalyst_deep_research");
   if (error || !rows) throw new Error("AG_CANDIDATE_MANIFEST_READ_FAILED");
+  assertAgCandidateCheckpointManifest({ expectedSymbols: expected, checkpoints: rows });
   const bySymbol = new Map(rows.map(row => [row.symbol, row]));
   if (rows.length !== expected.length || bySymbol.size !== rows.length ||
       expected.some(symbol => !bySymbol.has(symbol))) {

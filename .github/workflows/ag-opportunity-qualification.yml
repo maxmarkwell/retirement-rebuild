@@ -1,0 +1,32 @@
+name: AG opportunity qualification validation
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/opportunity-qualification.ts'
+      - 'lib/discovery/accelerated-growth/opportunity-research.ts'
+      - 'lib/discovery/accelerated-growth/opportunity-discovery-step.ts'
+      - 'lib/discovery/accelerated-growth/process-opportunity-scan.ts'
+      - 'lib/discovery/accelerated-growth/initialize-opportunity-scan.ts'
+      - 'lib/discovery/accelerated-growth/rank-opportunity-research.ts'
+      - 'lib/discovery/accelerated-growth/opportunity-deep-research.ts'
+      - 'lib/discovery/accelerated-growth/process-opportunity-deep.ts'
+      - '.github/workflows/ag-opportunity-qualification.yml'
+      - 'tests/ag-opportunity-qualification/**'
+      - 'tests/ag-opportunity-scan/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-opportunity-qualification/check.cjs
+      - run: node tests/ag-opportunity-scan/check.cjs
