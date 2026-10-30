@@ -7,6 +7,7 @@ on:
       - 'lib/discovery/accelerated-growth/opportunity-discovery-step.ts'
       - 'lib/discovery/accelerated-growth/process-opportunity-scan.ts'
       - 'lib/discovery/accelerated-growth/initialize-opportunity-scan.ts'
+      - 'lib/discovery/accelerated-growth/rank-opportunity-research.ts'
       - '.github/workflows/ag-opportunity-qualification.yml'
       - 'tests/ag-opportunity-qualification/**'
       - 'tests/ag-opportunity-scan/**'
