@@ -4,9 +4,9 @@ const ts = require("typescript");
 const vm = require("node:vm");
 const source = fs.readFileSync("lib/discovery/accelerated-growth/opportunity-qualification.ts", "utf8");
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-const exports = {};
-vm.runInNewContext(js, { exports, URL });
-const { AG_OPPORTUNITY_PATHS, qualifyAgOpportunity } = exports;
+const moduleExports = {};
+vm.runInNewContext(js, { exports: moduleExports, URL });
+const { AG_OPPORTUNITY_PATHS, qualifyAgOpportunity } = moduleExports;
 assert.equal(AG_OPPORTUNITY_PATHS.length, 5);
 function evidence(path, strength = 80, coverage = 80) {
   return { path, evidence: ["Documented business development"], sourceUrls: ["https://example.com/filing"],
