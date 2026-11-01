@@ -20,6 +20,11 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
     getAgDailyCycleStatus(),
   ]);
 
+  const latestDecision = state.recentDecisions[0] ?? null;
+  const researchBlocked = cycleStatus.stalled || Boolean(cycleStatus.previousUnfinishedCycle) || cycleStatus.status === "failed";
+  const researchBusy = cycleStatus.status === "running";
+  const activeBuyCount = state.activeDecisions.filter(decision => decision.decision_type === "buy").length;
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-7 sm:px-8">
       <div className="mx-auto max-w-6xl">
@@ -49,9 +54,62 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
         <nav aria-label="Accelerated Growth sections" className="mb-6 grid grid-cols-2 gap-2 border-b border-slate-300 pb-3 sm:grid-cols-4">
           {(["overview", "positions", "committee", "research"] as const).map((item) => <Link key={item} href={`/accelerated-growth?tab=${item}`} aria-current={currentTab === item ? "page" : undefined} className={`min-w-0 rounded-lg px-2 py-3 text-center text-sm font-semibold capitalize sm:px-4 ${currentTab === item ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"}`}>{item}</Link>)}
         </nav>
+        {currentTab === "overview" && (
+          <section aria-label="AG working dashboard" className="mb-5 space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Link href="/accelerated-growth?tab=research" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Research status</p>
+                <p className={`mt-2 text-lg font-bold ${researchBlocked ? "text-amber-800" : "text-slate-900"}`}>{researchBlocked ? "Review required" : researchBusy ? "Research in progress" : cycleStatus.status === "completed" ? "Cycle completed" : "Ready for paper research"}</p>
+                <p className="mt-2 text-xs text-slate-600">Open Research to inspect the cycle and saved WATCH evidence.</p>
+              </Link>
+              <Link href="/accelerated-growth?tab=committee" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Active Committee decisions</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{state.activeDecisions.length}</p>
+                <p className="mt-2 text-xs text-slate-600">{activeBuyCount} active BUY recommendation(s). Recommendations are not orders.</p>
+              </Link>
+              <Link href="/accelerated-growth?tab=positions" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Paper holdings</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{state.holdings.length}</p>
+                <p className="mt-2 text-xs text-slate-600">Paper sleeve cash: ${state.accounting.sleeveCash.toFixed(2)}. Not verified brokerage cash.</p>
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900">Research-to-decision progress</h2>
+                <p className="mt-1 text-xs text-slate-600">Latest recorded daily-cycle counts. These are not five-path v2 completion results.</p>
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  {([
+                    ["Evaluated", cycleStatus.cycle?.evaluated_count],
+                    ["Discovery ADVANCE", cycleStatus.cycle?.discovery_advance_count],
+                    ["Deep Research complete", cycleStatus.cycle?.deep_research_completed_count],
+                    ["Committee decisions", cycleStatus.cycle?.committee_decision_count],
+                  ] as const).map(([label, value]) => (
+                    <div key={label} className="rounded-lg bg-slate-50 p-3">
+                      <dt className="text-xs text-slate-500">{label}</dt>
+                      <dd className="mt-1 text-xl font-bold text-slate-900">{value ?? "—"}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {cycleStatus.cycle?.failure_message && <p role="alert" className="mt-3 text-sm text-red-800">Cycle issue: {cycleStatus.cycle.failure_message}</p>}
+                <Link href="/accelerated-growth?tab=research" className="mt-4 inline-block text-sm font-semibold text-slate-800 underline underline-offset-2">Inspect research details</Link>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900">Real-money AG readiness</h2>
+                <p className="mt-1 text-sm text-slate-600">Planned maximum initial exposure: $40–$50. Live AG execution is not authorized.</p>
+                <div className="mt-4 space-y-3 text-sm">
+                  <p><span className="font-semibold text-slate-800">Research:</span> {researchBlocked ? "Cycle requires review." : cycleStatus.status === "completed" ? "A paper cycle is recorded as completed; inspect the decisions." : "A complete current cycle has not been confirmed."}</p>
+                  <p><span className="font-semibold text-slate-800">Committee:</span> {latestDecision ? `Latest recorded decision: ${latestDecision.ticker} (${latestDecision.decision_type === "avoid" ? "REJECT" : latestDecision.decision_type.toUpperCase()}).` : "No recorded Committee decision available."}</p>
+                  <p><span className="font-semibold text-slate-800">Brokerage cash:</span> Not verified by this website.</p>
+                  <p><span className="font-semibold text-slate-800">Manual execution and fill reconciliation:</span> Not certified for live AG.</p>
+                </div>
+                <p className="mt-4 rounded-lg bg-slate-100 p-3 text-xs text-slate-700">A BUY recommendation alone cannot authorize a trade. Do not use paper cash or positions as live brokerage balances.</p>
+              </div>
+            </div>
+          </section>
+        )}
         <div className="grid min-w-0 grid-cols-1 gap-4">
           {currentTab === "overview" && <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">AG Sleeve</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Paper AG Sleeve · Not brokerage assets</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">${state.valuation.currentEquity.toFixed(2)}</p>
             <div className="mt-5 space-y-2 border-t border-gray-100 pt-4 text-sm">
               <div className="flex flex-wrap justify-between gap-2"><span className="text-gray-500">Reference Capital</span><span className="font-medium">${state.accounting.referenceTotalCapital.toFixed(2)}</span></div>
@@ -66,7 +124,7 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
           </section>}
 
           {currentTab === "positions" && <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Current Holdings</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Current paper holdings</p>
             {state.holdings.length === 0 ? <p className="mt-4 text-sm text-gray-500">No AG positions currently held.</p> : (
               <div className="mt-4 space-y-3">
                 {state.holdings.map((holding) => (
