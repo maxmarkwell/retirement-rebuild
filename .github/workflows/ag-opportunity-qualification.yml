@@ -13,6 +13,8 @@ on:
       - '.github/workflows/ag-opportunity-qualification.yml'
       - 'tests/ag-opportunity-qualification/**'
       - 'tests/ag-opportunity-scan/**'
+      - 'tests/ag-dashboard/**'
+      - 'app/accelerated-growth/page.tsx'
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,3 +32,4 @@ jobs:
       - run: npx tsc --noEmit --incremental false
       - run: node tests/ag-opportunity-qualification/check.cjs
       - run: node tests/ag-opportunity-scan/check.cjs
+      - run: node tests/ag-dashboard/check.cjs
