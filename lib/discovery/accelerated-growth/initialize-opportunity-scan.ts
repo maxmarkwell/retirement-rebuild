@@ -33,13 +33,27 @@ export async function initializeAgOpportunityScan(input: { symbols: string[] }) 
   if (existingError || !existing || existing.length > 0) throw new Error("AG_V2_SCAN_ALREADY_ACTIVE_OR_UNAVAILABLE");
 
   const universe = await getDynamicDiscoveryUniverse();
-  const bySymbol = new Map<string, number>();
+  const bySymbol = new Map<string, typeof universe>();
   for (const stock of universe) {
-    if (!passesAgTradabilityGate(stock)) continue;
     const symbol = stock.ticker.toUpperCase();
-    bySymbol.set(symbol, (bySymbol.get(symbol) ?? 0) + 1);
+    bySymbol.set(symbol, [...(bySymbol.get(symbol) ?? []), stock]);
   }
-  if (symbols.some(s => bySymbol.get(s) !== 1)) throw new Error("AG_V2_SCAN_SYMBOL_NOT_ELIGIBLE");
+  const rejected = symbols.flatMap(symbol => {
+    const matches = bySymbol.get(symbol) ?? [];
+    if (matches.length === 0) return [`${symbol}: absent from current discovery universe`];
+    if (matches.length > 1) return [`${symbol}: duplicate universe entries`];
+    const stock = matches[0];
+    if (passesAgTradabilityGate(stock)) return [];
+    const issues = [
+      !Number.isFinite(stock.price) || stock.price < 5 ? "price missing or below $5" : null,
+      !Number.isFinite(stock.marketCap) || stock.marketCap < 300_000_000 ? "market cap missing or below $300M" : null,
+      stock.dollarVolume == null || !Number.isFinite(stock.dollarVolume) ? "dollar volume missing" : null,
+      (stock.marketCapBucket === "small" || stock.marketCapBucket === "mid") &&
+        stock.dollarVolume != null && stock.dollarVolume < 2_000_000 ? "dollar volume below $2M" : null,
+    ].filter(Boolean);
+    return [`${symbol}: ${issues.join(", ") || "did not pass tradability check"}`];
+  });
+  if (rejected.length) throw new Error(`AG_V2_SCAN_SYMBOL_NOT_ELIGIBLE — ${rejected.join("; ")}`);
 
   const { data: created, error: insertError } = await db.from("discovery_scan_runs")
     .insert({
