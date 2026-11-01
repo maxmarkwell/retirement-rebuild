@@ -32,6 +32,20 @@ export default async function AcceleratedGrowthPage({ searchParams }: { searchPa
           <Link href="/" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm">Dashboard</Link>
         </div>
 
+        <section aria-label="AG testing status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">AG research testing · Paper mode</h2>
+            <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide">Live AG trading not enabled</span>
+          </div>
+          <p className="mt-2">The proposed initial real-money test budget is $40–$50 (20–25% of the original $200 reference capital). This is a planning limit, not deposited cash, an executable allocation, or trading authorization.</p>
+          <p className="mt-2">The figures and controls below reflect the existing AG paper workflow. Verify actual available brokerage funds and complete live-trading risk, authorization, and fill-recording checks before any real-money AG trade.</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href="/accelerated-growth?tab=research" className="font-semibold underline underline-offset-2">View research</Link>
+            <Link href="/accelerated-growth?tab=committee" className="font-semibold underline underline-offset-2">View Committee decisions</Link>
+            <Link href="/accelerated-growth?tab=positions" className="font-semibold underline underline-offset-2">View paper positions</Link>
+          </div>
+        </section>
+
         <nav aria-label="Accelerated Growth sections" className="mb-6 grid grid-cols-2 gap-2 border-b border-slate-300 pb-3 sm:grid-cols-4">
           {(["overview", "positions", "committee", "research"] as const).map((item) => <Link key={item} href={`/accelerated-growth?tab=${item}`} aria-current={currentTab === item ? "page" : undefined} className={`min-w-0 rounded-lg px-2 py-3 text-center text-sm font-semibold capitalize sm:px-4 ${currentTab === item ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"}`}>{item}</Link>)}
         </nav>
