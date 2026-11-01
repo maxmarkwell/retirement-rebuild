@@ -69,7 +69,7 @@ export async function processAgOpportunityScanStep(scanRunId: string) {
   const { data: claimed, error: claimError } = await db.from("discovery_scan_runs")
     .update({ stage: "ag_v2_claimed" })
     .eq("id", scanRunId).eq("user_id", user.id).eq("status", "running")
-    .eq("stage", "ag_v2_ready").eq("state", scan.state)
+    .eq("stage", "ag_v2_ready")
     .select("id").maybeSingle();
   if (claimError || !claimed) throw new Error("AG_V2_ALREADY_CLAIMED");
   const symbol = state.symbols[state.cursor];
@@ -79,7 +79,7 @@ export async function processAgOpportunityScanStep(scanRunId: string) {
   const { data: saved, error: saveError } = await db.from("discovery_scan_runs")
     .update({ state: next, stage: "ag_v2_ready" })
     .eq("id", scanRunId).eq("user_id", user.id).eq("status", "running")
-    .eq("stage", "ag_v2_claimed").eq("state", scan.state)
+    .eq("stage", "ag_v2_claimed")
     .select("id").maybeSingle();
   if (saveError || !saved) throw new Error("AG_V2_RESULT_PERSISTENCE_UNCONFIRMED");
   return { scanRunId, status: "running" as const, processedSymbol: symbol,
