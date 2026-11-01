@@ -65,7 +65,7 @@ export async function processAgOpportunityDeepStep(scanRunId: string) {
     const { data: done, error: finishError } = await db.from("discovery_scan_runs")
       .update({ stage: "ag_v2_deep_complete", state: { ...state, deepCursor, deepResults } })
       .eq("id", scanRunId).eq("user_id", user.id).eq("status", "completed")
-      .eq("stage", "ag_v2_complete").eq("state", scan.state)
+      .eq("stage", "ag_v2_complete")
       .select("id").maybeSingle();
     if (finishError || !done) throw new Error("AG_V2_DEEP_FINALIZE_UNCONFIRMED");
     return { scanRunId, status: "completed" as const, deepResearched: deepCursor };
@@ -75,7 +75,7 @@ export async function processAgOpportunityDeepStep(scanRunId: string) {
   const { data: claimed, error: claimError } = await db.from("discovery_scan_runs")
     .update({ stage: "ag_v2_deep_claimed" })
     .eq("id", scanRunId).eq("user_id", user.id).eq("status", "completed")
-    .eq("stage", "ag_v2_complete").eq("state", scan.state)
+    .eq("stage", "ag_v2_complete")
     .select("id").maybeSingle();
   if (claimError || !claimed) throw new Error("AG_V2_DEEP_ALREADY_CLAIMED");
   const symbol = expectedRanking[deepCursor].symbol;
@@ -89,7 +89,7 @@ export async function processAgOpportunityDeepStep(scanRunId: string) {
   const { data: saved, error: saveError } = await db.from("discovery_scan_runs")
     .update({ stage: "ag_v2_complete", state: next })
     .eq("id", scanRunId).eq("user_id", user.id).eq("status", "completed")
-    .eq("stage", "ag_v2_deep_claimed").eq("state", scan.state)
+    .eq("stage", "ag_v2_deep_claimed")
     .select("id").maybeSingle();
   if (saveError || !saved) throw new Error("AG_V2_DEEP_SAVE_UNCONFIRMED");
   return { scanRunId, status: "running" as const,
