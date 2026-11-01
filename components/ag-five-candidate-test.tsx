@@ -9,6 +9,7 @@ type Scan = {
 export default function AgFiveCandidateTest() {
   const [input, setInput] = useState("");
   const [scan, setScan] = useState<Scan | null>(null);
+  const [resumeId, setResumeId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const symbols = input.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
@@ -20,7 +21,7 @@ export default function AgFiveCandidateTest() {
     setBusy(true); setError(null);
     try {
       const result = await fetch("/api/accelerated-growth/opportunity-scan" +
-        (action === "refresh" ? `?id=${encodeURIComponent(scan?.id ?? "")}` : ""), {
+        (action === "refresh" ? `?id=${encodeURIComponent(scan?.id ?? resumeId)}` : ""), {
         method: action === "refresh" ? "GET" : "POST",
         headers: action === "refresh" ? undefined : { "content-type": "application/json" },
         body: action === "refresh" ? undefined : JSON.stringify(
@@ -46,6 +47,10 @@ export default function AgFiveCandidateTest() {
       <p className="mt-2 text-xs text-slate-600">This test requires an explicit shortlist; automatic five-path candidate selection is not yet connected. Eligible symbols are verified on the server.</p>
       <button type="button" disabled={!valid || busy} onClick={() => void request("start")}
         className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{busy ? "Starting…" : "Start five-candidate test"}</button>
+      <div className="mt-5 border-t border-slate-200 pt-4">
+        <label htmlFor="ag-v2-resume" className="block text-sm font-semibold text-slate-800">Resume an existing scan by ID</label>
+        <div className="mt-2 flex flex-wrap gap-2"><input id="ag-v2-resume" value={resumeId} onChange={e => setResumeId(e.target.value)} placeholder="Saved scan UUID" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"/><button type="button" disabled={busy || !/^[0-9a-f-]{36}$/i.test(resumeId)} onClick={() => void request("refresh")} className="rounded-lg border border-slate-400 px-3 py-2 text-sm font-semibold disabled:opacity-40">Load scan</button></div>
+      </div>
     </> : <>
       <p className="mt-3 text-sm font-semibold text-slate-800">Saved scan {scan.id}</p>
       <p className="mt-1 text-sm text-slate-700">Stage: {scan.stage} · Status: {scan.status}</p>
