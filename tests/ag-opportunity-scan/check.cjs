@@ -39,4 +39,9 @@ assert.match(deepStep,/stage: "ag_v2_deep_claimed"/);
 assert.match(deepStep,/stage: "ag_v2_complete", state: next/);
 assert.match(deepStep,/AG_V2_DEEP_REQUIRES_RECONCILIATION/);
 assert.doesNotMatch(deepStep,/persistAgCommitteeDecisions|executeTransactions/);
+const scanStep = fs.readFileSync("lib/discovery/accelerated-growth/process-opportunity-scan.ts", "utf8");
+for (const source of [scanStep, deepStep]) {
+  assert.doesNotMatch(source, /\\.eq\\("state", scan\\.state\\)/, "Do not compare JSONB state as an equality filter");
+  assert.match(source, /\\.eq\\("stage", "ag_v2_[a-z_]+"\\)/, "Stage compare-and-set remains mandatory");
+}
 console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
