@@ -47,4 +47,14 @@ for (const source of [scanStep, deepStep]) {
 assert.doesNotMatch(deepStep,/JSON\\.stringify\\(state\\.rankedQualifiedCandidates\\)/);
 assert.match(deepStep,/saved\\.qualifiedPaths\\.every/);
 assert.match(deepStep,/saved\\.researchPriority === candidate\\.researchPriority/);
+const committeeStep = fs.readFileSync("lib/discovery/accelerated-growth/process-opportunity-committee.ts", "utf8");
+const committeeModel = fs.readFileSync("lib/discovery/accelerated-growth/opportunity-committee.ts", "utf8");
+const opportunityRoute = fs.readFileSync("app/api/accelerated-growth/opportunity-scan/route.ts", "utf8");
+assert.match(committeeStep, /runAgV2Committee\\(state\\.deepResults\\[cursor\\]\\)/);
+assert.match(committeeStep, /stage: "ag_v2_committee_claimed"/);
+assert.match(committeeStep, /committeeResults: \\[\\.\\.\\.results, decision\\]/);
+assert.match(committeeModel, /"BUY" \\| "WATCH" \\| "REJECT"/);
+assert.match(committeeModel, /no quotas or preferred outcome/i);
+assert.doesNotMatch(committeeModel + committeeStep, /persistAgCommitteeDecisions|executeTransactions/);
+assert.match(opportunityRoute, /processAgV2CommitteeStep\\(body\\.id\\)/);
 console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
