@@ -10,6 +10,7 @@ on:
       - 'lib/discovery/accelerated-growth/rank-opportunity-research.ts'
       - 'lib/discovery/accelerated-growth/opportunity-deep-research.ts'
       - 'lib/discovery/accelerated-growth/process-opportunity-deep.ts'
+      - 'lib/discovery/accelerated-growth/auto-opportunity-shortlist.ts'
       - 'lib/discovery/accelerated-growth/opportunity-committee.ts'
       - 'lib/discovery/accelerated-growth/process-opportunity-committee.ts'
       - '.github/workflows/ag-opportunity-qualification.yml'
