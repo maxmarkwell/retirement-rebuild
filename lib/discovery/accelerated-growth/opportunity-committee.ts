@@ -5,7 +5,7 @@ import { withAgResearchRetry, AgResearchOutputError } from "./research-reliabili
 import { getAgValuationSnapshot } from "./valuation-snapshot";
 import type { AgOpportunityDeepResearch } from "./opportunity-deep-research";
 
-export const AG_V2_COMMITTEE_VERSION = "ag-opportunity-committee-v1";
+export const AG_V2_COMMITTEE_VERSION = "ag-opportunity-committee-v2";
 const MODEL = "gpt-5.6-terra";
 export type AgV2CommitteeResult = {
   symbol: string;
@@ -13,6 +13,10 @@ export type AgV2CommitteeResult = {
   ownershipThesis: string;
   rationale: string;
   valuationEvidence: string;
+  valuationIntegrity: "RECONCILED" | "PARTIAL" | "CONFLICTED" | "UNAVAILABLE";
+  valuationConflicts: string[];
+  ownershipNowVsWait: string;
+  decisionBasis: "BUSINESS_RISK" | "VALUATION_RISK" | "EVIDENCE_GAP" | "RISK_REWARD" | "THESIS_REJECTED";
   evidenceFor: string[];
   evidenceAgainst: string[];
   decisionCriticalGaps: string[];
@@ -29,6 +33,10 @@ const schema = {
     ownershipThesis: { type: "string" },
     rationale: { type: "string" },
     valuationEvidence: { type: "string" },
+    valuationIntegrity: { type: "string", enum: ["RECONCILED","PARTIAL","CONFLICTED","UNAVAILABLE"] },
+    valuationConflicts: { type: "array", items: { type: "string" } },
+    ownershipNowVsWait: { type: "string" },
+    decisionBasis: { type: "string", enum: ["BUSINESS_RISK","VALUATION_RISK","EVIDENCE_GAP","RISK_REWARD","THESIS_REJECTED"] },
     evidenceFor: { type: "array", items: { type: "string" } },
     evidenceAgainst: { type: "array", items: { type: "string" } },
     decisionCriticalGaps: { type: "array", items: { type: "string" } },
@@ -37,7 +45,7 @@ const schema = {
     confidence: { type: "number", minimum: 0, maximum: 100 },
   },
   required: ["decision","ownershipThesis","rationale","valuationEvidence","evidenceFor",
-    "evidenceAgainst","decisionCriticalGaps","reassessmentConditions","invalidation","confidence"],
+    "evidenceAgainst","valuationIntegrity","valuationConflicts","ownershipNowVsWait","decisionBasis","decisionCriticalGaps","reassessmentConditions","invalidation","confidence"],
 } as const;
 
 /** Independent research adjudication, never a trade or allocation instruction. */
@@ -64,6 +72,9 @@ downside, adverse evidence, invalidation and opportunity cost of waiting.
 PROCEED from research is not an automatic BUY. Even WATCH and STOP dossiers
 require independent assessment; explain any disagreement with upstream evidence.
 Do not invent missing data. The valuation snapshot has potential gaps.
+Before deciding, independently compare the dossier market quote, share count, currency, market capitalization, enterprise value, financial periods and cash flow against the dated snapshot. Report material conflicts in valuationConflicts. RECONCILED requires credible consistent data, PARTIAL means gaps without identified contradiction, CONFLICTED means material inconsistent inputs, and UNAVAILABLE means no usable basis. Never silently choose a convenient conflicting number. If consequential conflicts prevent a defensible valuation, do not issue BUY.
+Explicitly discuss owning today versus waiting in ownershipNowVsWait: favorable, central and adverse qualitative outcomes, what current expectations imply, downside, urgency and the opportunity cost of waiting. Do not invent probabilities or price targets. An uncertain outcome alone is not a reason for WATCH; identify why uncertainty is or is not underwritable today. If WATCH, explain specifically why waiting is preferable. If BUY, explain why credible evidence and risk/reward justify ownership now without requiring perfect confirmation. If REJECT, explain which thesis is defeated.
+Use decisionBasis to identify the PRIMARY decisive issue: BUSINESS_RISK, VALUATION_RISK, EVIDENCE_GAP, RISK_REWARD, or THESIS_REJECTED. This is a description of your conclusion, not a mechanical decision rule. No outcome quotas.
 Valuation snapshot: ${JSON.stringify(valuation)}
 Prior adversarial dossier: ${JSON.stringify(research)}`,
       text: { format: { type: "json_schema", name: "ag_v2_committee_result", strict: true, schema } },
