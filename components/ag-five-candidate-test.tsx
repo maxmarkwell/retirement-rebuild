@@ -18,6 +18,8 @@ export default function AgFiveCandidateTest() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
+  const [comparison, setComparison] = useState<Record<string, {original:{decision:string;rationale:string};revised:{decision:string;rationale:string;valuationIntegrity:string;valuationConflicts:string[];ownershipNowVsWait:string;decisionBasis:string};note:string}>>({});
+  const [comparing, setComparing] = useState<string | null>(null);
   const [suggestionNote, setSuggestionNote] = useState<string | null>(null);
   const symbols = input.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
   const valid = symbols.length === 5 && new Set(symbols).size === 5 &&
@@ -60,6 +62,21 @@ export default function AgFiveCandidateTest() {
       setError(cause instanceof Error ? cause.message : "Unable to confirm research status.");
     } finally { setBusy(false); }
   }
+  async function compare(symbol: string) {
+    if (busy || comparing) return;
+    setComparing(symbol); setError(null);
+    try {
+      const response = await fetch("/api/accelerated-growth/committee-compare", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({symbol}), cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Comparison failed.");
+      setComparison(prev => ({...prev, [symbol]: data}));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Comparison unavailable."); }
+    finally { setComparing(null); }
+  }
+  const isAuditScan = scan?.id === "90a8c1d9-3746-438a-979e-8c16ce2ca264";
   const finished = scan?.stage === "ag_v2_committee_complete" || scan?.stage === "ag_v2_pool_insufficient";
   return <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="Five-candidate opportunity research test">
     <h2 className="text-lg font-bold text-slate-900">Five-candidate research test · v2</h2>
@@ -91,6 +108,22 @@ export default function AgFiveCandidateTest() {
       <p className="mt-1 text-xs text-slate-600">{scan.symbols.join(", ")}</p>
       <p className="mt-2 text-sm font-medium text-slate-800">Committee: {scan.committeeCompleted ?? 0}/{scan.committeeTotal ?? 0} · Research decisions only</p>
       {(scan.committeeResults ?? []).map(result => <details key={result.symbol} className="mt-2 rounded-lg border border-slate-200 p-3 text-sm"><summary className="cursor-pointer font-bold">{result.symbol} · {result.decision}</summary><p className="mt-2 font-semibold">{result.ownershipThesis}</p><p className="mt-2 whitespace-pre-wrap">{result.rationale}</p></details>)}
+      {isAuditScan && scan.stage === "ag_v2_committee_complete" && <section className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <h3 className="font-bold text-indigo-950">Independent Committee v2 comparison · saved five dossiers</h3>
+        <p className="mt-2 text-xs text-indigo-900">One model call per company; original decisions are never changed. Historical valuation input is the saved original Committee assessment, NOT the original raw valuation snapshot. This is a limited, non-identical evidence comparison, not an investment recommendation or trade.</p>
+        <div className="mt-3 flex flex-wrap gap-2">{["TLS","BILL","GH","MAIR","COLM"].map(symbol =>
+          <button type="button" key={symbol} disabled={busy || !!comparing} onClick={() => void compare(symbol)}
+            className="rounded-lg border border-indigo-400 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40">{comparing === symbol ? "Evaluating…" : "Compare " + symbol}</button>)}</div>
+        {Object.entries(comparison).map(([symbol,item]) => <details key={symbol} open className="mt-3 rounded-lg border border-indigo-200 bg-white p-3 text-sm">
+          <summary className="cursor-pointer font-bold">{symbol}: original {item.original.decision} / revised {item.revised.decision}</summary>
+          <p className="mt-2 font-semibold">Original Committee reasoning</p><p className="whitespace-pre-wrap">{item.original.rationale}</p>
+          <p className="mt-3 font-semibold">Revised Committee reasoning</p><p className="whitespace-pre-wrap">{item.revised.rationale}</p>
+          <p className="mt-2"><strong>Valuation integrity:</strong> {item.revised.valuationIntegrity} · <strong>Primary issue:</strong> {item.revised.decisionBasis}</p>
+          <p className="mt-2 font-semibold">Own now versus wait</p><p>{item.revised.ownershipNowVsWait}</p>
+          {!!item.revised.valuationConflicts?.length && <p className="mt-2"><strong>Valuation conflicts:</strong> {item.revised.valuationConflicts.join("; ")}</p>}
+          <p className="mt-2 text-xs text-slate-600">{item.note}</p>
+        </details>)}
+      </section>}
       {scan.requiresReconciliation && <p role="alert" className="mt-3 text-sm font-semibold text-amber-800">The previous research call was claimed but not confirmed saved. Manual reconciliation required; do not repeat it.</p>}
       {finished && <p role="status" className="mt-3 font-semibold text-green-800">Five-candidate Discovery, Deep Research, and independent Committee results are saved. No trades were authorized.</p>}
       <div className="mt-4 flex flex-wrap gap-2">
