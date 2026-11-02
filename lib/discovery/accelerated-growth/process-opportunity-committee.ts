@@ -41,7 +41,7 @@ export async function processAgV2CommitteeStep(scanRunId: string) {
     throw new Error("AG_V2_COMMITTEE_INVALID_SAVED_DECISIONS");
   // A started v1 Committee run cannot silently switch to the new v2 prompt.
   // Completed v1 runs remain readable and auditable without modification.
-  if (cursor > 0 && scan.stage !== "ag_v2_committee_complete" &&
+  if (cursor > 0 && cursor < state.deepResults.length && scan.stage !== "ag_v2_committee_complete" &&
       results.some(r => r.promptVersion !== AG_V2_COMMITTEE_VERSION))
     throw new Error("AG_V2_COMMITTEE_VERSION_CHANGE_REQUIRES_NEW_SCAN");
   if (scan.stage === "ag_v2_committee_complete") {
