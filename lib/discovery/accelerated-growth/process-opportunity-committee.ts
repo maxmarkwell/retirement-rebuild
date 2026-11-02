@@ -29,7 +29,7 @@ export async function processAgV2CommitteeStep(scanRunId: string) {
       state.deepCursor !== state.deepResults.length ||
       state.deepResults.length !== state.rankedQualifiedCandidates.length ||
       state.deepResults.some((r,i) => r.symbol !== state.rankedQualifiedCandidates[i]?.symbol ||
-        r.opportunityVersion !== "ag-opportunity-v2" || r.promptVersion !== "ag-opportunity-deep-v1"))
+        r.opportunityVersion !== "ag-opportunity-v2" || !["ag-opportunity-deep-v1","ag-opportunity-deep-v2"].includes(r.promptVersion)))
     throw new Error("AG_V2_COMMITTEE_INVALID_SAVED_RESEARCH");
   const cursor = state.committeeCursor ?? 0;
   const results = state.committeeResults ?? [];
