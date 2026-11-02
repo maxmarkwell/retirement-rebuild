@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { initializeAgOpportunityScan } from "@/lib/discovery/accelerated-growth/initialize-opportunity-scan";
 import { processAgOpportunityScanStep } from "@/lib/discovery/accelerated-growth/process-opportunity-scan";
 import { processAgOpportunityDeepStep } from "@/lib/discovery/accelerated-growth/process-opportunity-deep";
+import { processAgV2CommitteeStep } from "@/lib/discovery/accelerated-growth/process-opportunity-committee";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -20,12 +21,16 @@ async function loadScan(id: string) {
   const state = data.state as {
     symbols?: string[]; cursor?: number; results?: unknown[];
     rankedQualifiedCandidates?: unknown[]; deepCursor?: number; deepResults?: unknown[];
+    committeeCursor?: number; committeeResults?: Array<{symbol:string;decision:string;rationale:string;ownershipThesis:string}>;
   } | null;
   return {
     id: data.id, status: data.status, stage: data.stage,
     total: state?.symbols?.length ?? 0, discoveryCompleted: state?.cursor ?? 0,
     qualified: state?.rankedQualifiedCandidates?.length ?? null,
     deepCompleted: state?.deepCursor ?? 0,
+    committeeCompleted: state?.committeeCursor ?? 0,
+    committeeTotal: state?.deepResults?.length ?? 0,
+    committeeResults: state?.committeeResults ?? [],
     symbols: state?.symbols ?? [], requiresReconciliation: String(data.stage).endsWith("_claimed"),
   };
 }
@@ -57,7 +62,9 @@ export async function POST(request: NextRequest) {
         await processAgOpportunityScanStep(body.id);
       } else if (before.status === "completed" && before.stage === "ag_v2_complete") {
         await processAgOpportunityDeepStep(body.id);
-      } else if (before.stage !== "ag_v2_deep_complete") {
+      } else if (before.status === "completed" && before.stage === "ag_v2_deep_complete") {
+        await processAgV2CommitteeStep(body.id);
+      } else if (before.stage !== "ag_v2_committee_complete") {
         throw new Error("AG_V2_REQUIRES_RECONCILIATION");
       }
       return NextResponse.json({ ...(await loadScan(body.id)), executionEnabled: false });
