@@ -14,9 +14,29 @@ export default function AgFiveCandidateTest() {
   const [resumeId, setResumeId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestionNote, setSuggestionNote] = useState<string | null>(null);
   const symbols = input.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
   const valid = symbols.length === 5 && new Set(symbols).size === 5 &&
     symbols.every(s => /^[A-Z][A-Z0-9.-]{0,14}$/.test(s));
+
+  async function suggestShortlist() {
+    if (busy || suggesting) return;
+    setSuggesting(true); setError(null);
+    try {
+      const response = await fetch("/api/accelerated-growth/opportunity-scan", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "suggest" }), cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to generate shortlist.");
+      if (!Array.isArray(data.symbols) || data.symbols.length !== 5)
+        throw new Error("Shortlist response was incomplete.");
+      setInput(data.symbols.join(", "));
+      setSuggestionNote(data.warning);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Shortlist unavailable."); }
+    finally { setSuggesting(false); }
+  }
 
   async function request(action: "start" | "next" | "refresh") {
     if (busy) return;
@@ -46,7 +66,9 @@ export default function AgFiveCandidateTest() {
       <input id="ag-v2-symbols" value={input} onChange={e => setInput(e.target.value)}
         placeholder="TICKER1, TICKER2, TICKER3, TICKER4, TICKER5"
         className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"/>
-      <p className="mt-2 text-xs text-slate-600">This test requires an explicit shortlist; automatic five-path candidate selection is not yet connected. Eligible symbols are verified on the server.</p>
+      <p className="mt-2 text-xs text-slate-600">This is a technical research test. You can enter five tickers or generate an exploratory shortlist. Automatic investment-opportunity ranking is not yet implemented.</p>
+      <button type="button" disabled={busy || suggesting} onClick={() => void suggestShortlist()} className="mt-3 mr-2 rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold disabled:opacity-40">{suggesting ? "Selecting…" : "Suggest five test companies"}</button>
+      {suggestionNote && <p role="status" className="mt-2 text-xs font-medium text-amber-800">{suggestionNote}</p>}
       <button type="button" disabled={!valid || busy} onClick={() => void request("start")}
         className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{busy ? "Starting…" : "Start five-candidate test"}</button>
       <div className="mt-5 border-t border-slate-200 pt-4">
