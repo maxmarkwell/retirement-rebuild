@@ -5,6 +5,8 @@ type Scan = {
   id: string; stage: string; status: string; total: number;
   discoveryCompleted: number; deepCompleted: number; qualified: number | null;
   symbols: string[]; requiresReconciliation: boolean;
+  poolCompleted?: number | null; poolTotal?: number | null; poolQualified?: number | null;
+  selectionMethod?: string | null;
   committeeCompleted: number; committeeTotal: number;
   committeeResults: Array<{symbol:string;decision:string;rationale:string;ownershipThesis:string}>;
 };
@@ -38,7 +40,7 @@ export default function AgFiveCandidateTest() {
     finally { setSuggesting(false); }
   }
 
-  async function request(action: "start" | "next" | "refresh") {
+  async function request(action: "start" | "start_pool" | "next" | "refresh") {
     if (busy) return;
     setBusy(true); setError(null);
     try {
@@ -57,7 +59,7 @@ export default function AgFiveCandidateTest() {
       setError(cause instanceof Error ? cause.message : "Unable to confirm research status.");
     } finally { setBusy(false); }
   }
-  const finished = scan?.stage === "ag_v2_committee_complete";
+  const finished = scan?.stage === "ag_v2_committee_complete" || scan?.stage === "ag_v2_pool_insufficient";
   return <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="Five-candidate opportunity research test">
     <h2 className="text-lg font-bold text-slate-900">Five-candidate research test · v2</h2>
     <p className="mt-2 text-sm text-slate-600">Test the new five-path Discovery and independent Deep Research. This is separate from the legacy daily cycle. Committee research decisions are recorded here; no trades are generated.</p>
@@ -69,6 +71,8 @@ export default function AgFiveCandidateTest() {
       <p className="mt-2 text-xs text-slate-600">This is a technical research test. You can enter five tickers or generate an exploratory shortlist. Automatic investment-opportunity ranking is not yet implemented.</p>
       <button type="button" disabled={busy || suggesting} onClick={() => void suggestShortlist()} className="mt-3 mr-2 rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold disabled:opacity-40">{suggesting ? "Selecting…" : "Suggest five test companies"}</button>
       {suggestionNote && <p role="status" className="mt-2 text-xs font-medium text-amber-800">{suggestionNote}</p>}
+      <button type="button" disabled={busy} onClick={() => void request("start_pool")} className="mt-3 mr-2 rounded-lg bg-indigo-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Starting…" : "Research a pool and rank five"}</button>
+      <p className="mt-2 text-xs text-slate-600">Evidence-ranked mode checks twelve broadly sampled eligible companies, one call at a time, then advances only the five highest-qualified research candidates. If fewer than five qualify, it stops without forcing a shortlist.</p>
       <button type="button" disabled={!valid || busy} onClick={() => void request("start")}
         className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{busy ? "Starting…" : "Start five-candidate test"}</button>
       <div className="mt-5 border-t border-slate-200 pt-4">
@@ -78,7 +82,10 @@ export default function AgFiveCandidateTest() {
     </> : <>
       <p className="mt-3 text-sm font-semibold text-slate-800">Saved scan {scan.id}</p>
       <p className="mt-1 text-sm text-slate-700">Stage: {scan.stage} · Status: {scan.status}</p>
+      {scan.poolTotal != null && <p className="mt-1 text-sm font-semibold text-slate-800">Evidence pool: {scan.poolCompleted ?? 0}/{scan.poolTotal} · {scan.poolQualified != null ? `${scan.poolQualified} qualified` : "ranking pending"}</p>}
       <p className="mt-1 text-sm text-slate-700">Discovery: {scan.discoveryCompleted}/{scan.total} · Qualified: {scan.qualified ?? "Pending"} · Independent Deep Research: {scan.deepCompleted}/{scan.qualified ?? "Pending"}</p>
+      {scan.selectionMethod && <p className="mt-1 text-xs text-slate-600">Candidate selection: {scan.selectionMethod}</p>}
+      {scan.stage === "ag_v2_pool_insufficient" && <p className="mt-2 font-medium text-amber-800">Fewer than five companies qualified. This pool is complete; no candidates were forced forward.</p>}
       <p className="mt-1 text-xs text-slate-600">{scan.symbols.join(", ")}</p>
       <p className="mt-2 text-sm font-medium text-slate-800">Committee: {scan.committeeCompleted ?? 0}/{scan.committeeTotal ?? 0} · Research decisions only</p>
       {(scan.committeeResults ?? []).map(result => <details key={result.symbol} className="mt-2 rounded-lg border border-slate-200 p-3 text-sm"><summary className="cursor-pointer font-bold">{result.symbol} · {result.decision}</summary><p className="mt-2 font-semibold">{result.ownershipThesis}</p><p className="mt-2 whitespace-pre-wrap">{result.rationale}</p></details>)}
