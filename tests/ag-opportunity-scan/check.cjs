@@ -44,4 +44,7 @@ for (const source of [scanStep, deepStep]) {
   assert.doesNotMatch(source, /\\.eq\\("state", scan\\.state\\)/, "Do not compare JSONB state as an equality filter");
   assert.match(source, /\\.eq\\("stage", "ag_v2_[a-z_]+"\\)/, "Stage compare-and-set remains mandatory");
 }
+assert.doesNotMatch(deepStep,/JSON\\.stringify\\(state\\.rankedQualifiedCandidates\\)/);
+assert.match(deepStep,/saved\\.qualifiedPaths\\.every/);
+assert.match(deepStep,/saved\\.researchPriority === candidate\\.researchPriority/);
 console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
