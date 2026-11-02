@@ -64,6 +64,7 @@ for (const field of ["valuationIntegrity", "valuationConflicts", "ownershipNowVs
 assert.match(committeeModel, /If consequential conflicts prevent a defensible valuation, do not issue BUY/);
 assert.match(committeeModel, /An uncertain outcome alone is not a reason for WATCH/);
 assert.match(committeeStep, /AG_V2_COMMITTEE_VERSION_CHANGE_REQUIRES_NEW_SCAN/);
+assert.match(committeeStep, /cursor > 0 && cursor < state\.deepResults\.length/, "Fully saved prior-version scans must be finalizable");
 assert.match(committeeStep, /ag-opportunity-committee-v1/);
 const comparisonRoute = fs.readFileSync("app/api/accelerated-growth/committee-compare/route.ts","utf8");
 const comparisonUi = fs.readFileSync("components/ag-five-candidate-test.tsx","utf8");
