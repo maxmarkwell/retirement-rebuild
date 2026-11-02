@@ -36,6 +36,10 @@ async function loadScan(id: string) {
     poolCompleted: (state as { poolCursor?: number } | null)?.poolCursor ?? null,
     poolTotal: (state as { poolSymbols?: string[] } | null)?.poolSymbols?.length ?? null,
     poolQualified: (state as { poolQualifiedCount?: number } | null)?.poolQualifiedCount ?? null,
+    poolRanking: ((state as { poolResults?: Array<{symbol:string; qualification?: {status:string; strongestPath:string|null; rankingScore:number|null}}> } | null)?.poolResults ?? [])
+      .map(r => ({symbol:r.symbol,status:r.qualification?.status ?? "UNKNOWN",
+        path:r.qualification?.strongestPath ?? null,score:r.qualification?.rankingScore ?? null}))
+      .sort((a,b) => (b.score ?? -1)-(a.score ?? -1) || a.symbol.localeCompare(b.symbol)),
     selectionMethod: (state as { selectionMethod?: string } | null)?.selectionMethod ?? null,
     symbols: state?.symbols ?? [], requiresReconciliation: String(data.stage).endsWith("_claimed"),
   };
