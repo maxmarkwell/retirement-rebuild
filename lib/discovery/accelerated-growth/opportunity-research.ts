@@ -53,7 +53,7 @@ must be null, not a neutral number. Source URLs must identify actual material re
 Record a concrete mechanism for per-share economic value, counter-evidence, measurable
 invalidation, and an evidence horizon. Distinguish confirmed facts from hypotheses.
 Assign 0–100 judgments for evidence strength, coverage, significance, urgency and
-uncertainty only where grounded. An appealing narrative alone does not qualify.
+uncertainty only where grounded. An appealing narrative alone does not qualify. Distinguish an interesting company from an actionable investment hypothesis: identify what changed versus the prior baseline, why that change is not already fully reflected in market expectations, and the observable evidence that could establish per-share value in the intended horizon. If those facts cannot be supported by primary sources, score evidence strength or coverage accordingly rather than assigning reassuring high scores. Do not confuse company quality with opportunity attractiveness. Strong revenue growth without cash conversion, high leverage, dilution, adverse working capital, unverified transaction economics, or a valuation that presumes full success must be explicit counter-evidence. A lower score or REVIEW/INSUFFICIENT_EVIDENCE is a valid result.
 Do NOT recommend trades, BUY/SELL, sizing, allocations or target prices.
 Quantitative context, which may be adverse or incomplete, is not a universal gate:
 ${JSON.stringify(input.quantitativeContext ?? null)}`;
