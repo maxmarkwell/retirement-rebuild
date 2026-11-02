@@ -49,12 +49,13 @@ const schema = {
 } as const;
 
 /** Independent research adjudication, never a trade or allocation instruction. */
-export async function runAgV2Committee(research: AgOpportunityDeepResearch): Promise<AgV2CommitteeResult> {
+export async function runAgV2Committee(research: AgOpportunityDeepResearch, comparison?: { historicalValuationText: string }): Promise<AgV2CommitteeResult> {
   if (research.opportunityVersion !== "ag-opportunity-v2" ||
       research.promptVersion !== "ag-opportunity-deep-v1" ||
       !/^[A-Z][A-Z0-9.-]{0,14}$/.test(research.symbol))
     throw new Error("AG_V2_COMMITTEE_INVALID_RESEARCH");
-  const valuation = await getAgValuationSnapshot(research.symbol);
+  // Replay mode is isolated from new market data and never changes saved decisions.
+  const valuation = comparison ? null : await getAgValuationSnapshot(research.symbol);
   return withAgResearchRetry("COMMITTEE", research.symbol, async () => {
     const response = await getOpenAIClient().responses.create({
       model: MODEL,
@@ -75,7 +76,7 @@ Do not invent missing data. The valuation snapshot has potential gaps.
 Before deciding, independently compare the dossier market quote, share count, currency, market capitalization, enterprise value, financial periods and cash flow against the dated snapshot. Report material conflicts in valuationConflicts. RECONCILED requires credible consistent data, PARTIAL means gaps without identified contradiction, CONFLICTED means material inconsistent inputs, and UNAVAILABLE means no usable basis. Never silently choose a convenient conflicting number. If consequential conflicts prevent a defensible valuation, do not issue BUY.
 Explicitly discuss owning today versus waiting in ownershipNowVsWait: favorable, central and adverse qualitative outcomes, what current expectations imply, downside, urgency and the opportunity cost of waiting. Do not invent probabilities or price targets. An uncertain outcome alone is not a reason for WATCH; identify why uncertainty is or is not underwritable today. If WATCH, explain specifically why waiting is preferable. If BUY, explain why credible evidence and risk/reward justify ownership now without requiring perfect confirmation. If REJECT, explain which thesis is defeated.
 Use decisionBasis to identify the PRIMARY decisive issue: BUSINESS_RISK, VALUATION_RISK, EVIDENCE_GAP, RISK_REWARD, or THESIS_REJECTED. This is a description of your conclusion, not a mechanical decision rule. No outcome quotas.
-Valuation snapshot: ${JSON.stringify(valuation)}
+${comparison ? 'HISTORICAL COMPARISON ONLY. The following is the original Committee saved textual valuation assessment, not its raw valuation snapshot. No live data were fetched. Treat unsupported figures as unverified: ' + comparison.historicalValuationText : 'Valuation snapshot: ' + JSON.stringify(valuation)}
 Prior adversarial dossier: ${JSON.stringify(research)}`,
       text: { format: { type: "json_schema", name: "ag_v2_committee_result", strict: true, schema } },
     });
