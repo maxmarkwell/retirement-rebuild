@@ -4,7 +4,7 @@ import { normalizeAgConfidence } from "./confidence";
 import { withAgResearchRetry, AgResearchOutputError } from "./research-reliability";
 import type { AgOpportunityQualification } from "./opportunity-qualification";
 
-export const AG_OPPORTUNITY_DEEP_RESEARCH_VERSION = "ag-opportunity-deep-v1";
+export const AG_OPPORTUNITY_DEEP_RESEARCH_VERSION = "ag-opportunity-deep-v2";
 const MODEL = "gpt-5.6-terra";
 
 export type AgOpportunityDeepResearch = {
@@ -12,6 +12,8 @@ export type AgOpportunityDeepResearch = {
   opportunityVersion: "ag-opportunity-v2";
   researchStatus: "PROCEED" | "WATCH" | "STOP";
   thesis: string;
+  issuerLegalName: string;
+  issuerIsin: string | null;
   opportunityPaths: string[];
   mechanismAssessment: string;
   financialAssessment: string;
@@ -31,6 +33,8 @@ const schema = {
   properties: {
     researchStatus: { type: "string", enum: ["PROCEED", "WATCH", "STOP"] },
     thesis: { type: "string" },
+    issuerLegalName: { type: "string" },
+    issuerIsin: { type: ["string", "null"] },
     mechanismAssessment: { type: "string" },
     financialAssessment: { type: "string" },
     valuationAssessment: { type: "string" },
@@ -41,7 +45,7 @@ const schema = {
     thesisClock: { type: "string" },
     confidence: { type: "number", minimum: 0, maximum: 100 },
   },
-  required: ["researchStatus", "thesis", "mechanismAssessment", "financialAssessment",
+  required: ["researchStatus", "issuerLegalName", "issuerIsin", "thesis", "mechanismAssessment", "financialAssessment",
     "valuationAssessment", "evidenceFor", "evidenceAgainst", "missingDecisionCriticalFacts",
     "invalidation", "thesisClock", "confidence"],
 } as const;
@@ -67,7 +71,7 @@ export async function researchQualifiedAgOpportunity(
       tools: [{ type: "web_search" }],
       input: `You are an INDEPENDENT adversarial investment researcher for Accelerated Growth.
 Discovery identified a possible investment opportunity. Do not accept its claims without independent verification.
-Research current primary financial filings, financial reporting and material company disclosures.
+Research current primary financial filings, financial reporting and material company disclosures.\nIdentify the exact legal issuer for the quoted ticker, not a similar company or ambiguous alias. State issuerLegalName and issuerIsin when verifiable from primary evidence; use null ISIN when unavailable. Do not substitute the name of another issuer because its ticker resembles the candidate.
 Any ONE of these opportunity paths can qualify: accelerating fundamentals; emerging opportunity;
 turnaround; catalyst-driven; valuation dislocation. A turnaround may have declining growth;
 a valuation thesis may lack a discrete future catalyst. DO NOT require accelerating revenue,
@@ -91,6 +95,9 @@ ${JSON.stringify(qualification)}`,
     if (!parsed || !["PROCEED","WATCH","STOP"].includes(parsed.researchStatus)) {
       throw new AgResearchOutputError("AG_V2_DEEP_RESEARCH_INVALID_OUTPUT");
     }
+    if (typeof parsed.issuerLegalName !== "string" || parsed.issuerLegalName.trim().length < 4 ||
+        (parsed.issuerIsin !== null && (typeof parsed.issuerIsin !== "string" || !/^[A-Z]{2}[A-Z0-9]{10}$/.test(parsed.issuerIsin))))
+      throw new AgResearchOutputError("AG_V2_DEEP_ISSUER_IDENTITY_MISSING");
     return {
       symbol, opportunityVersion: qualification.version, opportunityPaths: [...qualification.qualifiedPaths],
       ...parsed, confidence: normalizeAgConfidence(parsed.confidence),
