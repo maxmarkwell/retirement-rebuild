@@ -65,4 +65,12 @@ assert.match(committeeModel, /If consequential conflicts prevent a defensible va
 assert.match(committeeModel, /An uncertain outcome alone is not a reason for WATCH/);
 assert.match(committeeStep, /AG_V2_COMMITTEE_VERSION_CHANGE_REQUIRES_NEW_SCAN/);
 assert.match(committeeStep, /ag-opportunity-committee-v1/);
+const comparisonRoute = fs.readFileSync("app/api/accelerated-growth/committee-compare/route.ts","utf8");
+const comparisonUi = fs.readFileSync("components/ag-five-candidate-test.tsx","utf8");
+assert.match(comparisonRoute, /SAVED_DEEP_DOSSIER_PLUS_ORIGINAL_COMMITTEE_VALUATION_TEXT/);
+assert.match(comparisonRoute, /runAgV2Committee\(state\.deepResults\[i\]/);
+assert.match(comparisonRoute, /\.eq\("user_id", user\.id\)/);
+assert.doesNotMatch(comparisonRoute, /\.insert\(|\.update\(|\.delete\(|executeTransactions|persistAgCommitteeDecisions/);
+assert.match(comparisonUi, /Independent Committee v2 comparison/);
+assert.match(comparisonUi, /Compare " \+ symbol/);
 console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
