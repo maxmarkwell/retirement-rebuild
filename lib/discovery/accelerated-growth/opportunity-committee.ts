@@ -86,6 +86,13 @@ Prior adversarial dossier: ${JSON.stringify(research)}`,
     catch { throw new AgResearchOutputError("AG_V2_COMMITTEE_INVALID_JSON"); }
     if (!parsed || !["BUY","WATCH","REJECT"].includes(parsed.decision))
       throw new AgResearchOutputError("AG_V2_COMMITTEE_INVALID_DECISION");
+    if (!["RECONCILED","PARTIAL","CONFLICTED","UNAVAILABLE"].includes(parsed.valuationIntegrity) ||
+        !Array.isArray(parsed.valuationConflicts) ||
+        !["BUSINESS_RISK","VALUATION_RISK","EVIDENCE_GAP","RISK_REWARD","THESIS_REJECTED"].includes(parsed.decisionBasis) ||
+        typeof parsed.ownershipNowVsWait !== "string" || parsed.ownershipNowVsWait.trim().length < 30)
+      throw new AgResearchOutputError("AG_V2_COMMITTEE_INCOMPLETE_JUDGMENT");
+    if (parsed.decision === "BUY" && ["CONFLICTED","UNAVAILABLE"].includes(parsed.valuationIntegrity))
+      throw new AgResearchOutputError("AG_V2_COMMITTEE_BUY_BLOCKED_BY_VALUATION_INTEGRITY");
     return { ...parsed, symbol: research.symbol, confidence: normalizeAgConfidence(parsed.confidence),
       model: MODEL, promptVersion: AG_V2_COMMITTEE_VERSION };
   });
