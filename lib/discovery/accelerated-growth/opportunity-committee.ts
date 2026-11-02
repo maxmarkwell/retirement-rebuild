@@ -72,7 +72,7 @@ Evaluate financial durability, cash generation, valuation expectations,
 downside, adverse evidence, invalidation and opportunity cost of waiting.
 PROCEED from research is not an automatic BUY. Even WATCH and STOP dossiers
 require independent assessment; explain any disagreement with upstream evidence.
-Do not invent missing data. The valuation snapshot has potential gaps.
+Do not invent missing data. The valuation snapshot has potential gaps. Its securityIdentity is same-vendor only, NOT an independent listing verification. Identity MISMATCH makes its affected valuation numbers unusable. UNVERIFIED identity requires explicit judgment and must never be described as verified.
 Before deciding, independently compare the dossier market quote, share count, currency, market capitalization, enterprise value, financial periods and cash flow against the dated snapshot. Report material conflicts in valuationConflicts. RECONCILED requires credible consistent data, PARTIAL means gaps without identified contradiction, CONFLICTED means material inconsistent inputs, and UNAVAILABLE means no usable basis. Never silently choose a convenient conflicting number. If consequential conflicts prevent a defensible valuation, do not issue BUY.
 Explicitly discuss owning today versus waiting in ownershipNowVsWait: favorable, central and adverse qualitative outcomes, what current expectations imply, downside, urgency and the opportunity cost of waiting. Do not invent probabilities or price targets. An uncertain outcome alone is not a reason for WATCH; identify why uncertainty is or is not underwritable today. If WATCH, explain specifically why waiting is preferable. If BUY, explain why credible evidence and risk/reward justify ownership now without requiring perfect confirmation. If REJECT, explain which thesis is defeated.
 Use decisionBasis to identify the PRIMARY decisive issue: BUSINESS_RISK, VALUATION_RISK, EVIDENCE_GAP, RISK_REWARD, or THESIS_REJECTED. This is a description of your conclusion, not a mechanical decision rule. No outcome quotas.
@@ -92,7 +92,8 @@ Prior adversarial dossier: ${JSON.stringify(research)}`,
         !["BUSINESS_RISK","VALUATION_RISK","EVIDENCE_GAP","RISK_REWARD","THESIS_REJECTED"].includes(parsed.decisionBasis) ||
         typeof parsed.ownershipNowVsWait !== "string" || parsed.ownershipNowVsWait.trim().length < 30)
       throw new AgResearchOutputError("AG_V2_COMMITTEE_INCOMPLETE_JUDGMENT");
-    if (parsed.decision === "BUY" && ["CONFLICTED","UNAVAILABLE"].includes(parsed.valuationIntegrity))
+    if (parsed.decision === "BUY" && (valuation?.securityIdentity.status === "MISMATCH" ||
+        ["CONFLICTED","UNAVAILABLE"].includes(parsed.valuationIntegrity)))
       throw new AgResearchOutputError("AG_V2_COMMITTEE_BUY_BLOCKED_BY_VALUATION_INTEGRITY");
     return { ...parsed, symbol: research.symbol, confidence: normalizeAgConfidence(parsed.confidence),
       model: MODEL, promptVersion: AG_V2_COMMITTEE_VERSION };
