@@ -51,7 +51,7 @@ const schema = {
 /** Independent research adjudication, never a trade or allocation instruction. */
 export async function runAgV2Committee(research: AgOpportunityDeepResearch, comparison?: { historicalValuationText: string }): Promise<AgV2CommitteeResult> {
   if (research.opportunityVersion !== "ag-opportunity-v2" ||
-      research.promptVersion !== "ag-opportunity-deep-v1" ||
+      !["ag-opportunity-deep-v1","ag-opportunity-deep-v2"].includes(research.promptVersion) ||
       !/^[A-Z][A-Z0-9.-]{0,14}$/.test(research.symbol))
     throw new Error("AG_V2_COMMITTEE_INVALID_RESEARCH");
   // Replay mode is isolated from new market data and never changes saved decisions.
