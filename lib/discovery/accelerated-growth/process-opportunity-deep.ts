@@ -15,7 +15,7 @@ type State = {
   symbols: string[];
   cursor: number;
   results: SavedDiscovery[];
-  rankedQualifiedCandidates: { symbol: string; researchPriority: number }[];
+  rankedQualifiedCandidates: ReturnType<typeof rankAgOpportunityResearch>;
   deepCursor?: number;
   deepResults?: DeepResult[];
 };
@@ -50,7 +50,19 @@ export async function processAgOpportunityDeepStep(scanRunId: string) {
     throw new Error("AG_V2_DEEP_INVALID_DISCOVERY_MANIFEST");
   }
   const expectedRanking = rankAgOpportunityResearch(state.results);
-  if (JSON.stringify(state.rankedQualifiedCandidates) !== JSON.stringify(expectedRanking)) {
+  // JSONB storage does not preserve JavaScript object key insertion order.
+  // Compare the actual saved ranking fields, preserving ranked order and path order.
+  const rankingsMatch = state.rankedQualifiedCandidates.length === expectedRanking.length &&
+    expectedRanking.every((candidate, index) => {
+      const saved = state.rankedQualifiedCandidates[index];
+      return saved?.symbol === candidate.symbol &&
+        saved.opportunityPath === candidate.opportunityPath &&
+        saved.researchPriority === candidate.researchPriority &&
+        Array.isArray(saved.qualifiedPaths) &&
+        saved.qualifiedPaths.length === candidate.qualifiedPaths.length &&
+        saved.qualifiedPaths.every((path, pathIndex) => path === candidate.qualifiedPaths[pathIndex]);
+    });
+  if (!rankingsMatch) {
     throw new Error("AG_V2_DEEP_RANKING_MISMATCH");
   }
   const deepCursor = state.deepCursor ?? 0;
