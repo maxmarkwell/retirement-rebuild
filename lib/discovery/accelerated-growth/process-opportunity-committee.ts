@@ -1,4 +1,5 @@
 import "server-only";
+import { assertIssuerMatchesResearch } from "./issuer-preflight";
 import { createClient } from "@/lib/supabase/server";
 import { runAgV2Committee, AG_V2_COMMITTEE_VERSION, type AgV2CommitteeResult } from "./opportunity-committee";
 import type { AgOpportunityDeepResearch } from "./opportunity-deep-research";
@@ -56,6 +57,8 @@ export async function processAgV2CommitteeStep(scanRunId: string) {
     if (saveError || !data) throw new Error("AG_V2_COMMITTEE_FINALIZE_UNCONFIRMED");
     return { scanRunId, completed: cursor, total: cursor, status: "completed" as const };
   }
+  // Fail before claiming the stage; a mismatched issuer must not strand a saved scan.
+  await assertIssuerMatchesResearch(state.deepResults[cursor]);
   const { data: claimed, error: claimError } = await db.from("discovery_scan_runs")
     .update({ stage: "ag_v2_committee_claimed" })
     .eq("id", scanRunId).eq("user_id", user.id).eq("status", "completed")
