@@ -7,6 +7,7 @@ type Scan = {
   symbols: string[]; requiresReconciliation: boolean;
   poolCompleted?: number | null; poolTotal?: number | null; poolQualified?: number | null;
   selectionMethod?: string | null;
+  poolRanking?: Array<{ symbol:string; status:string; path:string|null; score:number|null }>;
   committeeCompleted: number; committeeTotal: number;
   committeeResults: Array<{symbol:string;decision:string;rationale:string;ownershipThesis:string}>;
 };
@@ -85,6 +86,7 @@ export default function AgFiveCandidateTest() {
       {scan.poolTotal != null && <p className="mt-1 text-sm font-semibold text-slate-800">Evidence pool: {scan.poolCompleted ?? 0}/{scan.poolTotal} · {scan.poolQualified != null ? `${scan.poolQualified} qualified` : "ranking pending"}</p>}
       <p className="mt-1 text-sm text-slate-700">Discovery: {scan.discoveryCompleted}/{scan.total} · Qualified: {scan.qualified ?? "Pending"} · Independent Deep Research: {scan.deepCompleted}/{scan.qualified ?? "Pending"}</p>
       {scan.selectionMethod && <p className="mt-1 text-xs text-slate-600">Candidate selection: {scan.selectionMethod}</p>}
+      {(scan.poolRanking?.length ?? 0) > 0 && <details className="mt-3 rounded-lg border border-slate-200 p-3 text-sm"><summary className="cursor-pointer font-semibold text-slate-800">Inspect all pool candidates and Discovery scores</summary><p className="mt-2 text-xs text-slate-500">Research-priority scores reflect reported opportunity evidence, not expected returns or BUY recommendations.</p><ul className="mt-2 space-y-1">{scan.poolRanking!.map(r => <li key={r.symbol} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-1"><span className="font-semibold">{r.symbol} · {r.status}</span><span>{r.path?.replaceAll("_", " ") ?? "No qualifying path"} · {r.score == null ? "Not ranked" : `Score ${r.score.toFixed(1)}`}</span></li>)}</ul></details>}
       {scan.stage === "ag_v2_pool_insufficient" && <p className="mt-2 font-medium text-amber-800">Fewer than five companies qualified. This pool is complete; no candidates were forced forward.</p>}
       <p className="mt-1 text-xs text-slate-600">{scan.symbols.join(", ")}</p>
       <p className="mt-2 text-sm font-medium text-slate-800">Committee: {scan.committeeCompleted ?? 0}/{scan.committeeTotal ?? 0} · Research decisions only</p>
