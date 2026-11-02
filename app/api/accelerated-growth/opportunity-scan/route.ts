@@ -5,6 +5,7 @@ import { processAgOpportunityScanStep } from "@/lib/discovery/accelerated-growth
 import { processAgOpportunityDeepStep } from "@/lib/discovery/accelerated-growth/process-opportunity-deep";
 import { processAgV2CommitteeStep } from "@/lib/discovery/accelerated-growth/process-opportunity-committee";
 import { getAgExploratoryShortlist } from "@/lib/discovery/accelerated-growth/auto-opportunity-shortlist";
+import { initializeAgOpportunityPool, processAgOpportunityPoolStep } from "@/lib/discovery/accelerated-growth/opportunity-pool";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -32,6 +33,10 @@ async function loadScan(id: string) {
     committeeCompleted: state?.committeeCursor ?? 0,
     committeeTotal: state?.deepResults?.length ?? 0,
     committeeResults: state?.committeeResults ?? [],
+    poolCompleted: (state as { poolCursor?: number } | null)?.poolCursor ?? null,
+    poolTotal: (state as { poolSymbols?: string[] } | null)?.poolSymbols?.length ?? null,
+    poolQualified: (state as { poolQualifiedCount?: number } | null)?.poolQualifiedCount ?? null,
+    selectionMethod: (state as { selectionMethod?: string } | null)?.selectionMethod ?? null,
     symbols: state?.symbols ?? [], requiresReconciliation: String(data.stage).endsWith("_claimed"),
   };
 }
@@ -50,6 +55,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as { action?: string; symbols?: unknown; id?: unknown };
+    if (body.action === "start_pool") {
+      const result = await initializeAgOpportunityPool();
+      return NextResponse.json({ ...result, ...(await loadScan(result.scanRunId)), executionEnabled: false });
+    }
     if (body.action === "suggest") {
       const db = await createClient();
       const { data: { user } } = await db.auth.getUser();
@@ -66,7 +75,9 @@ export async function POST(request: NextRequest) {
     if (body.action === "next" && typeof body.id === "string" && /^[0-9a-f-]{36}$/i.test(body.id)) {
       const before = await loadScan(body.id);
       if (before.requiresReconciliation) throw new Error("AG_V2_REQUIRES_RECONCILIATION");
-      if (before.status === "running" && before.stage === "ag_v2_ready") {
+      if (before.status === "running" && before.stage === "ag_v2_pool_ready") {
+        await processAgOpportunityPoolStep(body.id);
+      } else if (before.status === "running" && before.stage === "ag_v2_ready") {
         await processAgOpportunityScanStep(body.id);
       } else if (before.status === "completed" && before.stage === "ag_v2_complete") {
         await processAgOpportunityDeepStep(body.id);
