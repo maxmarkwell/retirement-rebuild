@@ -70,7 +70,7 @@ export async function processAgOpportunityDeepStep(scanRunId: string) {
   if (!Number.isInteger(deepCursor) || deepCursor < 0 ||
       deepCursor > expectedRanking.length || deepResults.length !== deepCursor ||
       deepResults.some((r,i) => r.symbol !== expectedRanking[i]?.symbol ||
-        r.opportunityVersion !== VERSION || r.promptVersion !== "ag-opportunity-deep-v1")) {
+        r.opportunityVersion !== VERSION || !["ag-opportunity-deep-v1","ag-opportunity-deep-v2"].includes(r.promptVersion))) {
     throw new Error("AG_V2_DEEP_INVALID_SAVED_RESULTS");
   }
   if (deepCursor === expectedRanking.length) {
