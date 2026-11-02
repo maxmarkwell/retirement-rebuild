@@ -4,6 +4,7 @@ import { initializeAgOpportunityScan } from "@/lib/discovery/accelerated-growth/
 import { processAgOpportunityScanStep } from "@/lib/discovery/accelerated-growth/process-opportunity-scan";
 import { processAgOpportunityDeepStep } from "@/lib/discovery/accelerated-growth/process-opportunity-deep";
 import { processAgV2CommitteeStep } from "@/lib/discovery/accelerated-growth/process-opportunity-committee";
+import { getAgExploratoryShortlist } from "@/lib/discovery/accelerated-growth/auto-opportunity-shortlist";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -49,6 +50,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as { action?: string; symbols?: unknown; id?: unknown };
+    if (body.action === "suggest") {
+      const db = await createClient();
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) throw new Error("AG_V2_AUTH_REQUIRED");
+      const shortlist = await getAgExploratoryShortlist();
+      return NextResponse.json({ ...shortlist, executionEnabled: false });
+    }
     if (body.action === "start") {
       if (!Array.isArray(body.symbols) || body.symbols.length !== 5 || body.symbols.some(s => typeof s !== "string"))
         throw new Error("AG_V2_REQUIRES_FIVE_SYMBOLS");
