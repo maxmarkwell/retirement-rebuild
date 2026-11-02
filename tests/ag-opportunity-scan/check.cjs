@@ -94,10 +94,23 @@ assert.match(comparisonUi, /MAIR \/ MAIRE security-identity diagnostic/);
 assert.match(comparisonUi, /Inspect " \+ symbol/);
 const issuerPreflight = fs.readFileSync("lib/discovery/accelerated-growth/issuer-preflight.ts","utf8");
 assert.match(issuerPreflight, /AG_ISSUER_RESEARCH_VENDOR_MISMATCH/);
-assert.match(issuerPreflight, /AG_ISSUER_ISIN_MISMATCH/);
-assert.match(issuerPreflight, /exactNameMatch/);
-assert.match(issuerPreflight, /exactIsinMatch/);
+assert.match(issuerPreflight, /issuerIdentityMatches/);
+
+
 assert.doesNotMatch(issuerPreflight, /a\.some\(x=>b\.includes\(x\)\)/);
 assert.match(committeeStep, /await assertIssuerMatchesResearch\(state\.deepResults\[cursor\]\)/);
 assert.ok(committeeStep.indexOf("await assertIssuerMatchesResearch") < committeeStep.indexOf('stage: "ag_v2_committee_claimed"'), "Identity check must happen before stage claim");
+// Execute the exact production identity-matching logic against the observed vendor MAIR record.
+const ts = require("typescript");
+const vm = require("node:vm");
+const pure = fs.readFileSync("lib/discovery/accelerated-growth/issuer-identity-match.ts", "utf8");
+const compiled = ts.transpileModule(pure, {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const testModule = {exports:{}};
+vm.runInNewContext(compiled, {module:testModule,exports:testModule.exports});
+const match = testModule.exports.issuerIdentityMatches;
+assert.equal(match("MAIRE S.p.A.","IT0004931058","Madison Air Solutions Corporation","US55658T1051"),false,"actual MAIR mistaken issuer must fail");
+assert.equal(match("MAIRE S.p.A.",null,"Madison Air Solutions Corporation",null),false,"MAIR must fail without ISIN");
+assert.equal(match("MAIRE S.p.A.","IT0004931058","MAIRE S.p.A.","IT0004931058"),true,"verified same issuer should pass");
+assert.equal(match("MAIRE S.p.A.","IT0004931058","MAIRE S.p.A.","US55658T1051"),false,"conflicting ISIN vetoes name match");
+assert.equal(match("BILL Holdings Inc",null,"Bill Holdings, Inc.",null),true,"equivalent issuer name normalizes");
 console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
