@@ -1,7 +1,7 @@
 import "server-only";
 import type { AgOpportunityDeepResearch } from "./opportunity-deep-research";
+import { issuerIdentityMatches } from "./issuer-identity-match";
 type Profile = { symbol?: string; companyName?: string; isin?: string; currency?: string; exchangeShortName?: string };
-const canonical = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 /** Independent-stage identity comparison against FMP's mapped company, NOT independent issuer authentication. */
 export async function assertIssuerMatchesResearch(research: AgOpportunityDeepResearch) {
   if (research.promptVersion !== "ag-opportunity-deep-v2") return; // historical dossier; cannot retroactively verify
@@ -18,13 +18,7 @@ export async function assertIssuerMatchesResearch(research: AgOpportunityDeepRes
   const profile = result[0] as Profile;
   if (profile.symbol?.toUpperCase() !== research.symbol || !profile.companyName)
     throw new Error("AG_ISSUER_PROFILE_IDENTITY_UNVERIFIED");
-  if (research.issuerIsin && profile.isin && research.issuerIsin.toUpperCase() !== profile.isin.toUpperCase())
-    throw new Error("AG_ISSUER_ISIN_MISMATCH");
-  const exactNameMatch = canonical(research.issuerLegalName) === canonical(profile.companyName);
-  const exactIsinMatch = !!research.issuerIsin && !!profile.isin &&
-    research.issuerIsin.toUpperCase() === profile.isin.toUpperCase();
-  // No single overlapping company-name token is enough to establish identity.
-  // An exact normalized legal name or matching ISIN is required before Committee review.
-  if (!exactNameMatch && !exactIsinMatch) throw new Error("AG_ISSUER_RESEARCH_VENDOR_MISMATCH");
+  if (!issuerIdentityMatches(research.issuerLegalName, research.issuerIsin, profile.companyName, profile.isin ?? null))
+    throw new Error("AG_ISSUER_RESEARCH_VENDOR_MISMATCH");
   // Same-provider data cannot certify exchange listing or a quote independently.
 }
