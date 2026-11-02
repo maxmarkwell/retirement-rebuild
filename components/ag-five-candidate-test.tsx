@@ -18,6 +18,8 @@ export default function AgFiveCandidateTest() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
+  const [identityDiagnostics, setIdentityDiagnostics] = useState<Record<string, unknown>>({});
+  const [identityBusy, setIdentityBusy] = useState<string | null>(null);
   const [comparison, setComparison] = useState<Record<string, {original:{decision:string;rationale:string};revised:{decision:string;rationale:string;valuationIntegrity:string;valuationConflicts:string[];ownershipNowVsWait:string;decisionBasis:string};note:string}>>({});
   const [comparing, setComparing] = useState<string | null>(null);
   const [suggestionNote, setSuggestionNote] = useState<string | null>(null);
@@ -61,6 +63,17 @@ export default function AgFiveCandidateTest() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to confirm research status.");
     } finally { setBusy(false); }
+  }
+  async function inspectIdentity(symbol: string) {
+    if (identityBusy || busy) return;
+    setIdentityBusy(symbol); setError(null);
+    try {
+      const response = await fetch("/api/accelerated-growth/valuation-identity?symbol=" + encodeURIComponent(symbol), {cache:"no-store"});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Identity inspection failed.");
+      setIdentityDiagnostics(prev => ({...prev, [symbol]:data}));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Identity inspection unavailable."); }
+    finally { setIdentityBusy(null); }
   }
   async function compare(symbol: string) {
     if (busy || comparing) return;
@@ -108,6 +121,17 @@ export default function AgFiveCandidateTest() {
       <p className="mt-1 text-xs text-slate-600">{scan.symbols.join(", ")}</p>
       <p className="mt-2 text-sm font-medium text-slate-800">Committee: {scan.committeeCompleted ?? 0}/{scan.committeeTotal ?? 0} · Research decisions only</p>
       {(scan.committeeResults ?? []).map(result => <details key={result.symbol} className="mt-2 rounded-lg border border-slate-200 p-3 text-sm"><summary className="cursor-pointer font-bold">{result.symbol} · {result.decision}</summary><p className="mt-2 font-semibold">{result.ownershipThesis}</p><p className="mt-2 whitespace-pre-wrap">{result.rationale}</p></details>)}
+      {isAuditScan && <section className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <h3 className="font-bold text-amber-950">MAIR / MAIRE security-identity diagnostic</h3>
+        <p className="mt-2 text-xs text-amber-900">Read-only vendor inspection. Compare the original scan symbol MAIR against the primary-listing ticker MAIRE. Prices may be from different dates. No Committee evaluation or trading.</p>
+        <div className="mt-3 flex flex-wrap gap-2">{["MAIR","MAIRE"].map(symbol =>
+          <button key={symbol} type="button" disabled={!!identityBusy || busy} onClick={() => void inspectIdentity(symbol)}
+            className="rounded border border-amber-500 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40">{identityBusy === symbol ? "Inspecting…" : "Inspect " + symbol}</button>)}</div>
+        {Object.entries(identityDiagnostics).map(([symbol,data]) => <details key={symbol} open className="mt-3 rounded border border-amber-200 bg-white p-3 text-sm">
+          <summary className="cursor-pointer font-bold">{symbol} vendor diagnostics</summary>
+          <pre className="mt-2 whitespace-pre-wrap break-words text-xs">{JSON.stringify(data,null,2)}</pre>
+        </details>)}
+      </section>}
       {isAuditScan && scan.stage === "ag_v2_committee_complete" && <section className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
         <h3 className="font-bold text-indigo-950">Independent Committee v2 comparison · saved five dossiers</h3>
         <p className="mt-2 text-xs text-indigo-900">One model call per company; original decisions are never changed. Historical valuation input is the saved original Committee assessment, NOT the original raw valuation snapshot. This is a limited, non-identical evidence comparison, not an investment recommendation or trade.</p>
