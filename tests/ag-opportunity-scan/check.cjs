@@ -57,4 +57,12 @@ assert.match(committeeModel, /"BUY" \| "WATCH" \| "REJECT"/);
 assert.match(committeeModel, /no quotas or preferred outcome/i);
 assert.doesNotMatch(committeeModel + committeeStep, /persistAgCommitteeDecisions|executeTransactions/);
 assert.match(opportunityRoute, /processAgV2CommitteeStep\(body\.id\)/);
+assert.match(committeeModel, /ag-opportunity-committee-v2/);
+for (const field of ["valuationIntegrity", "valuationConflicts", "ownershipNowVsWait", "decisionBasis"]) {
+  assert.match(committeeModel, new RegExp(field));
+}
+assert.match(committeeModel, /If consequential conflicts prevent a defensible valuation, do not issue BUY/);
+assert.match(committeeModel, /An uncertain outcome alone is not a reason for WATCH/);
+assert.match(committeeStep, /AG_V2_COMMITTEE_VERSION_CHANGE_REQUIRES_NEW_SCAN/);
+assert.match(committeeStep, /ag-opportunity-committee-v1/);
 console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
