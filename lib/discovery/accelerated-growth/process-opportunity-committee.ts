@@ -24,9 +24,10 @@ export async function processAgV2CommitteeStep(scanRunId: string) {
     throw new Error("AG_V2_COMMITTEE_REQUIRES_RECONCILIATION");
   const state = scan.state as State | null;
   if (!state || state.version !== "ag-opportunity-v2" ||
-      !Array.isArray(state.symbols) || state.symbols.length !== 5 ||
-      state.cursor !== 5 || !Array.isArray(state.rankedQualifiedCandidates) ||
+      !Array.isArray(state.symbols) || state.symbols.length < 1 || state.symbols.length > 5 ||
+      state.cursor !== state.symbols.length || !Array.isArray(state.rankedQualifiedCandidates) ||
       !Array.isArray(state.deepResults) ||
+      (state.symbols.length === 1 && (state as State & { selectionMethod?: string }).selectionMethod !== "targeted_us_listing_v1") ||
       state.deepCursor !== state.deepResults.length ||
       state.deepResults.length !== state.rankedQualifiedCandidates.length ||
       state.deepResults.some((r,i) => r.symbol !== state.rankedQualifiedCandidates[i]?.symbol ||
