@@ -118,6 +118,11 @@ assert.equal(match("MAIRE S.p.A.",null,"Madison Air Solutions Corporation",null)
 assert.equal(match("MAIRE S.p.A.","IT0004931058","MAIRE S.p.A.","IT0004931058"),true,"verified same issuer should pass");
 assert.equal(match("MAIRE S.p.A.","IT0004931058","MAIRE S.p.A.","US55658T1051"),false,"conflicting ISIN vetoes name match");
 assert.equal(match("BILL Holdings Inc",null,"Bill Holdings, Inc.",null),true,"equivalent issuer name normalizes");
+assert.equal(match("Silicon Motion Technology Corporation, a Cayman Islands exempted company. The Nasdaq symbol SIMO represents American depositary shares; it is not a different similarly named Silicon Motion entity. ([ir.siliconmotion.com](https://ir.siliconmotion.com/example))",null,"Silicon Motion Technology Corporation",null),true,"SIMO descriptive legal-form clause must not obscure exact issuer identity");
+assert.equal(match("Silicon Motion Technology Corporation, a Cayman Islands exempted company.",null,"Another Silicon Motion Corporation",null),false,"descriptive clause must not permit fuzzy name matches");
+assert.equal(match("Silicon Motion Technology Corporation, a Cayman Islands exempted company.","KYG8191M1069","Silicon Motion Technology Corporation","US0000000000"),false,"conflicting ISIN must veto exact issuer name");
+assert.equal(match("Silicon Motion Technology Corporation is not the same issuer",null,"Silicon Motion Technology Corporation",null),false,"arbitrary research narrative cannot be truncated");
+
 
 const targeted = fs.readFileSync("lib/discovery/accelerated-growth/targeted-candidate.ts", "utf8");
 const initializer = fs.readFileSync("lib/discovery/accelerated-growth/initialize-opportunity-scan.ts", "utf8");
