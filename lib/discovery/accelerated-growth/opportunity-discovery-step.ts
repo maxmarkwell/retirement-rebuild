@@ -1,6 +1,7 @@
 import "server-only";
 import { getDynamicDiscoveryUniverse } from "../dynamic-universe";
 import { passesAgTradabilityGate } from "./discovery";
+import { getTargetedAgCandidate } from "./targeted-candidate";
 import { researchAgOpportunityEvidence, AG_OPPORTUNITY_RESEARCH_VERSION } from "./opportunity-research";
 
 /**
@@ -13,10 +14,11 @@ import { researchAgOpportunityEvidence, AG_OPPORTUNITY_RESEARCH_VERSION } from "
  */
 export async function researchAgOpportunityDiscoveryStep(input: {
   symbol: string;
+  targeted?: boolean;
 }) {
   const symbol = input.symbol.trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error("AG_OPPORTUNITY_STEP_INVALID_SYMBOL");
-  const universe = await getDynamicDiscoveryUniverse();
+  const universe = input.targeted ? [await getTargetedAgCandidate(symbol)] : await getDynamicDiscoveryUniverse();
   const matches = universe.filter(stock => stock.ticker.toUpperCase() === symbol);
   if (matches.length !== 1) throw new Error("AG_OPPORTUNITY_STEP_UNIVERSE_MISMATCH");
   const stock = matches[0];
