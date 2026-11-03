@@ -125,7 +125,8 @@ const discoveryStep = fs.readFileSync("lib/discovery/accelerated-growth/opportun
 const scanner = fs.readFileSync("lib/discovery/accelerated-growth/process-opportunity-scan.ts", "utf8");
 const api = fs.readFileSync("app/api/accelerated-growth/opportunity-scan/route.ts", "utf8");
 assert.match(targeted, /assessSecurityIdentity/);
-assert.match(targeted, /identity\.quoteCurrency !== "USD"/);
+assert.match(targeted, /identity\.profileCurrency !== "USD"/);
+assert.match(targeted, /identity\.quoteCurrency != null && identity\.quoteCurrency !== "USD"/);
 assert.match(targeted, /passesAgTradabilityGate\(stock\)/);
 assert.doesNotMatch(targeted, /\.insert\(|\.update\(|\.delete\(|executeTransactions/);
 assert.match(initializer, /input\.targeted && symbols\.length === 1/);
