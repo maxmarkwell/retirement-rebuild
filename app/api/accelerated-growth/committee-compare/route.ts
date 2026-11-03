@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: unknown = await request.json();
     const symbol = (body as { symbol?: unknown } | null)?.symbol;
-    if (typeof symbol !== "string" || !SYMBOLS.includes(symbol as typeof SYMBOLS[number]))
+    if (typeof symbol !== "string" || symbol === "MAIR" || !SYMBOLS.includes(symbol as typeof SYMBOLS[number]))
       return NextResponse.json({ error: "AG_COMPARISON_INVALID_SYMBOL" }, { status: 400 });
     const db = await createClient();
     const { data: { user } } = await db.auth.getUser();
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ symbol, original: oldDecision, revised: newDecision,
       evidenceBasis: "SAVED_DEEP_DOSSIER_PLUS_ORIGINAL_COMMITTEE_VALUATION_TEXT",
-      note: "Not an identical raw-input replay. The historical valuation is saved Committee prose, not the original raw snapshot. No current quote or valuation refresh; results are ephemeral and not stored.",
+      note: "New v3 judgment compared with historical v1, NOT an identical v2-v3 replay. The historical valuation is saved Committee prose, not the original raw snapshot. No current quote or valuation refresh; results are ephemeral and not stored.",
       executionEnabled: false }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "AG_COMPARISON_EVALUATION_FAILED", executionEnabled: false }, { status: 500 });
