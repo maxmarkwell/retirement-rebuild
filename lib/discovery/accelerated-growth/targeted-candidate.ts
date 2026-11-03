@@ -35,7 +35,7 @@ export async function getTargetedAgCandidate(symbol:string):Promise<DynamicUnive
     throw new Error("AG_TARGET_SECURITY_UNVERIFIED");
   if (p.isEtf === true || p.isFund === true || p.isActivelyTrading === false ||
       p.sector === "Financial Services" || p.sector === "Real Estate" ||
-      /\\b(warrants?|rights|preferred|notes|debentures?|bonds|units)\\b/i.test(p.companyName))
+      /\b(warrants?|rights|preferred|notes|debentures?|bonds|units)\b/i.test(p.companyName))
     throw new Error("AG_TARGET_INELIGIBLE_SECURITY");
   const price=Number(q.price), marketCap=Number(q.marketCap), volume=Number(q.volume);
   if (!Number.isFinite(price) || !Number.isFinite(marketCap) || !Number.isFinite(volume))
