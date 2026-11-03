@@ -15,7 +15,7 @@ assert.match(start,/status: "running", stage: "ag_v2_ready"/);
 assert.match(start,/cursor: 0, results: \[\]/);
 assert.match(step,/status !== "running" \|\| scan.stage !== "ag_v2_ready"/);
 assert.match(step,/stage: "ag_v2_claimed"/);
-assert.match(step,/researchAgOpportunityDiscoveryStep\(\{ symbol \}\)/);
+assert.match(step,/researchAgOpportunityDiscoveryStep\(\{ symbol, targeted: state\.selectionMethod === "targeted_us_listing_v1" \}\)/);
 assert.match(step,/state: next, stage: "ag_v2_ready"/);
 assert.doesNotMatch(start,/investment_decisions|transactions|tradeExecution/);
 assert.doesNotMatch(step,/investment_decisions|transactions|tradeExecution/);
