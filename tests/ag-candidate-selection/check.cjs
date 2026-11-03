@@ -1,0 +1,21 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const selection = fs.readFileSync("lib/discovery/accelerated-growth/candidate-selection.ts", "utf8");
+const pipeline = fs.readFileSync("lib/discovery/accelerated-growth/deep-research-pipeline.ts", "utf8");
+const checkpoints = fs.readFileSync("lib/discovery/accelerated-growth/load-completed-candidates.ts", "utf8");
+const discovery = fs.readFileSync("lib/discovery/accelerated-growth/discovery.ts", "utf8");
+
+assert.match(selection, /Math\.min\(Math\.trunc\(input\.maxCandidates \|\| 5\), 5\)/);
+assert.match(selection, /watchSlots = fresh\.length > 0/);
+assert.match(selection, /const candidates = \[\.\.\.watched\.slice\(0, watchSlots\), \.\.\.fresh\]\.slice\(0, limit\)/);
+assert.match(selection, /AG_DUPLICATE_CANDIDATE_SELECTION/);
+assert.match(pipeline, /selectAgResearchCandidates\(/);
+assert.match(pipeline, /const expected = selectedSymbols/);
+assert.doesNotMatch(pipeline, /const watchedAdvance =/);
+assert.match(discovery, /highestRankedNotSelected/);
+assert.match(pipeline, /candidateCoverage: discovery\.candidateCoverage/);
+assert.match(selection, /function assertAgCandidateCheckpointManifest/);
+assert.match(selection, /function assertAgPersistedCandidateSelection/);
+assert.match(pipeline, /assertAgPersistedCandidateSelection\(/);
+assert.match(checkpoints, /assertAgCandidateCheckpointManifest\(\{ expectedSymbols: expected, checkpoints: rows \}\)/);
+console.log("AG candidate selection reuse and coverage checks passed.");
