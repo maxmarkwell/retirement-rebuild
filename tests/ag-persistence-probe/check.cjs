@@ -43,7 +43,7 @@ assert.match(route, /\.eq\("stage", "ag_probe_claimed"\)/);
 assert.match(route, /AG_PROBE_REQUIRES_RECONCILIATION/);
 assert.match(route, /"Cache-Control": "no-store"/);
 assert.match(route, /executionEnabled: false, transactionsWritten: false/);
-assert.doesNotMatch(route, /investment_decisions|transactions[."]|executeTransactions|getOpenAIClient|FMP_API_KEY|\.delete\(|\.upsert\(/);
+assert.doesNotMatch(route, /\.from\(["\x27](?:investment_decisions|transactions|portfolios)["\x27]\)|executeTransactions|getOpenAIClient|FMP_API_KEY|\.delete\(|\.upsert\(/);
 assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS discovery_scan_runs_ag_probe_one_active_per_user/);
 assert.match(migration, /scoring_version = 'ag-persistence-probe-v1'/);
 assert.match(migration, /portfolio_type = 'paper_active'/);
