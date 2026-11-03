@@ -118,4 +118,23 @@ assert.equal(match("MAIRE S.p.A.",null,"Madison Air Solutions Corporation",null)
 assert.equal(match("MAIRE S.p.A.","IT0004931058","MAIRE S.p.A.","IT0004931058"),true,"verified same issuer should pass");
 assert.equal(match("MAIRE S.p.A.","IT0004931058","MAIRE S.p.A.","US55658T1051"),false,"conflicting ISIN vetoes name match");
 assert.equal(match("BILL Holdings Inc",null,"Bill Holdings, Inc.",null),true,"equivalent issuer name normalizes");
-console.log("AG v2 scan initialization and one-company saved continuation contracts verified.");
+
+const targeted = fs.readFileSync("lib/discovery/accelerated-growth/targeted-candidate.ts", "utf8");
+const initializer = fs.readFileSync("lib/discovery/accelerated-growth/initialize-opportunity-scan.ts", "utf8");
+const discoveryStep = fs.readFileSync("lib/discovery/accelerated-growth/opportunity-discovery-step.ts", "utf8");
+const scanner = fs.readFileSync("lib/discovery/accelerated-growth/process-opportunity-scan.ts", "utf8");
+const api = fs.readFileSync("app/api/accelerated-growth/opportunity-scan/route.ts", "utf8");
+assert.match(targeted, /assessSecurityIdentity/);
+assert.match(targeted, /identity\.quoteCurrency !== "USD"/);
+assert.match(targeted, /passesAgTradabilityGate\(stock\)/);
+assert.doesNotMatch(targeted, /\.insert\(|\.update\(|\.delete\(|executeTransactions/);
+assert.match(initializer, /input\.targeted && symbols\.length === 1/);
+assert.match(initializer, /selectionMethod: "targeted_us_listing_v1"/);
+assert.match(discoveryStep, /input\.targeted \? \[await getTargetedAgCandidate\(symbol\)\]/);
+assert.match(scanner, /targeted: state\.selectionMethod === "targeted_us_listing_v1"/);
+assert.match(api, /body\.action === "start_targeted"/);
+assert.match(committeeStep, /state\.cursor !== state\.symbols\.length/);
+assert.match(committeeStep, /state\.symbols\.length > 5/);
+assert.match(committeeStep, /await assertIssuerMatchesResearch/);
+assert.match(comparisonUi, /Start single-company research/);
+console.log("AG v2 scan and targeted one-company research contracts verified.");
