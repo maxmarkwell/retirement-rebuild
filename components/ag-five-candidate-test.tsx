@@ -133,9 +133,9 @@ export default function AgFiveCandidateTest() {
         </details>)}
       </section>}
       {isAuditScan && scan.stage === "ag_v2_committee_complete" && <section className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-        <h3 className="font-bold text-indigo-950">Independent Committee v2 comparison · saved five dossiers</h3>
-        <p className="mt-2 text-xs text-indigo-900">One model call per company; original decisions are never changed. Historical valuation input is the saved original Committee assessment, NOT the original raw valuation snapshot. This is a limited, non-identical evidence comparison, not an investment recommendation or trade.</p>
-        <div className="mt-3 flex flex-wrap gap-2">{["TLS","BILL","GH","MAIR","COLM"].map(symbol =>
+        <h3 className="font-bold text-indigo-950">Independent Committee v3 comparison · saved historical dossiers</h3>
+        <p className="mt-2 text-xs text-indigo-900">One model call per company; original decisions are never changed. Historical valuation input is the saved original Committee assessment, NOT the original raw valuation snapshot. This compares historical v1 decisions with a new v3 judgment using saved valuation prose, not an identical v2-v3 replay or a current investment recommendation. MAIR is excluded because its saved research and valuation concern different issuers.</p>
+        <div className="mt-3 flex flex-wrap gap-2">{["TLS","BILL","GH","COLM"].map(symbol =>
           <button type="button" key={symbol} disabled={busy || !!comparing} onClick={() => void compare(symbol)}
             className="rounded-lg border border-indigo-400 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40">{comparing === symbol ? "Evaluating…" : "Compare " + symbol}</button>)}</div>
         {Object.entries(comparison).map(([symbol,item]) => <details key={symbol} open className="mt-3 rounded-lg border border-indigo-200 bg-white p-3 text-sm">
