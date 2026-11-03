@@ -1,0 +1,10 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const sql = fs.readFileSync("supabase/migrations/20261030123000_ag_v2_active_scan_uniqueness.sql", "utf8");
+assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS discovery_scan_runs_ag_v2_one_active_per_user/i);
+assert.match(sql, /ON public\.discovery_scan_runs \(user_id\)/i);
+assert.match(sql, /portfolio_type = 'paper_active'/);
+assert.match(sql, /scoring_version = 'ag-opportunity-v2'/);
+assert.match(sql, /status IN \('pending', 'running'\)/);
+assert.doesNotMatch(sql, /\b(?:DROP|DELETE|TRUNCATE|UPDATE|ALTER TABLE)\b/i);
+console.log("AG v2 active scan uniqueness migration scope verified.");

@@ -1,0 +1,19 @@
+name: AG v2 scan uniqueness migration
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261030123000_ag_v2_active_scan_uniqueness.sql'
+      - 'tests/ag-v2-scan-uniqueness/**'
+      - '.github/workflows/ag-v2-scan-uniqueness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/ag-v2-scan-uniqueness/check.cjs
