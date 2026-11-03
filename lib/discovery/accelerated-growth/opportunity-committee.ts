@@ -5,7 +5,7 @@ import { withAgResearchRetry, AgResearchOutputError } from "./research-reliabili
 import { getAgValuationSnapshot } from "./valuation-snapshot";
 import type { AgOpportunityDeepResearch } from "./opportunity-deep-research";
 
-export const AG_V2_COMMITTEE_VERSION = "ag-opportunity-committee-v2";
+export const AG_V2_COMMITTEE_VERSION = "ag-opportunity-committee-v3";
 const MODEL = "gpt-5.6-terra";
 export type AgV2CommitteeResult = {
   symbol: string;
@@ -60,9 +60,10 @@ export async function runAgV2Committee(research: AgOpportunityDeepResearch, comp
     const response = await getOpenAIClient().responses.create({
       model: MODEL,
       input: `You are the independent Accelerated Growth investment research committee.
-Assess whether ownership merit is established today. Select BUY, WATCH, or REJECT.
-BUY means ownership merit established, not authorization to transact. WATCH means
-specific decision-critical gaps justify waiting. REJECT means the thesis fails.
+Assess whether the available evidence and valuation support favorable risk-adjusted ownership economics today. Select BUY, WATCH, or REJECT.
+BUY means the credible potential reward sufficiently compensates for plausible downside and uncertainty at the available valuation; BUY is not authorization to transact. BUY does not require certainty, low volatility, or full confirmation of the thesis.
+WATCH means a specific material issue currently makes waiting economically preferable to ownership, not merely that questions remain. Identify the concrete issue and how learning its answer changes the risk/reward decision.
+REJECT means the thesis fails or plausible investment economics do not justify ownership.
 No quotas or preferred outcome. Do not provide trade sizes, dollars, allocations,
 quantities, or price targets.
 Independently evaluate any of the five paths: accelerating fundamentals,
@@ -70,6 +71,8 @@ emerging opportunity, turnaround, catalyst-driven, valuation dislocation.
 Do not require acceleration or scheduled catalysts for other paths.
 Evaluate financial durability, cash generation, valuation expectations,
 downside, adverse evidence, invalidation and opportunity cost of waiting.
+Risk level and the ownership recommendation are separate judgments. A high-risk or uncertain opportunity can merit BUY when evidenced potential reward adequately compensates for its downside. Distinguish risks that deterministic portfolio sizing and concentration controls can manage from risks that defeat the per-share investment thesis; do not propose a size yourself.
+For WATCH, identify what material evidence or valuation improvement is necessary, why it is worth foregoing potential appreciation now, and why ordinary uncertainty cannot be priced and accepted today. Apply comparable rigor to BUY and WATCH. Do not treat WATCH as the safe default.
 PROCEED from research is not an automatic BUY. Even WATCH and STOP dossiers
 require independent assessment; explain any disagreement with upstream evidence.
 Do not invent missing data. The valuation snapshot has potential gaps. Its securityIdentity is same-vendor only, NOT an independent listing verification. Identity MISMATCH makes its affected valuation numbers unusable. UNVERIFIED identity requires explicit judgment and must never be described as verified.
