@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getDynamicDiscoveryUniverse } from "../dynamic-universe";
 import { passesAgTradabilityGate } from "./discovery";
+import { getTargetedAgCandidate } from "./targeted-candidate";
 
 export const AG_OPPORTUNITY_SCAN_VERSION = "ag-opportunity-v2";
 
@@ -13,7 +14,7 @@ export const AG_OPPORTUNITY_SCAN_VERSION = "ag-opportunity-v2";
  * No public route calls this helper. It does not inherit previous WATCHes,
  * create investment decisions, persist portfolio positions, or execute trades.
  */
-export async function initializeAgOpportunityScan(input: { symbols: string[] }) {
+export async function initializeAgOpportunityScan(input: { symbols: string[]; targeted?: boolean }) {
   const db = await createClient();
   const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) throw new Error("AG_V2_SCAN_AUTH_REQUIRED");
@@ -32,7 +33,11 @@ export async function initializeAgOpportunityScan(input: { symbols: string[] }) 
     .in("status", ["pending", "running"]).limit(1);
   if (existingError || !existing || existing.length > 0) throw new Error("AG_V2_SCAN_ALREADY_ACTIVE_OR_UNAVAILABLE");
 
-  const universe = await getDynamicDiscoveryUniverse();
+  // Targeted one-symbol research verifies a US exchange listing directly, including eligible ADSs.
+  // Broad five-symbol scans continue to use the unchanged domestic universe.
+  const universe = input.targeted && symbols.length === 1
+    ? [await getTargetedAgCandidate(symbols[0])]
+    : await getDynamicDiscoveryUniverse();
   const bySymbol = new Map<string, typeof universe>();
   for (const stock of universe) {
     const symbol = stock.ticker.toUpperCase();
@@ -53,6 +58,7 @@ export async function initializeAgOpportunityScan(input: { symbols: string[] }) 
     ].filter(Boolean);
     return [`${symbol}: ${issues.join(", ") || "did not pass tradability check"}`];
   });
+  if (input.targeted && symbols.length !== 1) throw new Error("AG_TARGET_REQUIRES_ONE_SYMBOL");
   if (rejected.length) throw new Error(`AG_V2_SCAN_SYMBOL_NOT_ELIGIBLE — ${rejected.join("; ")}`);
 
   const { data: created, error: insertError } = await db.from("discovery_scan_runs")
@@ -61,7 +67,8 @@ export async function initializeAgOpportunityScan(input: { symbols: string[] }) 
       scoring_version: AG_OPPORTUNITY_SCAN_VERSION,
       status: "running", stage: "ag_v2_ready",
       prescreen_count: symbols.length,
-      state: { version: AG_OPPORTUNITY_SCAN_VERSION, symbols, cursor: 0, results: [] },
+      state: { version: AG_OPPORTUNITY_SCAN_VERSION, symbols, cursor: 0, results: [],
+        ...(input.targeted ? { selectionMethod: "targeted_us_listing_v1" } : {}) },
     }).select("id").single();
   if (insertError || !created) throw new Error("AG_V2_SCAN_INITIALIZATION_FAILED");
   return { scanRunId: created.id as string, selectedCount: symbols.length, version: AG_OPPORTUNITY_SCAN_VERSION };
