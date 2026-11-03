@@ -37,11 +37,11 @@ export async function processAgV2CommitteeStep(scanRunId: string) {
   if (!Number.isInteger(cursor) || cursor < 0 || cursor > state.deepResults.length ||
       !Array.isArray(results) || results.length !== cursor ||
       results.some((r,i) => r.symbol !== state.deepResults[i].symbol ||
-        ![AG_V2_COMMITTEE_VERSION, "ag-opportunity-committee-v1"].includes(r.promptVersion) ||
+        ![AG_V2_COMMITTEE_VERSION, "ag-opportunity-committee-v2", "ag-opportunity-committee-v1"].includes(r.promptVersion) ||
         !["BUY","WATCH","REJECT"].includes(r.decision)))
     throw new Error("AG_V2_COMMITTEE_INVALID_SAVED_DECISIONS");
-  // A started v1 Committee run cannot silently switch to the new v2 prompt.
-  // Completed v1 runs remain readable and auditable without modification.
+  // A partially processed historical Committee run cannot silently switch prompt versions.
+  // Completed v1/v2 decisions remain readable and auditable without modification.
   if (cursor > 0 && cursor < state.deepResults.length && scan.stage !== "ag_v2_committee_complete" &&
       results.some(r => r.promptVersion !== AG_V2_COMMITTEE_VERSION))
     throw new Error("AG_V2_COMMITTEE_VERSION_CHANGE_REQUIRES_NEW_SCAN");
