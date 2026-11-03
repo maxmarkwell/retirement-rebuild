@@ -34,8 +34,12 @@ export async function getTargetedAgCandidate(symbol:string):Promise<DynamicUnive
       identity.profileCurrency !== "USD" ||
       (identity.quoteCurrency != null && identity.quoteCurrency !== "USD"))
     throw new Error("AG_TARGET_SECURITY_UNVERIFIED");
+  // Keep the sector-wide bank/insurance exclusion; narrowly admit only the
+  // exact identified PYPL operating issuer for user-targeted research.
+  const verifiedPyplOperatingIssuer = symbol === "PYPL" &&
+    p.companyName.toUpperCase().replace(/[^A-Z0-9]/g, "") === "PAYPALHOLDINGSINC";
   if (p.isEtf === true || p.isFund === true || p.isActivelyTrading === false ||
-      p.sector === "Financial Services" || p.sector === "Real Estate" ||
+      (p.sector === "Financial Services" && !verifiedPyplOperatingIssuer) || p.sector === "Real Estate" ||
       /\b(warrants?|rights|preferred|notes|debentures?|bonds|units)\b/i.test(p.companyName))
     throw new Error("AG_TARGET_INELIGIBLE_SECURITY");
   const price=Number(q.price), marketCap=Number(q.marketCap), volume=Number(q.volume);
