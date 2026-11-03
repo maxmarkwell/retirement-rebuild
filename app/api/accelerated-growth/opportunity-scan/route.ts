@@ -70,6 +70,12 @@ export async function POST(request: NextRequest) {
       const shortlist = await getAgExploratoryShortlist();
       return NextResponse.json({ ...shortlist, executionEnabled: false });
     }
+    if (body.action === "start_targeted") {
+      if (!Array.isArray(body.symbols) || body.symbols.length !== 1 || typeof body.symbols[0] !== "string")
+        throw new Error("AG_TARGET_REQUIRES_ONE_SYMBOL");
+      const result = await initializeAgOpportunityScan({ symbols: body.symbols as string[], targeted: true });
+      return NextResponse.json({ ...result, ...(await loadScan(result.scanRunId)), executionEnabled: false });
+    }
     if (body.action === "start") {
       if (!Array.isArray(body.symbols) || body.symbols.length !== 5 || body.symbols.some(s => typeof s !== "string"))
         throw new Error("AG_V2_REQUIRES_FIVE_SYMBOLS");
