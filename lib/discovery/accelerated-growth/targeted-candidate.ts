@@ -31,7 +31,8 @@ export async function getTargetedAgCandidate(symbol:string):Promise<DynamicUnive
       q.symbol?.toUpperCase() !== symbol || identity.profileExchange !== "NASDAQ" &&
       identity.profileExchange !== "NYSE" && identity.profileExchange !== "AMEX" ||
       identity.quoteExchange !== identity.profileExchange ||
-      identity.profileCurrency !== "USD" || identity.quoteCurrency !== "USD")
+      identity.profileCurrency !== "USD" ||
+      (identity.quoteCurrency != null && identity.quoteCurrency !== "USD"))
     throw new Error("AG_TARGET_SECURITY_UNVERIFIED");
   if (p.isEtf === true || p.isFund === true || p.isActivelyTrading === false ||
       p.sector === "Financial Services" || p.sector === "Real Estate" ||
