@@ -60,7 +60,11 @@ assert.match(committeeModel, /"BUY" \| "WATCH" \| "REJECT"/);
 assert.match(committeeModel, /no quotas or preferred outcome/i);
 assert.doesNotMatch(committeeModel + committeeStep, /persistAgCommitteeDecisions|executeTransactions/);
 assert.match(opportunityRoute, /processAgV2CommitteeStep\(body\.id\)/);
-assert.match(committeeModel, /ag-opportunity-committee-v2/);
+assert.match(committeeModel, /ag-opportunity-committee-v3/);
+assert.match(committeeModel, /A high-risk or uncertain opportunity can merit BUY/);
+assert.match(committeeModel, /Do not treat WATCH as the safe default/);
+assert.match(committeeModel, /deterministic portfolio sizing and concentration controls/);
+assert.match(committeeStep, /ag-opportunity-committee-v2/);
 for (const field of ["valuationIntegrity", "valuationConflicts", "ownershipNowVsWait", "decisionBasis"]) {
   assert.match(committeeModel, new RegExp(field));
 }
@@ -75,7 +79,8 @@ assert.match(comparisonRoute, /SAVED_DEEP_DOSSIER_PLUS_ORIGINAL_COMMITTEE_VALUAT
 assert.match(comparisonRoute, /runAgV2Committee\(state\.deepResults\[i\]/);
 assert.match(comparisonRoute, /\.eq\("user_id", user\.id\)/);
 assert.doesNotMatch(comparisonRoute, /\.insert\(|\.update\(|\.delete\(|executeTransactions|persistAgCommitteeDecisions/);
-assert.match(comparisonUi, /Independent Committee v2 comparison/);
+assert.match(comparisonUi, /Independent Committee v3 comparison/);
+assert.match(comparisonRoute, /symbol === "MAIR"/);
 assert.match(comparisonUi, /Compare " \+ symbol/);
 const identity = fs.readFileSync("lib/discovery/accelerated-growth/security-identity.ts","utf8");
 const valuationSnapshot = fs.readFileSync("lib/discovery/accelerated-growth/valuation-snapshot.ts","utf8");
