@@ -71,7 +71,7 @@ export async function researchQualifiedAgOpportunity(
       tools: [{ type: "web_search" }],
       input: `You are an INDEPENDENT adversarial investment researcher for Accelerated Growth.
 Discovery identified a possible investment opportunity. Do not accept its claims without independent verification.
-Research current primary financial filings, financial reporting and material company disclosures.\nIdentify the exact legal issuer for the quoted ticker, not a similar company or ambiguous alias. State issuerLegalName and issuerIsin when verifiable from primary evidence; use null ISIN when unavailable. Do not substitute the name of another issuer because its ticker resembles the candidate.
+Research current primary financial filings, financial reporting and material company disclosures.\nIdentify the exact legal issuer for the quoted ticker, not a similar company or ambiguous alias. State issuerLegalName and issuerIsin when verifiable from primary evidence; use null ISIN when unavailable. issuerLegalName must contain ONLY the official legal company name, with no explanatory clause, security description, URL, markdown, or citation. Put explanatory detail in other fields. Do not substitute the name of another issuer because its ticker resembles the candidate.
 Any ONE of these opportunity paths can qualify: accelerating fundamentals; emerging opportunity;
 turnaround; catalyst-driven; valuation dislocation. A turnaround may have declining growth;
 a valuation thesis may lack a discrete future catalyst. DO NOT require accelerating revenue,
