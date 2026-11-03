@@ -1,0 +1,25 @@
+name: AG persistence probe validation
+on:
+  pull_request:
+    paths:
+      - 'app/api/accelerated-growth/persistence-probe/**'
+      - 'lib/discovery/accelerated-growth/persistence-probe.ts'
+      - 'supabase/migrations/20261103190000_ag_persistence_probe_active_scan_uniqueness.sql'
+      - 'tests/ag-persistence-probe/**'
+      - '.github/workflows/ag-persistence-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-persistence-probe/check.cjs
