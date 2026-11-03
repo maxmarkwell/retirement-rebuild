@@ -10,6 +10,7 @@ type State = {
   symbols: string[];
   cursor: number;
   results: ResearchResult[];
+  selectionMethod?: "targeted_us_listing_v1";
 };
 const validSymbol = (s: string) => /^[A-Z][A-Z0-9.-]{0,14}$/.test(s);
 
@@ -47,6 +48,7 @@ export async function processAgOpportunityScanStep(scanRunId: string) {
       state.symbols.length < 1 || state.symbols.length > 5 ||
       state.symbols.some(s => typeof s !== "string" || !validSymbol(s)) ||
       new Set(state.symbols).size !== state.symbols.length ||
+      (state.selectionMethod != null && (state.selectionMethod !== "targeted_us_listing_v1" || state.symbols.length !== 1)) ||
       state.results.length !== state.cursor ||
       state.results.some((r, i) => r.symbol !== state.symbols[i] || r.version !== "ag-opportunity-research-v1")) {
     throw new Error("AG_V2_INVALID_SAVED_MANIFEST");
@@ -73,7 +75,7 @@ export async function processAgOpportunityScanStep(scanRunId: string) {
     .select("id").maybeSingle();
   if (claimError || !claimed) throw new Error("AG_V2_ALREADY_CLAIMED");
   const symbol = state.symbols[state.cursor];
-  const result = await researchAgOpportunityDiscoveryStep({ symbol });
+  const result = await researchAgOpportunityDiscoveryStep({ symbol, targeted: state.selectionMethod === "targeted_us_listing_v1" });
   if (result.symbol !== symbol) throw new Error("AG_V2_RESULT_SYMBOL_MISMATCH");
   const next: State = { ...state, cursor: state.cursor + 1, results: [...state.results, result] };
   const { data: saved, error: saveError } = await db.from("discovery_scan_runs")
