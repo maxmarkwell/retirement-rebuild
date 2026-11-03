@@ -13,6 +13,7 @@ type Scan = {
 };
 export default function AgFiveCandidateTest() {
   const [input, setInput] = useState("");
+  const [targetTicker, setTargetTicker] = useState("SIMO");
   const [scan, setScan] = useState<Scan | null>(null);
   const [resumeId, setResumeId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,7 +46,7 @@ export default function AgFiveCandidateTest() {
     finally { setSuggesting(false); }
   }
 
-  async function request(action: "start" | "start_pool" | "next" | "refresh") {
+  async function request(action: "start" | "start_targeted" | "start_pool" | "next" | "refresh") {
     if (busy) return;
     setBusy(true); setError(null);
     try {
@@ -54,7 +55,7 @@ export default function AgFiveCandidateTest() {
         method: action === "refresh" ? "GET" : "POST",
         headers: action === "refresh" ? undefined : { "content-type": "application/json" },
         body: action === "refresh" ? undefined : JSON.stringify(
-          action === "start" ? { action, symbols } : { action, id: scan?.id }),
+          action === "start" ? { action, symbols } : action === "start_targeted" ? { action, symbols: [targetTicker.trim().toUpperCase()] } : { action, id: scan?.id }),
         cache: "no-store",
       });
       const data = await result.json();
@@ -95,6 +96,17 @@ export default function AgFiveCandidateTest() {
     <h2 className="text-lg font-bold text-slate-900">Five-candidate research test · v2</h2>
     <p className="mt-2 text-sm text-slate-600">Test the new five-path Discovery and independent Deep Research. This is separate from the legacy daily cycle. Committee research decisions are recorded here; no trades are generated.</p>
     {!scan ? <>
+      <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 p-3">
+        <label htmlFor="ag-target-ticker" className="block text-sm font-semibold text-teal-950">Research one identified opportunity</label>
+        <p className="mt-1 text-xs text-teal-900">Start a new paper-only AG Discovery, Deep Research, and Committee v3 sequence for a US-exchange-listed ticker, including eligible USD-traded ADSs. Listing and tradability must pass verification; qualification is not guaranteed.</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input id="ag-target-ticker" value={targetTicker} onChange={e => setTargetTicker(e.target.value.toUpperCase())}
+            maxLength={15} className="min-w-0 flex-1 rounded border border-teal-300 px-3 py-2 text-sm" placeholder="SIMO"/>
+          <button type="button" disabled={busy || !/^[A-Z][A-Z0-9.-]{0,14}$/.test(targetTicker.trim())}
+            onClick={() => void request("start_targeted")}
+            className="rounded bg-teal-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Starting…" : "Start single-company research"}</button>
+        </div>
+      </div>
       <label htmlFor="ag-v2-symbols" className="mt-4 block text-sm font-semibold text-slate-800">Five unique eligible stock tickers, comma-separated</label>
       <input id="ag-v2-symbols" value={input} onChange={e => setInput(e.target.value)}
         placeholder="TICKER1, TICKER2, TICKER3, TICKER4, TICKER5"
@@ -149,7 +161,7 @@ export default function AgFiveCandidateTest() {
         </details>)}
       </section>}
       {scan.requiresReconciliation && <p role="alert" className="mt-3 text-sm font-semibold text-amber-800">The previous research call was claimed but not confirmed saved. Manual reconciliation required; do not repeat it.</p>}
-      {finished && <p role="status" className="mt-3 font-semibold text-green-800">Five-candidate Discovery, Deep Research, and independent Committee results are saved. No trades were authorized.</p>}
+      {finished && <p role="status" className="mt-3 font-semibold text-green-800">Discovery, Deep Research, and independent Committee results are saved for this scan. No trades were authorized.</p>}
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" onClick={() => void request("refresh")} disabled={busy}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Refresh saved status</button>
