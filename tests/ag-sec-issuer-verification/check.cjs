@@ -9,9 +9,9 @@ const stripped = src.replace(/^import "server-only";\s*/m, "");
 const js = ts.transpileModule(stripped, { compilerOptions: {
   module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
 }}).outputText;
-const exports = {};
-vm.runInNewContext(js, { exports, URL, AbortSignal, fetch() { throw Error("unexpected fetch"); } });
-const { reconcileSecIssuer, SEC_VERIFY_VERSION } = exports;
+const moduleExports = {};
+vm.runInNewContext(js, { exports: moduleExports, URL, AbortSignal, fetch() { throw Error("unexpected fetch"); } });
+const { reconcileSecIssuer, SEC_VERIFY_VERSION } = moduleExports;
 assert.equal(SEC_VERIFY_VERSION, "ag-sec-issuer-v1");
 const input = {
   symbol: "MSFT", vendorIssuerName: "Microsoft Corporation",
