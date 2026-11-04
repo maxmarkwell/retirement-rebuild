@@ -65,16 +65,22 @@ export function reconcileSecIssuer(input: {
   const dates = recent?.filingDate, reports = recent?.reportDate, documents = recent?.primaryDocument;
   if (![forms,accessions,dates,reports,documents].every(Array.isArray)) throw new Error("AG_SEC_FILINGS_MISSING");
   const rows = forms as unknown[];
+  const filingDates = dates as unknown[];
+  const reportDates = reports as unknown[];
+  const accessionNumbers = accessions as unknown[];
+  const primaryDocuments = documents as unknown[];
+  if (![filingDates, reportDates, accessionNumbers, primaryDocuments]
+      .every(items => items.length === rows.length)) throw new Error("AG_SEC_FILINGS_MALFORMED");
   let matchIndex = -1;
   for (let i = 0; i < rows.length; i++) {
-    if (rows[i] === "10-K" && dates![i] === vendorFilingDate &&
-        reports![i] === vendorFiscalEnd) {
+    if (rows[i] === "10-K" && filingDates[i] === vendorFilingDate &&
+        reportDates[i] === vendorFiscalEnd) {
       if (matchIndex !== -1) throw new Error("AG_SEC_AMBIGUOUS_FILING");
       matchIndex = i;
     }
   }
   if (matchIndex < 0) throw new Error("AG_SEC_FILING_NOT_RECONCILED");
-  const accession = str(accessions![matchIndex]), doc = str(documents![matchIndex]);
+  const accession = str(accessionNumbers[matchIndex]), doc = str(primaryDocuments[matchIndex]);
   if (!/^\d{10}-\d{2}-\d{6}$/.test(accession) || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,180}$/.test(doc) ||
       doc.includes("..")) throw new Error("AG_SEC_INVALID_FILING_METADATA");
   if (Date.parse(vendorFilingDate + "T00:00:00Z") > Date.parse(vendorCaptureTime))
