@@ -1,0 +1,25 @@
+name: AG SEC annual financial facts validation
+on:
+  pull_request:
+    paths:
+      - 'app/api/accelerated-growth/sec-facts-reconciliation/**'
+      - 'lib/discovery/accelerated-growth/sec-facts-reconciliation.ts'
+      - 'supabase/migrations/20261104110000_ag_sec_facts_active_uniqueness.sql'
+      - 'tests/ag-sec-facts-reconciliation/**'
+      - '.github/workflows/ag-sec-facts-reconciliation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-sec-facts-reconciliation/check.cjs
