@@ -1,0 +1,25 @@
+name: AG SEC issuer verification
+on:
+  pull_request:
+    paths:
+      - 'app/api/accelerated-growth/sec-issuer-verification/**'
+      - 'lib/discovery/accelerated-growth/sec-issuer-verification.ts'
+      - 'supabase/migrations/20261104100000_ag_sec_issuer_active_uniqueness.sql'
+      - 'tests/ag-sec-issuer-verification/**'
+      - '.github/workflows/ag-sec-issuer-verification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-sec-issuer-verification/check.cjs
