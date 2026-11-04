@@ -8,9 +8,9 @@ const migration = fs.readFileSync("supabase/migrations/20261104090000_ag_evidenc
 const transpiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const exports = {};
-vm.runInNewContext(transpiled, { exports, require: () => ({}), URL, AbortSignal });
-const { validateEvidence, VERSION } = exports;
+const moduleExports = {};
+vm.runInNewContext(transpiled, { exports: moduleExports, require: () => ({}), URL, AbortSignal });
+const { validateEvidence, VERSION } = moduleExports;
 assert.equal(VERSION, "ag-evidence-capture-v1");
 const p = { symbol: "MSFT", companyName: "Microsoft Corporation", exchangeShortName: "NASDAQ", currency: "USD" };
 const q = { symbol: "MSFT", price: 410, marketCap: 3e12, exchangeShortName: "NASDAQ", currency: "USD" };
