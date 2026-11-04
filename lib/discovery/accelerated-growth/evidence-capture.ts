@@ -28,7 +28,7 @@ export type Evidence = {
 type VendorRow = Record<string, unknown>;
 const norm = (x: unknown) => typeof x === "string" ? x.trim().toUpperCase() : "";
 const finite = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
-const dateOnly = (x: unknown) => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) &&
+const dateOnly = (x: unknown): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) &&
   !Number.isNaN(Date.parse(x + "T00:00:00Z"));
 
 export function validateEvidence(symbol: string, profile: unknown, quote: unknown,
