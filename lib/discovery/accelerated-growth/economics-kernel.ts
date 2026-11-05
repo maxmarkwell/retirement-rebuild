@@ -97,7 +97,8 @@ function scenarioOutcome(
   const terminalEquityValueUsd = terminalEnterpriseValueUsd - a.terminalNetDebtUsd;
   if (!finite(terminalEnterpriseValueUsd) || !finite(terminalEquityValueUsd))
     failure("UNSUPPORTED_TERMINAL_EQUITY_" + scenario.toUpperCase());
-  // Insolvency-equity floor permits a full -100% adverse outcome.\n  const impliedPriceUsd = Math.max(0, terminalEquityValueUsd) / a.terminalDilutedShares;
+  // Insolvency-equity floor permits a full -100% adverse outcome.
+  const impliedPriceUsd = Math.max(0, terminalEquityValueUsd) / a.terminalDilutedShares;
   if (!finite(impliedPriceUsd) || impliedPriceUsd < 0)
     failure("INVALID_TERMINAL_PRICE_" + scenario.toUpperCase());
   const simpleReturn = impliedPriceUsd / priceUsd - 1;
