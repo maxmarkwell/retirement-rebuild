@@ -1,0 +1,23 @@
+name: AG authorized candidate worker
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/authorized-candidate-worker.ts'
+      - 'tests/ag-authorized-candidate-worker/**'
+      - '.github/workflows/ag-authorized-candidate-worker.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-authorized-candidate-worker/check.cjs
