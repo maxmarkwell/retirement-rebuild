@@ -95,11 +95,10 @@ function scenarioOutcome(
 
   const terminalEnterpriseValueUsd = a.annualUnleveredFcfUsd * a.terminalEvToFcf;
   const terminalEquityValueUsd = terminalEnterpriseValueUsd - a.terminalNetDebtUsd;
-  if (!finite(terminalEnterpriseValueUsd) || terminalEquityValueUsd <= 0 ||
-      !finite(terminalEquityValueUsd))
+  if (!finite(terminalEnterpriseValueUsd) || !finite(terminalEquityValueUsd))
     failure("UNSUPPORTED_TERMINAL_EQUITY_" + scenario.toUpperCase());
-  const impliedPriceUsd = terminalEquityValueUsd / a.terminalDilutedShares;
-  if (!finite(impliedPriceUsd) || impliedPriceUsd <= 0)
+  // Insolvency-equity floor permits a full -100% adverse outcome.\n  const impliedPriceUsd = Math.max(0, terminalEquityValueUsd) / a.terminalDilutedShares;
+  if (!finite(impliedPriceUsd) || impliedPriceUsd < 0)
     failure("INVALID_TERMINAL_PRICE_" + scenario.toUpperCase());
   const simpleReturn = impliedPriceUsd / priceUsd - 1;
   const annualizedReturn = Math.pow(impliedPriceUsd / priceUsd, 1 / horizonYears) - 1;
