@@ -57,7 +57,7 @@ const higher = run({ ...input, priceUsd: 60 });
 assert.equal(higher.outcomes.favorable.impliedPriceUsd, 80);
 assert.ok(higher.outcomes.base.simpleReturn < lower.outcomes.base.simpleReturn);
 assert.ok(higher.upsideVsDownside < lower.upsideVsDownside);
-assert.equal(higher.outcomes.adverse.simpleReturn, -2/3);
+assert.ok(Math.abs(higher.outcomes.adverse.simpleReturn - (-2/3)) < 1e-12);
 for (const thesisPath of [
   "accelerating_fundamentals", "emerging_opportunity", "turnaround",
   "catalyst_driven", "valuation_dislocation",
