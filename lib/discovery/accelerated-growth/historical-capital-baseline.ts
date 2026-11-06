@@ -110,6 +110,10 @@ export function extractHistoricalCapitalBaseline(
       !/^\d{10}-\d{2}-\d{6}$/.test(input.accession) ||
       !date(input.filingDate) || !date(input.fiscalStart) || !date(input.fiscalEnd) ||
       input.fiscalStart >= input.fiscalEnd || input.fiscalEnd > input.filingDate ||
+      (Date.parse(input.fiscalEnd + "T00:00:00Z") -
+       Date.parse(input.fiscalStart + "T00:00:00Z")) / MS_DAY < 330 ||
+      (Date.parse(input.fiscalEnd + "T00:00:00Z") -
+       Date.parse(input.fiscalStart + "T00:00:00Z")) / MS_DAY > 380 ||
       !obj(raw) || Number(raw.cik) !== Number(input.cik) ||
       !obj(raw.facts) || !obj(raw.facts["us-gaap"]))
     throw new Error("AG_BASELINE_INVALID_SOURCE_OR_PERIOD");
