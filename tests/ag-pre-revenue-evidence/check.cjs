@@ -38,7 +38,7 @@ const missingRows=inspectLiveAnnualVendorBatch(["ZERO"],asOf,timestamp,{ZERO:{
 }});
 assert.equal(missingRows.evidenceGaps,1);
 assert.equal(missingRows.rows[0].evidenceFailureCode,"AG_BATCH_INSUFFICIENT_ANNUAL_ROWS");
-const duplicateIncome=income.map(x=>({...x}));duplicateIncome[1].date=duplicateIncome[0].date;
+const duplicateIncome=income.map(x=>({...x}));duplicateIncome[1].date=duplicateIncome[0].date;duplicateIncome[1].filingDate=duplicateIncome[0].filingDate;
 const dup=inspectLiveAnnualVendorBatch(["ZERO"],asOf,timestamp,{ZERO:{income:duplicateIncome,cash}});
 assert.equal(dup.rows[0].evidenceFailureCode,"AG_BATCH_DUPLICATE_FISCAL_END");
 const future=income.map(x=>({...x}));future[0].filingDate="2027-04-01";
