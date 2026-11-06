@@ -93,7 +93,7 @@ function evidence(symbol:string, incomeRaw:unknown, cashRaw:unknown, asOf:string
   for (const r of cashRaw) {
     if (!record(r) || symbolOf(r.symbol)!==symbol || !date(r.date) ||
         !date(filingDate(r)) || String(filingDate(r))>asOf ||
-        r.date>filingDate(r) ||
+        String(r.date)>String(filingDate(r)) ||
         (r.period!==undefined && r.period!=="FY") ||
         cashMap.has(r.date))
       throw Error("AG_BATCH_INCONSISTENT_CASH_SOURCE");
