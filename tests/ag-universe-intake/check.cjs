@@ -72,7 +72,7 @@ const startedAt="2026-11-06T14:00:00.000Z",finishedAt=()=> "2026-11-06T14:00:01.
    {maxPages:6,pageSize:3,startedAt,finishedAt}),/INVALID_SCOPE/);
  assert.match(route,/db\.auth\.getUser\(\)/);
  assert.match(route,/cache: "no-store"/);
- assert.match(route,/isActivelyTrading/);
+ assert.match(route,/AG_UNIVERSE_FILTERS/);
  assert.match(route,/executionEnabled:false,transactionsWritten:false/);
  assert.doesNotMatch(route,/\.from\(|\.insert\(|\.update\(|\.delete\(|getOpenAIClient|executeTransactions/);
  assert.doesNotMatch(source,/sort\(|sample\(|getOpenAIClient|executeTransactions/);
