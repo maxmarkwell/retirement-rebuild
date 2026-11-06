@@ -13,7 +13,7 @@ import {
  * successive reported annual fiscal ends to infer THREE full-year starts
  * from their previous-year ends, not from guessed calendar-year starts.
  */
-export const AG_LIVE_SIGNAL_BATCH_VERSION = "ag-live-signal-batch-v1";
+export const AG_LIVE_SIGNAL_BATCH_VERSION = "ag-live-signal-batch-v2";
 export const FMP_INCOME_SOURCE = "https://financialmodelingprep.com/stable/income-statement";
 export const FMP_CASH_SOURCE = "https://financialmodelingprep.com/stable/cash-flow-statement";
 type Row = Record<string, unknown>;
@@ -29,6 +29,7 @@ const iso=(v:unknown):v is string=>typeof v==="string"&&!Number.isNaN(Date.parse
 export type LiveBatchRow = {
   symbol:string;
   result:"SIGNALS_PRESENT"|"NO_MECHANICAL_SIGNAL"|"EVIDENCE_GAP";
+  evidenceFailureCode:string|null;
   report:InflectionReport|null;
   fiscalEnds:string[];
   missing:string[];
@@ -142,7 +143,7 @@ export function inspectLiveAnnualVendorBatch(
     const raw=input[symbol];
     if (!raw) return {
       symbol,result:"EVIDENCE_GAP",report:null,fiscalEnds:[],
-      missing:["PROVIDER_DATA_UNAVAILABLE"],sourceKind:"FMP_VENDOR_ONLY",
+      missing:["PROVIDER_DATA_UNAVAILABLE"],evidenceFailureCode:"PROVIDER_DATA_UNAVAILABLE",sourceKind:"FMP_VENDOR_ONLY",
       issuerVerified:false,secFactsReconciled:false,valueAtPriceCalculated:false,
     };
     try {
@@ -152,14 +153,17 @@ export function inspectLiveAnnualVendorBatch(
         symbol,result:report.signals.length?
           "SIGNALS_PRESENT" as const:"NO_MECHANICAL_SIGNAL" as const,
         report,fiscalEnds:report.fiscalEnds,missing:report.missing,
+        evidenceFailureCode:null,
         sourceKind:"FMP_VENDOR_ONLY" as const,
         issuerVerified:false as const,secFactsReconciled:false as const,
         valueAtPriceCalculated:false as const,
       };
-    } catch {
+    } catch (error) {
+      const code = error instanceof Error && /^AG_(?:BATCH|INFLECTION)_[A-Z0-9_]+$/.test(error.message)
+        ? error.message : "AG_BATCH_UNKNOWN_FINANCIAL_EVIDENCE_ERROR";
       return {
         symbol,result:"EVIDENCE_GAP" as const,report:null,fiscalEnds:[],
-        missing:["FINANCIAL_SOURCE_IDENTITY_DATE_OR_PERIOD_UNVERIFIED"],
+        missing:[code],evidenceFailureCode:code,
         sourceKind:"FMP_VENDOR_ONLY" as const,
         issuerVerified:false as const,secFactsReconciled:false as const,
         valueAtPriceCalculated:false as const,
@@ -181,6 +185,8 @@ export function inspectLiveAnnualVendorBatch(
       "FMP-only annual company statements are vendor evidence, NOT SEC reconciled facts or independent issuer verification.",
       "The three annual duration starts are inferred from immediately prior fiscal ends, not directly verified with SEC filing period tags.",
       "Historical evidence can be missing, stale, restated or incomparable; all resulting signals are unverified research hypotheses.",
+      "Machine-readable evidence failure codes report the specific validation stage but never prove eligibility or economic attractiveness.",
+      "A pre-revenue company may have no margin or revenue growth calculation and still qualify through other independently verified AG thesis paths.",
       "Annual CFO-minus-capex is historical levered FCF proxy, never future unlevered FCF.",
       "No quote verification, valuation at price, independent research, Committee decision, trading, order sizing, or portfolio modifications are performed.",
     ],
