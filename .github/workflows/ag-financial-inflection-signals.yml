@@ -1,0 +1,23 @@
+name: AG charter financial inflection research signals
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/financial-inflection-signals.ts'
+      - 'tests/ag-financial-inflection-signals/**'
+      - '.github/workflows/ag-financial-inflection-signals.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-financial-inflection-signals/check.cjs
