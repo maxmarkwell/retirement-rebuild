@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
+import {auditAgAccountingIdentity,type AccountingIdentityAudit} from "@/lib/discovery/accelerated-growth/accounting-identity-audit";
 import { diagnoseSecMarginDiscrepancies, type MarginDiscrepancyDiagnostic } from "@/lib/discovery/accelerated-growth/sec-margin-discrepancy-diagnostics";
 import {createClient} from "@/lib/supabase/server";
 import {
@@ -55,7 +56,8 @@ async function vendorInput(symbol:string,asOf:string):Promise<SecMarginInput>{
 }
 type ResultRow={
  symbol:string;status:"VERIFIED_MARGIN_CHANGE"|"NEEDS_REVIEW"|"EVIDENCE_GAP";
- check:SecMarginResult|null;diagnostic:MarginDiscrepancyDiagnostic|null; failureCode:string|null;
+ check:SecMarginResult|null;diagnostic:MarginDiscrepancyDiagnostic|null;
+ accountingIdentity:AccountingIdentityAudit|null;failureCode:string|null;
 };
 export async function POST(request:NextRequest){
  const db=await createClient();
@@ -84,13 +86,14 @@ export async function POST(request:NextRequest){
    const check=reconcileTwoYearSecMargins(input,
     sources.tickerMap,sources.submissions,sources.facts);
    rows.push({symbol,status:check.verdict,check,
-    diagnostic:diagnoseSecMarginDiscrepancies(check,sources.facts),failureCode:null});
+    diagnostic:diagnoseSecMarginDiscrepancies(check,sources.facts),
+    accountingIdentity:auditAgAccountingIdentity(input,check,sources.facts,sources.submissions),failureCode:null});
   }catch(error){
    const msg=error&&typeof error==="object"&&"message" in error?
     (error as {message:unknown}).message:null;
    const code=typeof msg==="string"&&/^AG_SEC_MARGIN_[A-Z0-9_]+$/.test(msg)
     ?msg:"AG_SEC_MARGIN_VALIDATION_UNAVAILABLE";
-   rows.push({symbol,status:"EVIDENCE_GAP",check:null,diagnostic:null,failureCode:code});
+   rows.push({symbol,status:"EVIDENCE_GAP",check:null,diagnostic:null,accountingIdentity:null,failureCode:code});
   }
  }
  return NextResponse.json({

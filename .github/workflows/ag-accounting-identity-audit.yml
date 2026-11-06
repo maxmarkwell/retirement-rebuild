@@ -1,0 +1,26 @@
+name: AG accounting identity and amended filing audit
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/accounting-identity-audit.ts'
+      - 'app/api/accelerated-growth/sec-two-year-margin/**'
+      - 'tests/ag-accounting-identity-audit/**'
+      - '.github/workflows/ag-accounting-identity-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-sec-two-year-margin/check.cjs
+      - run: node tests/ag-sec-margin-diagnostics/check.cjs
+      - run: node tests/ag-accounting-identity-audit/check.cjs
