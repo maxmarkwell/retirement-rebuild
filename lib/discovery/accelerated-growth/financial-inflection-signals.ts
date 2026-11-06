@@ -99,7 +99,7 @@ export function inspectAgFinancialInflections(
     if (days<330 || days>380) throw new Error("AG_INFLECTION_NONANNUAL_PERIOD");
     if ([r.revenueUsd,r.operatingIncomeUsd,r.netIncomeUsd,
       r.operatingCashFlowUsd,r.capitalExpendituresUsd].some(v=>v!==null && !finite(v)) ||
-      (r.revenueUsd!==null && r.revenueUsd<=0) ||
+      (r.revenueUsd!==null && r.revenueUsd<0) ||
       (r.capitalExpendituresUsd!==null && r.capitalExpendituresUsd<0))
       throw new Error("AG_INFLECTION_INVALID_FINANCIAL_VALUE");
     symbols.add(r.symbol);
@@ -146,6 +146,8 @@ export function inspectAgFinancialInflections(
       "Annual CFO-minus-capex proxy moved from non-positive to positive.",
       [prev,latest]);
   const missing:string[]=[];
+  if (annual.some(r=>r.revenueUsd===0))
+    missing.push("ZERO_REVENUE_PERIOD_NO_REVENUE_MULTIPLE_OR_MARGIN_INFERENCE");
   if (acceleration===null) missing.push("THREE_YEAR_COMPARABLE_REVENUE");
   if (marginChange===null) missing.push("TWO_YEAR_COMPARABLE_OPERATING_MARGIN");
   if (prevFcf===null || latestFcf===null) missing.push("TWO_YEAR_OPERATING_CASH_FLOW_AND_CAPEX");
@@ -174,6 +176,7 @@ export function inspectAgFinancialInflections(
       "A mechanical historical change does not prove an inflection will persist or that today's stock price offers asymmetric returns.",
       "Annual CFO minus capital expenditures is a historical levered cash flow proxy, NOT future unlevered free cash flow.",
       "Material thresholds only identify hypotheses for research, not path qualifications, BUY/REJECT rules or quotas.",
+      "Zero-revenue annual periods are valid observations, not evidence failures. Revenue growth and operating margin comparisons requiring a positive denominator remain unavailable.",
       "Missing data remains missing. Turnaround and emerging/catalyst/dislocation paths must not be suppressed by revenue growth filters.",
       "This module does not search the market or fetch data; coverage must be audited independently.",
     ],
