@@ -99,7 +99,7 @@ function filings(submissions:Obj,v:VendorAnnualMargin){
  if(indices.length!==1)return null;
  const i=indices[0],acc=(accessionNumber as unknown[])[i],doc=(primaryDocument as unknown[])[i];
  if(typeof acc!=="string"||!/^\d{10}-\d{2}-\d{6}$/.test(acc)||
-   typeof doc!=="string"||!^[a-zA-Z0-9][a-zA-Z0-9._-]{0,180}$/.test(doc))return null;
+   typeof doc!=="string"||!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,180}$/.test(doc))return null;
  return {accession:acc,doc};
 }
 export function reconcileTwoYearSecMargins(
