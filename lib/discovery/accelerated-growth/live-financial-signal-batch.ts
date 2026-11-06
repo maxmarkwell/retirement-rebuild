@@ -159,8 +159,10 @@ export function inspectLiveAnnualVendorBatch(
         valueAtPriceCalculated:false as const,
       };
     } catch (error) {
-      const code = error instanceof Error && /^AG_(?:BATCH|INFLECTION)_[A-Z0-9_]+$/.test(error.message)
-        ? error.message : "AG_BATCH_UNKNOWN_FINANCIAL_EVIDENCE_ERROR";
+      const message = error && typeof error === "object" && "message" in error
+        ? (error as { message: unknown }).message : null;
+      const code = typeof message === "string" && /^AG_(?:BATCH|INFLECTION)_[A-Z0-9_]+$/.test(message)
+        ? message : "AG_BATCH_UNKNOWN_FINANCIAL_EVIDENCE_ERROR";
       return {
         symbol,result:"EVIDENCE_GAP" as const,report:null,fiscalEnds:[],
         missing:[code],evidenceFailureCode:code,
