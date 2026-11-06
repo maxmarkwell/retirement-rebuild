@@ -18,7 +18,7 @@ export type TaggedFact={
  amountUsd:number;start:string;end:string;filed:string;accession:string;
 };
 export type YearDiagnostic={
- fiscalEnd:string;accession:string|null;
+ fiscalEnd:string;filedDate:string;accession:string|null;
  reviewReason:"CANONICAL_MATCH"|"CANONICAL_DIFFERENCE"|"CANONICAL_FACT_MISSING"|"SEC_TAG_AMBIGUOUS"|"ORIGINAL_FILING_UNVERIFIED";
  revenueDifferenceUsd:number|null;
  revenueToleranceUsd:number|null;
@@ -98,7 +98,7 @@ export function diagnoseSecMarginDiscrepancies(
    inventory(companyFactsRaw,y.accession,y.filedDate,y.fiscalEnd):
    {facts:[],truncated:false};
   return {
-   fiscalEnd:y.fiscalEnd,accession:y.accession,reviewReason:reason,
+   fiscalEnd:y.fiscalEnd,filedDate:y.filedDate,accession:y.accession,reviewReason:reason,
    revenueDifferenceUsd:revenue.delta,revenueToleranceUsd:revenue.tolerance,
    operatingDifferenceUsd:operating.delta,operatingToleranceUsd:operating.tolerance,
    alternativeOriginalFilingFacts:reason==="CANONICAL_MATCH"?[]:candidates.facts,
