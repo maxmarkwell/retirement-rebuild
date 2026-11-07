@@ -41,7 +41,7 @@ const facts={facts:{"us-gaap":{
  IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest:{
   units:{USD:[row(0,82_676_000),row(1,259_264_000)]},
  },
- InterestExpenseNonOperating:{units:{USD:[
+ InterestExpenseNonoperating:{units:{USD:[
   row(0,10_934_000),row(1,7_887_000),
  ]}},
 }}};
@@ -51,6 +51,13 @@ assert.equal(audit.years[0].resolution,"VENDOR_ALIGNS_PRETAX_NOT_OPERATING");
 assert.equal(audit.years[1].resolution,"VENDOR_ALIGNS_PRETAX_NOT_OPERATING");
 assert.equal(audit.years[0].differenceMatchesReportedInterest,true);
 assert.equal(audit.years[1].differenceMatchesReportedInterest,true);
+assert.equal(audit.years[0].originalSecInterestExpenseUsd,10_934_000);
+assert.equal(audit.years[1].originalSecInterestExpenseUsd,7_887_000);
+const wrongInterest=structuredClone(facts);
+wrongInterest.facts["us-gaap"].InterestExpenseNonoperating.units.USD[1].accn="0000001234-26-000099";
+const wrongInterestAudit=auditAgAccountingIdentity(input,check,wrongInterest,submissions);
+assert.equal(wrongInterestAudit.years[1].originalSecInterestExpenseUsd,null);
+assert.equal(wrongInterestAudit.years[1].differenceMatchesReportedInterest,null);
 assert.equal(audit.anyPretaxMislabelEvidence,true);
 assert.equal(audit.years[1].amendmentReviewRequired,true);
 assert.equal(audit.years[1].amendmentFilings[0].accession,"0000001234-26-000099");
