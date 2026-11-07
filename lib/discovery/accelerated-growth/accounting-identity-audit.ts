@@ -14,7 +14,7 @@ const pretaxTags=[
  "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
  "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
 ] as const;
-const interestTags=["InterestExpenseNonOperating","InterestExpense"] as const;
+const interestTags=["InterestExpenseNonoperating","InterestExpenseNonOperating","InterestExpense"] as const;
 const tolerance=(a:number,b:number)=>Math.max(1_000_000,.005*Math.max(Math.abs(a),Math.abs(b)));
 const ms=86400000;
 const dateValue=(s:string)=>Date.parse(s+"T00:00:00Z");
