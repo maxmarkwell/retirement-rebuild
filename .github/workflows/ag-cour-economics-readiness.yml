@@ -1,0 +1,24 @@
+name: AG COUR price-implied FCF hurdle safety
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/price-implied-fcf-hurdle.ts'
+      - 'app/api/accelerated-growth/cour-economics-readiness/**'
+      - 'tests/ag-cour-economics-readiness/**'
+      - '.github/workflows/ag-cour-economics-readiness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-cour-economics-readiness/check.cjs
