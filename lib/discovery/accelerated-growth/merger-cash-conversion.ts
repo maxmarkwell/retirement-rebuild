@@ -7,11 +7,12 @@ export const AG_CASH_CONVERSION_VERSION="ag-post-merger-cash-conversion-v1";
 export type QuarterlyEvidence={
  quarterEnd:string; cfoUsd:number; reportedFcfUsd:number;
  integrationCashPaymentsUsd:number; severanceCashPaymentsUsd:number;
- adjustedEbitdaUsd:number; stockCompensationUsd:number;
+ adjustedEbitdaUsd:number;
  sourceUrl:string;
 };
 export type CashConversionInput={
  symbol:string;asOf:string;quarterly:[QuarterlyEvidence,QuarterlyEvidence];
+ sixMonthCfoUsd:number;sixMonthFcfUsd:number;
  nineMonthCfoUsd:number;nineMonthFcfUsd:number;
  nineMonthSbcUsd:number;nineMonthCapexContentSoftwareUsd:number;
  nineMonthIntegrationCashPaymentsUsd:number;
@@ -56,6 +57,7 @@ export function assessAgMergerCashConversion(input:CashConversionInput):CashConv
   input.quarterly[0].quarterEnd!=="2026-06-30"||
   input.quarterly[1].quarterEnd!=="2026-09-30"||
   !url(input.nineMonthEvidenceUrl)||!url(input.synergySourceUrl)||
+  !finite(input.sixMonthCfoUsd)||!finite(input.sixMonthFcfUsd)||
   !finite(input.nineMonthCfoUsd)||!finite(input.nineMonthFcfUsd)||
   !finite(input.nineMonthSbcUsd)||input.nineMonthSbcUsd<0||
   !finite(input.nineMonthCapexContentSoftwareUsd)||input.nineMonthCapexContentSoftwareUsd<0||
@@ -68,9 +70,9 @@ export function assessAgMergerCashConversion(input:CashConversionInput):CashConv
  const qs:ConversionQuarter[]=input.quarterly.map(q=>{
   if(!date(q.quarterEnd)||q.quarterEnd>input.asOf||
    !url(q.sourceUrl)||![q.cfoUsd,q.reportedFcfUsd,q.integrationCashPaymentsUsd,
-    q.severanceCashPaymentsUsd,q.adjustedEbitdaUsd,q.stockCompensationUsd].every(finite)||
+    q.severanceCashPaymentsUsd,q.adjustedEbitdaUsd].every(finite)||
    q.integrationCashPaymentsUsd<0||q.severanceCashPaymentsUsd<0||
-   q.stockCompensationUsd<0||q.cfoUsd<q.reportedFcfUsd)
+   q.cfoUsd<q.reportedFcfUsd)
    throw Error("AG_CASH_CONVERSION_QUARTER_INVALID");
   const cashPayments=q.integrationCashPaymentsUsd+q.severanceCashPaymentsUsd;
   return {
@@ -90,8 +92,8 @@ export function assessAgMergerCashConversion(input:CashConversionInput):CashConv
  if(input.nineMonthIntegrationCashPaymentsUsd<0||
    input.nineMonthSeveranceCashPaymentsUsd<0||
    ytdPayments+250000<q2.disclosedMergerCashPaymentsUsd+q3.disclosedMergerCashPaymentsUsd||
-   !near(q3.reportedFcfUsd,input.nineMonthFcfUsd-(-29600000))||
-   !near(q3.cfoUsd,input.nineMonthCfoUsd-(-5200000)))
+   !near(q3.reportedFcfUsd,input.nineMonthFcfUsd-input.sixMonthFcfUsd)||
+   !near(q3.cfoUsd,input.nineMonthCfoUsd-input.sixMonthCfoUsd))
   throw Error("AG_CASH_CONVERSION_PERIOD_RECONCILIATION_FAILED");
  return {
   version:AG_CASH_CONVERSION_VERSION,symbol:input.symbol,asOf:input.asOf,
