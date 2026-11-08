@@ -1,0 +1,25 @@
+name: AG COUR post-merger cash conversion bridge
+on:
+  pull_request:
+    paths:
+      - 'lib/discovery/accelerated-growth/merger-cash-conversion.ts'
+      - 'app/api/accelerated-growth/cour-merger-cash-conversion/**'
+      - 'tests/ag-cour-merger-cash-conversion/**'
+      - '.github/workflows/ag-cour-merger-cash-conversion.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/ag-cour-economics-readiness/check.cjs
+      - run: node tests/ag-cour-merger-cash-conversion/check.cjs
