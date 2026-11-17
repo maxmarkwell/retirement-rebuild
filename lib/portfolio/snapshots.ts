@@ -2,12 +2,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calculatePortfolioAccounting } from "@/lib/portfolio/accounting";
 import { getMarketQuotes } from "@/lib/market-data/twelve-data";
+import { planSnapshotQuoteRefresh, SNAPSHOT_PROVIDER_FETCH_LIMIT } from "@/lib/portfolio/snapshot-quote-plan";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 type SnapshotResult = {
   snapshotDate: string;
   count: number;
+  skippedPortfolioNames: string[];
+  missingTickers: string[];
 };
 
 type QuoteRefreshResult = {
@@ -18,8 +21,6 @@ type QuoteRefreshResult = {
   missingTickers: string[];
 };
 
-const SNAPSHOT_PROVIDER_FETCH_LIMIT = 6; // Twelve Data free plan: 8 credits/minute.
-const SNAPSHOT_REFRESH_CREDITS_PER_RUN = 6; // Leave headroom for other traffic.
 const DENVER_TIME_ZONE = "America/Denver";
 
 // ---------------------------------------------------------
@@ -190,35 +191,25 @@ export async function refreshSnapshotQuotesForUser(
     );
   }
 
-  const freshTickerSet = new Set<string>();
-
-  for (const cachedQuote of cachedQuotes ?? []) {
-    const ticker = cachedQuote.ticker
-      .trim()
-      .toUpperCase();
-
-    const fetchedDate =
-      getDenverDateFromTimestamp(
-        cachedQuote.fetched_at
-      );
-
-    if (
-      fetchedDate === snapshotDate &&
-      Number(cachedQuote.price) > 0
-    ) {
-      freshTickerSet.add(ticker);
-    }
+  const refreshPlan = planSnapshotQuoteRefresh(
+    heldTickers,
+    (cachedQuotes ?? []).map((q) => ({
+      ticker: q.ticker,
+      price: q.price == null ? null : Number(q.price),
+      fetched_at: q.fetched_at,
+    })),
+    snapshotDate,
+  );
+  const freshTickerSet = new Set(refreshPlan.freshTickers);
+  const tickersNeedingRefresh = refreshPlan.scheduledTickers;
+  if (refreshPlan.deferredTickers.length > 0) {
+    console.warn("Snapshot quote budget deferred symbols:", refreshPlan.deferredTickers);
   }
-
-  const tickersNeedingRefresh =
-    heldTickers.filter(
-      (ticker) => !freshTickerSet.has(ticker)
-    );
 
   const refreshedTickers: string[] = [];
 
   // Fetch every held symbol in provider-sized batches.
-  for (let offset = 0; offset < Math.min(tickersNeedingRefresh.length, SNAPSHOT_REFRESH_CREDITS_PER_RUN); offset += SNAPSHOT_PROVIDER_FETCH_LIMIT) {
+  for (let offset = 0; offset < tickersNeedingRefresh.length; offset += SNAPSHOT_PROVIDER_FETCH_LIMIT) {
     const tickersToFetch = tickersNeedingRefresh.slice(offset, offset + SNAPSHOT_PROVIDER_FETCH_LIMIT);
     let quotes: Awaited<ReturnType<typeof getMarketQuotes>>;
     try {
@@ -503,6 +494,8 @@ export async function captureDailySnapshotsForUser(
   return {
     snapshotDate,
     count: rows.length,
+    skippedPortfolioNames: skipped.map((portfolio) => portfolio.name),
+    missingTickers: missingPrices,
   };
 }
 

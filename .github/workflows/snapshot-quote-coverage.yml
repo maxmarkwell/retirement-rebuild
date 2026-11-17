@@ -1,0 +1,25 @@
+name: Snapshot Quote Coverage Regression
+on:
+  pull_request:
+    paths:
+      - 'lib/portfolio/snapshots.ts'
+      - 'lib/portfolio/snapshot-quote-plan.ts'
+      - 'app/api/snapshots/daily/**'
+      - 'tests/snapshot-quote-coverage/**'
+      - '.github/workflows/snapshot-quote-coverage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit --incremental false
+      - run: node tests/snapshot-quote-coverage/check.cjs
