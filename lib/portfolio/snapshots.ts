@@ -9,6 +9,8 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 type SnapshotResult = {
   snapshotDate: string;
   count: number;
+  skippedPortfolioNames: string[];
+  missingTickers: string[];
 };
 
 type QuoteRefreshResult = {
@@ -492,6 +494,8 @@ export async function captureDailySnapshotsForUser(
   return {
     snapshotDate,
     count: rows.length,
+    skippedPortfolioNames: skipped.map((portfolio) => portfolio.name),
+    missingTickers: missingPrices,
   };
 }
 
