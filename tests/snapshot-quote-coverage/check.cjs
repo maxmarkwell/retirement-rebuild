@@ -4,9 +4,9 @@ const src=fs.readFileSync("lib/portfolio/snapshot-quote-plan.ts","utf8");
 const code=ts.transpileModule(src,{compilerOptions:{
  module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,
 }}).outputText;
-const exports={};vm.runInNewContext(code,{exports,Intl,Date,Map,Set});
+const moduleExports={};vm.runInNewContext(code,{exports:moduleExports,Intl,Date,Map,Set});
 const {planSnapshotQuoteRefresh:plan,SNAPSHOT_REFRESH_CREDITS_PER_RUN:budget,
- SNAPSHOT_PROVIDER_FETCH_LIMIT:batch}=exports;
+ SNAPSHOT_PROVIDER_FETCH_LIMIT:batch}=moduleExports;
 assert.equal(batch,7);
 assert.equal(budget,7);
 assert.ok(budget<=7,"leave one credit of 8/minute cap");
