@@ -65,12 +65,21 @@ export async function GET(
         supabase
       );
 
+    const complete = result.skippedPortfolioNames.length === 0;
+    if (!complete) {
+      console.error("Daily snapshot incomplete:", {
+        date: result.snapshotDate,
+        skippedPortfolioNames: result.skippedPortfolioNames,
+        missingTickers: result.missingTickers,
+      });
+    }
     return NextResponse.json({
-      success: true,
-      snapshotDate:
-        result.snapshotDate,
+      success: complete,
+      snapshotDate: result.snapshotDate,
       count: result.count,
-    });
+      skippedPortfolioNames: result.skippedPortfolioNames,
+      missingTickers: result.missingTickers,
+    }, { status: complete ? 200 : 503 });
   } catch (error) {
     console.error(
       "Daily snapshot failed:",
