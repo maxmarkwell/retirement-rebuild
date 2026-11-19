@@ -6,8 +6,12 @@
       "schedule": "0 22 * * 1-5"
     },
     {
-      "path": "/api/snapshots/daily",
+      "path": "/api/snapshots/retry",
       "schedule": "0 23 * * 1-5"
+    },
+    {
+      "path": "/api/snapshots/daily",
+      "schedule": "0 0 * * 2-6"
     }
   ]
 }
