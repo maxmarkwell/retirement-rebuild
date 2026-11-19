@@ -65,7 +65,18 @@ assert.match(snapshot,/if \(eligiblePortfolios\.length === 0\)/);
 assert.match(snapshot,/\.upsert\(rows,/);
 assert.doesNotMatch(snapshot,/marketPrices\[ticker\]\s*\?\?\s*(purchase|cost|basis)/);
 const vercel=JSON.parse(fs.readFileSync("vercel.json","utf8"));
-assert.equal(vercel.crons.length,2);
+assert.equal(vercel.crons.length,3);
 assert.deepEqual(vercel.crons.map(c=>c.path),
- ["/api/snapshots/prewarm","/api/snapshots/daily"]);
+ ["/api/snapshots/prewarm","/api/snapshots/retry","/api/snapshots/daily"]);
+assert.deepEqual(vercel.crons.map(c=>c.schedule),["0 22 * * 1-5","0 23 * * 1-5","0 0 * * 2-6"]);
+const retry=fs.readFileSync("app/api/snapshots/retry/route.ts","utf8");
+assert.match(retry,/export \{ GET \} from "\.\.\/prewarm\/route"/);
+// A missing response from the second window can be retried in a third run.
+const partiallyReturned=completed.map(q=>q.ticker==="SENEA"?
+ {...q,fetched_at:yesterday}:q);
+const third=plan(tickers,partiallyReturned,day);
+assert.deepEqual([...third.scheduledTickers],["SENEA"]);
+assert.equal(third.deferredTickers.length,0);
+assert.equal(plan(tickers,partiallyReturned.map(q=>q.ticker==="SENEA"?
+ {...q,fetched_at:today}:q),day).needingRefresh.length,0);
 console.log("14-ticker two-cron coverage, oldest-first, freshness, partial-response status and safety passed.");
